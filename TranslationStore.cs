@@ -56,6 +56,20 @@ internal sealed class TranslationStore(IPluginLog log, ISeStringEvaluator evalua
     ///         which the evaluator does not offer anyway.
     ///     </para>
     /// </remarks>
+    /// <summary>
+    ///     The corpus schema this build reads.
+    /// </summary>
+    /// <remarks>
+    ///     A mismatch is only a warning, because loading anyway is usually right — an unknown future
+    ///     version may well be readable. Schema 1 is the case where it is not: it named the entry
+    ///     fields <c>en</c> and <c>es</c>, so this build parses such a file without error, matches
+    ///     nothing in it, and loads zero entries. On screen that looks identical to a broken plugin.
+    /// </remarks>
+    private const int SupportedSchemaVersion = 2;
+
+    /// <summary>How many unevaluable lines to name in the log before falling back to a tally.</summary>
+    private const int MaxReportedFailures = 10;
+
     private List<TimeSensitiveEntry> timeSensitive = [];
 
     private long lastTimeRefreshTicks;
@@ -315,12 +329,20 @@ internal sealed class TranslationStore(IPluginLog log, ISeStringEvaluator evalua
                     ?? throw new InvalidDataException("Translation file deserialized to null.");
         }
 
-        if (model.SchemaVersion != 1)
+        // Refused, not warned about and loaded anyway. A schema this build cannot read parses without
+        // error, matches nothing, and yields zero entries — which on screen is indistinguishable from
+        // a broken plugin, and sends whoever hits it looking in the wrong place. Schema 1 is exactly
+        // that case: it named the entry fields "en" and "es" where this reads "source" and "target".
+        if (model.SchemaVersion != SupportedSchemaVersion)
         {
-            log.Warning(
-                "Translation file {Path} declares schemaVersion {Version}; this build understands 1. Loading anyway.",
+            log.Error(
+                "Refusing to load {Path}: it declares schemaVersion {Version} and this build reads "
+                + "{Supported}. Nothing has been loaded. Regenerate the corpus with a matching extractor, "
+                + "or install the plugin version that matches the corpus.",
                 path,
-                model.SchemaVersion);
+                model.SchemaVersion,
+                SupportedSchemaVersion);
+            return;
         }
 
         var skippedEmpty = 0;
@@ -354,6 +376,20 @@ internal sealed class TranslationStore(IPluginLog log, ISeStringEvaluator evalua
                 // into a claim of coverage that does not exist. Leaving the game's own text on screen
                 // is the right answer when the plugin cannot work out what the line says.
                 evaluationFailures++;
+
+                // Named, not just counted. A tally says 45 lines are silently not being translated
+                // and gives you no way to find out which, and the per-macro detail was at Debug —
+                // which is off, so in practice the question was unanswerable from a normal log.
+                //
+                // The source text rather than the gameKey: the runtime file carries no gameKey, and
+                // the text is what you would search the corpus for anyway.
+                if (evaluationFailures <= MaxReportedFailures)
+                {
+                    log.Warning(
+                        "  will not evaluate, dropped: {Source}",
+                        entry.Source.Length > 160 ? entry.Source[..160] + "…" : entry.Source);
+                }
+
                 continue;
             }
 
@@ -465,8 +501,8 @@ internal sealed class TranslationStore(IPluginLog log, ISeStringEvaluator evalua
         if (evaluationFailures > 0)
         {
             log.Warning(
-                "{Count} macro(s) failed to evaluate; those entries fell back to the flattened text and will "
-                + "probably not match.",
+                "{Count} source line(s) failed to evaluate and were dropped. Those lines stay in the game's "
+                + "own language; nothing is injected over them.",
                 evaluationFailures);
         }
     }
