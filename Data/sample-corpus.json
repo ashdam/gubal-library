@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "sourceLanguage": "en",
   "targetLanguage": "sample",
   "gameVersion": "7.5",
@@ -15,13 +15,13 @@
   "entries": [
     {
       "gameKey": "sample/ahldskyf/1",
-      "en": "I'm the hired captain of the Orion. She's a fine vessel, true, but a hired captain can love his ship only as much as a paid bride can love her betrothed.",
-      "es": "Hello World from Gubal Library! If you are reading this, injection works -- but this is the built-in sample corpus, not a translation. Load your own to get the real thing."
+      "source": "I'm the hired captain of the Orion. She's a fine vessel, true, but a hired captain can love his ship only as much as a paid bride can love her betrothed.",
+      "target": "Hello World from Gubal Library! If you are reading this, injection works -- but this is the built-in sample corpus, not a translation. Load your own to get the real thing."
     },
     {
       "gameKey": "sample/ahldskyf/2",
-      "en": "A ship of my own is all I've ever wanted. Was a gil away from buying one when the Calamity struck, but how can I complain when so many lost so much more?",
-      "es": "Hello World from Gubal Library! This is Ahldskyf's second line, replaced by the sample corpus. Everything else in the game stays untouched until you load a real one."
+      "source": "A ship of my own is all I've ever wanted. Was a gil away from buying one when the Calamity struck, but how can I complain when so many lost so much more?",
+      "target": "Hello World from Gubal Library! This is Ahldskyf's second line, replaced by the sample corpus. Everything else in the game stays untouched until you load a real one."
     }
   ]
 }

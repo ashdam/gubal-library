@@ -331,17 +331,17 @@ internal sealed class TranslationStore(IPluginLog log, ISeStringEvaluator evalua
 
         foreach (var entry in model.Entries ?? [])
         {
-            if (string.IsNullOrWhiteSpace(entry.En) || string.IsNullOrWhiteSpace(entry.Es))
+            if (string.IsNullOrWhiteSpace(entry.Source) || string.IsNullOrWhiteSpace(entry.Target))
             {
                 skippedEmpty++;
                 continue;
             }
 
-            // Key material is the macro form when there is one. ExtractText — which produced `en` —
-            // deletes macros rather than resolving them, so `en` reads "Off you go now, ." where the
+            // Key material is the macro form when there is one. ExtractText — which produced `source`
+            // — deletes macros rather than resolving them, so it reads "Off you go now, ." where the
             // game says "Off you go now, Mini.". Running the macro through the game's own evaluator
             // reproduces exactly what the player will see.
-            var source = entry.En;
+            var source = entry.Source;
             if (!string.IsNullOrWhiteSpace(entry.Macro))
             {
                 if (this.TryEvaluate(entry.Macro, out var resolved))
@@ -351,7 +351,14 @@ internal sealed class TranslationStore(IPluginLog log, ISeStringEvaluator evalua
                 }
                 else
                 {
+                    // Dropped rather than falling back to the flattened form, which has holes where
+                    // the macros were and so can only match by accident. Indexing it would inflate
+                    // the entry count into a claim of coverage that does not exist, and a holey
+                    // string that happened to collide with another line's real text would inject the
+                    // wrong translation over it. Leaving the game's own text on screen is the right
+                    // answer when we cannot work out what the line says.
                     evaluationFailures++;
+                    continue;
                 }
             }
 
@@ -366,7 +373,7 @@ internal sealed class TranslationStore(IPluginLog log, ISeStringEvaluator evalua
             // does no macro parsing, so "*Orion*" appears on screen with the asterisks visible rather
             // than italicised. Verified in game. Strip them so a translator copying emphasis from the
             // English cannot produce visibly broken output.
-            var value = entry.Es;
+            var value = entry.Target;
             if (value.Contains('*', StringComparison.Ordinal))
             {
                 value = value.Replace("*", string.Empty, StringComparison.Ordinal);
@@ -535,11 +542,27 @@ internal sealed class TranslationStore(IPluginLog log, ISeStringEvaluator evalua
         [JsonPropertyName("conversation")]
         public string? Conversation { get; set; }
 
-        [JsonPropertyName("en")] public string? En { get; set; }
+        /// <summary>
+        ///     The source line, flattened. Which language it is in is stated once, in the header.
+        /// </summary>
+        [JsonPropertyName("source")]
+        public string? Source { get; set; }
 
-        [JsonPropertyName("es")] public string? Es { get; set; }
+        /// <summary>The translation. Which language it is in is stated once, in the header.</summary>
+        [JsonPropertyName("target")]
+        public string? Target { get; set; }
 
-        /// <summary>The unresolved macro form. Preferred over <see cref="En" /> for building the key.</summary>
+        /// <summary>
+        ///     The unresolved macro form, present only when it differs from <see cref="Source" />.
+        /// </summary>
+        /// <remarks>
+        ///     Preferred over <see cref="Source" /> for building the key, and its mere presence is the
+        ///     signal that a line needs evaluating at all — the extractor sets it exactly when
+        ///     <c>ToMacroString()</c> and <c>ExtractText()</c> disagree. That is an exact answer,
+        ///     computed once with both renderings in hand, and worth more than any test the plugin
+        ///     could run on the string itself: a line carrying an escaped <c>\&lt;sigh&gt;</c>
+        ///     contains a <c>&lt;</c> and no macro.
+        /// </remarks>
         [JsonPropertyName("macro")]
         public string? Macro { get; set; }
     }
