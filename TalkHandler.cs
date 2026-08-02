@@ -170,6 +170,20 @@ internal sealed unsafe class TalkHandler : IDisposable
                 this.misses.Record(key, text, name);
             }
 
+            // Give the node its width back HERE, before the game lays this line out — not in
+            // PreDraw, which is where it used to happen and which is a frame too late.
+            //
+            // The order is the whole bug. A translated line forces the text node narrow so the
+            // Spanish wraps inside the box; the next untranslated line arrives, the game writes its
+            // own English into that still-narrow node and picks its line breaks against the narrow
+            // width, and only then does PreDraw hand the width back. The breaks are already baked
+            // in by that point — restoring the width does not re-flow text that has been laid out.
+            //
+            // On screen: English wrapping after two or three words in a box that is visibly full
+            // width. It was reported, patched once in PreDraw, and looked fixed because the width
+            // really was being restored. It was just being restored after it mattered.
+            this.RestorePresentation((AtkUnitBase*)args.Addon.Address);
+
             this.ClearLine();
             return;
         }
@@ -266,16 +280,24 @@ internal sealed unsafe class TalkHandler : IDisposable
     }
 
     /// <summary>
-    ///     Puts back the text node's original flags, font size and width.
+    ///     Puts back the text node's original flags, font size and width, and re-flows whatever text
+    ///     it currently holds against them.
     /// </summary>
     /// <remarks>
-    ///     Only the presentation, never the text: by the time this runs the game has usually written
-    ///     its own line into the node, and overwriting that would be worse than the layout glitch this
-    ///     fixes.
+    ///     <para>
+    ///         Never changes <em>what</em> the node says — the game may already have written its own
+    ///         line by the time this runs, and replacing that would be worse than any layout glitch.
+    ///         It does re-apply the identical string, which is what forces the re-flow; see below.
+    ///     </para>
+    ///     <para>
+    ///         Called from two places, and the earlier one is the one that matters. On a miss it runs
+    ///         from <c>PreRefresh</c>, before the game lays the new line out. The <c>PreDraw</c> call
+    ///         is the net for lines that arrive without a refresh.
+    ///     </para>
     /// </remarks>
     private void RestorePresentation(AtkUnitBase* addon)
     {
-        if (!this.nodeStateCaptured)
+        if (addon is null || !this.nodeStateCaptured)
         {
             return;
         }
@@ -291,6 +313,20 @@ internal sealed unsafe class TalkHandler : IDisposable
         textNode->TextFlags = this.originalTextFlags;
         textNode->FontSize = this.originalFontSize;
         textNode->SetWidth(this.originalWidth);
+
+        // Re-apply the text the node already holds. Restoring a width does not re-flow text that has
+        // already been laid out — the line breaks were chosen when it was set — so without this the
+        // node ends up the right width with the wrong breaks still in it, which is exactly the
+        // symptom this method exists to prevent.
+        //
+        // Writing the identical string back is not the "never stomp the game's text" rule being
+        // broken: the content is unchanged, and it is what Echoglossian does in the same situation.
+        var current = AtkText.ReadNodeText(textNode);
+        if (current.Length > 0)
+        {
+            textNode->SetText(current);
+        }
+
         textNode->ResizeNodeForCurrentText();
     }
 
