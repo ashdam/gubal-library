@@ -1,0 +1,6 @@
+# Normalise to LF in the repository, check out native. Without this the line endings depend on each
+# contributor's core.autocrlf, which turns into whole-file diffs that hide the real change.
+* text=auto
+
+*.png binary
+*.zip binary

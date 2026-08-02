@@ -1,0 +1,33 @@
+<Project Sdk="Dalamud.NET.Sdk/15.0.0">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+    <Platforms>x64</Platforms>
+    <AssemblyName>GubalLibrary</AssemblyName>
+    <RootNamespace>GubalLibrary</RootNamespace>
+    <Version>0.1.1.0</Version>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <LangVersion>latest</LangVersion>
+    <ProduceReferenceAssembly>false</ProduceReferenceAssembly>
+    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+  </PropertyGroup>
+
+  <!--
+    No real corpus is bundled, by design.
+
+    A corpus is hundreds of MB, is a derivative of the game's own text, and changes on a completely
+    different cadence from the code, so it ships neither in the repository nor in the distribution
+    zip. The plugin loads one at runtime from the config directory, or from an explicit path.
+
+    The one exception is the sample below: two lines from a single Limsa NPC, enough to prove the
+    plugin is wired up and nothing more. It is the last candidate the loader tries, so any real
+    corpus takes precedence, and the settings window says loudly when it is what got loaded.
+  -->
+  <ItemGroup>
+    <None Include="Data\sample-corpus.json" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+</Project>

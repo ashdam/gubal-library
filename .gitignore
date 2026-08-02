@@ -1,0 +1,25 @@
+bin/
+obj/
+.vs/
+.idea/
+*.user
+*.suo
+
+# The translated corpus never lives in this repository. It is a derivative of the game's own text, it
+# is hundreds of MB, and it changes on a completely different cadence from the code. The plugin loads
+# it at runtime from the plugin config directory instead -- see CORPUS.md.
+# Data/* rather than Data/, so the negation below is reachable: git does not descend into an ignored
+# directory, and !Data/sample-corpus.json under a bare `Data/` would never be considered.
+Data/*
+!Data/sample-corpus.json
+es.json
+corpus.json
+corpus-*.json
+
+# Diagnostic output, written into the plugin config directory at runtime. Only ever appears here if
+# someone points the plugin at the source tree.
+misses.jsonl
+
+# Downscaled proofs emitted alongside the icon when it is regenerated. They exist to check the icon
+# survives being shown at 32px in the plugin installer; only images/icon.png is shipped.
+images/preview-*.png

@@ -1,0 +1,205 @@
+using System.Numerics;
+using Dalamud.Bindings.ImGui;
+using Dalamud.Interface.ImGuiFileDialog;
+using Dalamud.Interface.Utility;
+using Dalamud.Interface.Windowing;
+
+namespace GubalLibrary;
+
+internal sealed class ConfigWindow : Window
+{
+    private readonly Configuration config;
+    private readonly FileDialogManager fileDialogs;
+    private readonly Action<Configuration> save;
+    private readonly Func<StatusSnapshot> status;
+
+    public ConfigWindow(
+        Configuration config,
+        Action<Configuration> save,
+        Func<StatusSnapshot> status,
+        FileDialogManager fileDialogs)
+        : base("Gubal Library###GubalLibraryConfig")
+    {
+        this.config = config;
+        this.save = save;
+        this.status = status;
+        this.fileDialogs = fileDialogs;
+
+        this.SizeConstraints = new WindowSizeConstraints
+        {
+            MinimumSize = new Vector2(420, 260),
+            MaximumSize = new Vector2(900, 800),
+        };
+    }
+
+    public Action? OnReloadRequested { get; set; }
+
+    public override void Draw()
+    {
+        var snapshot = this.status();
+
+        ImGui.TextUnformatted($"Entries loaded: {snapshot.EntryCount}");
+        ImGui.TextUnformatted($"NPC names:      {snapshot.NpcNameCount}");
+        ImGui.TextUnformatted($"Lines injected: {snapshot.InjectedCount}");
+        ImGui.TextUnformatted($"Misses seen:    {snapshot.MissCount}");
+        ImGui.Spacing();
+        ImGui.TextWrapped($"Source: {snapshot.LoadedFrom}");
+
+        // Loud on purpose, and worded as "no corpus" rather than "sample corpus". The two Ahldskyf
+        // lines are a smoke test that tells an empty install apart from a broken one; calling them a
+        // corpus here would imply the plugin came with something, which it did not.
+        if (snapshot.UsingSampleCorpus)
+        {
+            ImGui.Spacing();
+            ImGui.PushStyleColor(ImGuiCol.Text, new Vector4(1f, 0.35f, 0.35f, 1f));
+            ImGui.TextWrapped(
+                "NO CORPUS LOADED — running on the built-in self-test, which covers two lines from "
+                + "Ahldskyf in Limsa Lominsa Lower Decks and nothing else. The rest of the game is "
+                + "untranslated. Use Browse below to load a real corpus.");
+            ImGui.PopStyleColor();
+        }
+
+        ImGui.Separator();
+
+        var changed = false;
+
+        var enabled = this.config.Enabled;
+        if (ImGui.Checkbox("Enabled", ref enabled))
+        {
+            this.config.Enabled = enabled;
+            changed = true;
+        }
+
+        var translateNames = this.config.TranslateNpcNames;
+        if (ImGui.Checkbox("Translate speaker names", ref translateNames))
+        {
+            this.config.TranslateNpcNames = translateNames;
+            changed = true;
+        }
+
+        SetTooltip("Most NPC names are proper nouns, so this is off by default.");
+
+        var logMisses = this.config.LogMisses;
+        if (ImGui.Checkbox("Log untranslated lines", ref logMisses))
+        {
+            this.config.LogMisses = logMisses;
+            changed = true;
+        }
+
+        SetTooltip($"Appends the normalized lookup key of each unmatched line to:\n{snapshot.MissLogPath}");
+
+        var probeEvents = this.config.ProbeEvents;
+        if (ImGui.Checkbox("Log event handler per line (debug)", ref probeEvents))
+        {
+            this.config.ProbeEvents = probeEvents;
+            changed = true;
+        }
+
+        SetTooltip("Reports which quest the game thinks is running, and the conversation the lookup\n" +
+                   "is scoped to. Use it when a line stays English and you want to know whether the\n" +
+                   "scoping or the corpus is at fault.");
+
+        ImGui.Separator();
+
+        // The corpus is not shipped with the plugin, so it has to be findable. Blank means the
+        // plugin config directory.
+        var corpusPath = this.config.CorpusPath;
+        ImGui.SetNextItemWidth(-140f * ImGuiHelpers.GlobalScale);
+        if (ImGui.InputText("##corpusPath", ref corpusPath, 1024))
+        {
+            this.config.CorpusPath = corpusPath;
+            changed = true;
+        }
+
+        SetTooltip("Absolute path to the translated corpus JSON.\n" +
+                   "Leave empty to use corpus.json in the plugin config directory:\n" +
+                   snapshot.ConfigDirectory);
+
+        ImGui.SameLine();
+        if (ImGui.Button("Browse..."))
+        {
+            this.BrowseForCorpus();
+        }
+
+        ImGui.SameLine();
+        if (ImGui.Button("Clear"))
+        {
+            this.config.CorpusPath = string.Empty;
+            changed = true;
+        }
+
+        SetTooltip("Fall back to the plugin config directory.");
+
+        ImGui.TextDisabled("Corpus path");
+
+        if (ImGui.Button("Reload translation file"))
+        {
+            this.OnReloadRequested?.Invoke();
+        }
+
+        if (changed)
+        {
+            this.save(this.config);
+        }
+    }
+
+    /// <summary>
+    ///     Opens the file picker, starting in the folder of the currently configured corpus.
+    /// </summary>
+    /// <remarks>
+    ///     The callback runs on the UI thread and triggers a reload. For a large corpus that is a
+    ///     visible hitch, but it follows an explicit user action, and picking a file without it
+    ///     appearing to do anything would be worse.
+    /// </remarks>
+    private void BrowseForCorpus()
+    {
+        var startPath = string.Empty;
+        if (!string.IsNullOrWhiteSpace(this.config.CorpusPath))
+        {
+            try
+            {
+                startPath = Path.GetDirectoryName(this.config.CorpusPath) ?? string.Empty;
+            }
+            catch (ArgumentException)
+            {
+                // Malformed path typed by hand; just open wherever the dialog defaults to.
+            }
+        }
+
+        // The overload that accepts a start path reports results as a list, even with a max of one.
+        this.fileDialogs.OpenFileDialog(
+            "Select translated corpus",
+            "JSON{.json},All files{.*}",
+            (accepted, selectedPaths) =>
+            {
+                if (!accepted || selectedPaths.Count == 0 || string.IsNullOrWhiteSpace(selectedPaths[0]))
+                {
+                    return;
+                }
+
+                this.config.CorpusPath = selectedPaths[0];
+                this.save(this.config);
+                this.OnReloadRequested?.Invoke();
+            },
+            1,
+            startPath);
+    }
+
+    private static void SetTooltip(string text)
+    {
+        if (ImGui.IsItemHovered())
+        {
+            ImGui.SetTooltip(text);
+        }
+    }
+}
+
+internal readonly record struct StatusSnapshot(
+    int EntryCount,
+    int NpcNameCount,
+    int InjectedCount,
+    int MissCount,
+    string LoadedFrom,
+    string MissLogPath,
+    string ConfigDirectory,
+    bool UsingSampleCorpus);
