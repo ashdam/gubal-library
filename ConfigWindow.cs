@@ -45,6 +45,17 @@ internal sealed class ConfigWindow : Window
         ImGui.Spacing();
         ImGui.TextWrapped($"Source: {snapshot.LoadedFrom}");
 
+        // "Entries loaded: 0" before a character exists is expected, not a fault: keys are built by
+        // resolving macros against live game state, so the corpus waits for someone to build against.
+        // Saying nothing here would look identical to a corpus that failed to load.
+        if (snapshot.EntryCount == 0 && !snapshot.UsingSampleCorpus)
+        {
+            ImGui.Spacing();
+            ImGui.TextWrapped(
+                "Nothing loaded yet. The corpus is indexed against the logged-in character, so it "
+                + "loads when you enter the world — not at the title screen.");
+        }
+
         // Loud on purpose, and worded as "no corpus" rather than "sample corpus". The two Ahldskyf
         // lines are a smoke test that tells an empty install apart from a broken one; calling them a
         // corpus here would imply the plugin came with something, which it did not.

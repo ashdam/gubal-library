@@ -69,7 +69,23 @@ public sealed class Plugin : IDalamudPlugin
         Directory.CreateDirectory(pluginInterface.GetPluginConfigDirectory());
 
         this.store = new TranslationStore(log, evaluator);
-        this.store.Load(this.TranslationFileCandidates());
+
+        // Not loaded unconditionally. Keys are built by resolving macros against live game state —
+        // the character's name, gender and Grand Company rank — so building before a character
+        // exists produces keys that cannot match. Measured: loading at the title screen dropped 45
+        // lines as unevaluable, and the login rebuild a minute later dropped none of them.
+        //
+        // The rebuild always covered it, so this was never wrong on screen. What it was, was two
+        // full builds of 15,759 keys where one would do, and a startup log full of alarming
+        // warnings about lines that were fine.
+        if (clientState.IsLoggedIn)
+        {
+            this.store.Load(this.TranslationFileCandidates());
+        }
+        else
+        {
+            log.Information("No character logged in yet; the corpus loads once one is.");
+        }
 
         this.misses = new MissLog(
             log,
@@ -119,18 +135,19 @@ public sealed class Plugin : IDalamudPlugin
     }
 
     /// <summary>
-    ///     Rebuilds the index when a character logs in.
+    ///     Builds the index when a character logs in, and rebuilds it when a different one does.
     /// </summary>
     /// <remarks>
     ///     Keys are built by evaluating macros against live game state, so they embed the character's
     ///     name, gender and Grand Company rank. A corpus indexed for one character does not match
-    ///     another. Rebuilding costs one load — under a second — and most players only ever trigger it
-    ///     once per session.
+    ///     another. For a plugin started at the title screen this is the <em>first</em> build rather
+    ///     than a rebuild — the constructor deliberately leaves it undone until there is a character
+    ///     to build against. Under a second either way.
     /// </remarks>
     private void OnLogin()
     {
         var name = this.playerState.IsLoaded ? this.playerState.CharacterName : "(unknown)";
-        this.log.Information("Login as '{Name}'; re-indexing so macro-derived keys match this character.", name);
+        this.log.Information("Login as '{Name}'; indexing so macro-derived keys match this character.", name);
         this.store.Load(this.TranslationFileCandidates());
     }
 
