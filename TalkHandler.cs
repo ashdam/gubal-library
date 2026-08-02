@@ -62,6 +62,9 @@ internal sealed unsafe class TalkHandler : IDisposable
     private byte originalFontSize;
     private ushort originalWidth;
 
+    /// <summary>Which line the snapshot above was taken for — see <see cref="CaptureNodeState" />.</summary>
+    private string capturedForSourceText = string.Empty;
+
     // Last known addon pointer, so Dispose can restore a line that is still on screen. Cleared on
     // PreFinalize, which is the point at which the nodes stop being valid.
     private nint lastAddon;
@@ -153,6 +156,10 @@ internal sealed unsafe class TalkHandler : IDisposable
         // interesting whether or not we can translate it.
         this.MaybeProbeEvents(text);
 
+        // Before anything of ours runs, so it reports the state this line ARRIVED in — which is the
+        // state that decides how the game wraps it.
+        this.LogNodeGeometry((AtkUnitBase*)args.Addon.Address, "line arrives");
+
         // Clock-dependent greetings drift out of their key as the Eorzean hour advances. Throttled
         // internally, so this is a cheap no-op on almost every line.
         this.store.RefreshTimeSensitive();
@@ -182,7 +189,8 @@ internal sealed unsafe class TalkHandler : IDisposable
             // On screen: English wrapping after two or three words in a box that is visibly full
             // width. It was reported, patched once in PreDraw, and looked fixed because the width
             // really was being restored. It was just being restored after it mattered.
-            this.RestorePresentation((AtkUnitBase*)args.Addon.Address);
+            this.RestoreNode(args.Addon.Address, restoreText: false);
+            this.LogNodeGeometry((AtkUnitBase*)args.Addon.Address, "after restore (untranslated)");
 
             this.ClearLine();
             return;
@@ -233,7 +241,7 @@ internal sealed unsafe class TalkHandler : IDisposable
         // then wraps after two or three words in an otherwise full-width box.
         if (this.injectedText.Length == 0)
         {
-            this.RestorePresentation(addon);
+            this.RestoreNode(args.Addon.Address);
             return;
         }
 
@@ -261,7 +269,7 @@ internal sealed unsafe class TalkHandler : IDisposable
             return;
         }
 
-        this.CaptureNodeState(textNode);
+        this.CaptureNodeState(textNode, this.sourceText);
 
         var wrapWidth = parentNode->GetWidth();
 
@@ -279,57 +287,6 @@ internal sealed unsafe class TalkHandler : IDisposable
         }
     }
 
-    /// <summary>
-    ///     Puts back the text node's original flags, font size and width, and re-flows whatever text
-    ///     it currently holds against them.
-    /// </summary>
-    /// <remarks>
-    ///     <para>
-    ///         Never changes <em>what</em> the node says — the game may already have written its own
-    ///         line by the time this runs, and replacing that would be worse than any layout glitch.
-    ///         It does re-apply the identical string, which is what forces the re-flow; see below.
-    ///     </para>
-    ///     <para>
-    ///         Called from two places, and the earlier one is the one that matters. On a miss it runs
-    ///         from <c>PreRefresh</c>, before the game lays the new line out. The <c>PreDraw</c> call
-    ///         is the net for lines that arrive without a refresh.
-    ///     </para>
-    /// </remarks>
-    private void RestorePresentation(AtkUnitBase* addon)
-    {
-        if (addon is null || !this.nodeStateCaptured)
-        {
-            return;
-        }
-
-        this.nodeStateCaptured = false;
-
-        var textNode = addon->GetTextNodeById(TextNodeId);
-        if (textNode is null)
-        {
-            return;
-        }
-
-        textNode->TextFlags = this.originalTextFlags;
-        textNode->FontSize = this.originalFontSize;
-        textNode->SetWidth(this.originalWidth);
-
-        // Re-apply the text the node already holds. Restoring a width does not re-flow text that has
-        // already been laid out — the line breaks were chosen when it was set — so without this the
-        // node ends up the right width with the wrong breaks still in it, which is exactly the
-        // symptom this method exists to prevent.
-        //
-        // Writing the identical string back is not the "never stomp the game's text" rule being
-        // broken: the content is unchanged, and it is what Echoglossian does in the same situation.
-        var current = AtkText.ReadNodeText(textNode);
-        if (current.Length > 0)
-        {
-            textNode->SetText(current);
-        }
-
-        textNode->ResizeNodeForCurrentText();
-    }
-
     private void OnPreHide(AddonEvent type, AddonArgs args)
     {
         this.RestoreNode(args.Addon);
@@ -342,6 +299,7 @@ internal sealed unsafe class TalkHandler : IDisposable
         // describes no longer exists, and a later restore would write through a dangling pointer.
         this.lastAddon = nint.Zero;
         this.nodeStateCaptured = false;
+        this.capturedForSourceText = string.Empty;
         this.ClearLine();
     }
 
@@ -402,6 +360,50 @@ internal sealed unsafe class TalkHandler : IDisposable
     ///     handler reports <c>quest/…</c>, so those lines should fall back to the text index, and
     ///     that needs confirming in game rather than reasoning about.
     /// </remarks>
+    /// <summary>
+    ///     Logs the text node's geometry, so a wrapping complaint can be measured instead of argued.
+    /// </summary>
+    /// <remarks>
+    ///     <para>
+    ///         Added after a long round of reasoning about whether the plugin was leaving the Talk
+    ///         node narrow. Every argument on both sides was plausible and none was checkable: the
+    ///         numbers that would settle it — this node's width against its parent's — live in game
+    ///         memory and nothing was reporting them.
+    ///     </para>
+    ///     <para>
+    ///         Note that <c>/gubal off</c> does not prove the plugin innocent of a layout complaint.
+    ///         Disabling it stops the restore as well as the writes, so a node left narrow earlier in
+    ///         the session simply stays that way. Only these numbers distinguish "we never touched
+    ///         it" from "we touched it and never put it back".
+    ///     </para>
+    /// </remarks>
+    private void LogNodeGeometry(AtkUnitBase* addon, string when)
+    {
+        if (!this.config.ProbeEvents || addon is null)
+        {
+            return;
+        }
+
+        var textNode = addon->GetTextNodeById(TextNodeId);
+        var parentNode = addon->GetNodeById(ParentNodeId);
+        if (textNode is null || parentNode is null)
+        {
+            return;
+        }
+
+        this.log.Information(
+            "[geometry] {When}: text node w={Width} h={Height} font={Font} flags={Flags} | "
+            + "parent w={ParentWidth} | captured={Captured} originalW={OriginalWidth}",
+            when,
+            textNode->GetWidth(),
+            textNode->GetHeight(),
+            textNode->FontSize,
+            textNode->TextFlags,
+            parentNode->GetWidth(),
+            this.nodeStateCaptured,
+            this.nodeStateCaptured ? this.originalWidth : (ushort)0);
+    }
+
     private void MaybeProbeEvents(string text)
     {
         if (!this.config.ProbeEvents
@@ -423,9 +425,30 @@ internal sealed unsafe class TalkHandler : IDisposable
         }
     }
 
-    private void CaptureNodeState(AtkTextNode* node)
+    /// <summary>
+    ///     Snapshots the node's presentation before the first write for a given line.
+    /// </summary>
+    /// <remarks>
+    ///     <para>
+    ///         Keyed by the line it describes, not by a bare "have I captured yet" flag. With a bare
+    ///         flag the snapshot could end up describing our own handiwork: clear it while the node
+    ///         is still narrowed — which <c>PreFinalize</c> does — and the next capture records the
+    ///         narrowed width as though it were the game's. Every restore after that returns the node
+    ///         to a width it never had, and it stays that way until the addon is rebuilt from
+    ///         scratch. A defect that survives the thing that was supposed to end it.
+    ///     </para>
+    ///     <para>
+    ///         Echoglossian keys its own snapshot the same way, on the source text it was taken for.
+    ///     </para>
+    /// </remarks>
+    private void CaptureNodeState(AtkTextNode* node, string forSourceText)
     {
-        if (this.nodeStateCaptured || node is null)
+        if (node is null || string.IsNullOrEmpty(forSourceText))
+        {
+            return;
+        }
+
+        if (this.nodeStateCaptured && this.capturedForSourceText == forSourceText)
         {
             return;
         }
@@ -434,21 +457,43 @@ internal sealed unsafe class TalkHandler : IDisposable
         this.originalFontSize = node->FontSize;
         this.originalWidth = node->GetWidth();
         this.nodeStateCaptured = true;
+        this.capturedForSourceText = forSourceText;
     }
 
     /// <summary>
-    ///     Restores the English text and the node's original presentation, but only if the node still
-    ///     contains exactly what we wrote.
+    ///     Hands the node back: its presentation always, its English text only if ours is still there.
     /// </summary>
     /// <remarks>
-    ///     Ownership rule: never stomp text the game or another plugin has changed since our write.
+    ///     <para>
+    ///         Two restores, deliberately not one, because they answer to different rules.
+    ///     </para>
+    ///     <para>
+    ///         <b>Presentation is ours.</b> We narrowed the node, changed its font size and replaced
+    ///         its flags; nobody else did. Handing that back is unconditional, and making it
+    ///         conditional was the defect: the single guard below used to cover both restores, so the
+    ///         moment the game had written its own line — which it usually has by the time this runs
+    ///         — we returned without widening the node. It stayed narrow, and the next capture
+    ///         recorded that width as if it were the game's.
+    ///     </para>
+    ///     <para>
+    ///         <b>Text is the game's.</b> Only put the English back if the node still holds exactly
+    ///         what we wrote. Anything else means the game or another plugin has moved on, and
+    ///         overwriting that would be worse than any layout glitch.
+    ///     </para>
+    ///     <para>
+    ///         Echoglossian draws the same line, taking <c>restoreText</c> as a parameter separate
+    ///         from the geometry it always restores.
+    ///     </para>
     /// </remarks>
-    private void RestoreNode(nint addonPointer)
+    /// <param name="restoreText">
+    ///     False where the game is about to write its own line anyway — the miss path in
+    ///     <c>PreRefresh</c>. Putting the previous line's English back there would only be correct
+    ///     because something else overwrites it a moment later, and depending on that is how the
+    ///     original defect happened. Echoglossian takes the same flag for the same reason.
+    /// </param>
+    private void RestoreNode(nint addonPointer, bool restoreText = true)
     {
-        if (!this.nodeStateCaptured
-            || addonPointer == nint.Zero
-            || this.injectedText.Length == 0
-            || this.sourceText.Length == 0)
+        if (!this.nodeStateCaptured || addonPointer == nint.Zero)
         {
             return;
         }
@@ -462,20 +507,46 @@ internal sealed unsafe class TalkHandler : IDisposable
             }
 
             var textNode = addon->GetTextNodeById(TextNodeId);
-            if (textNode is null || AtkText.ReadNodeText(textNode) != this.injectedText)
+            if (textNode is null)
             {
                 return;
             }
 
+            var oursIsStillOnScreen = restoreText
+                                      && this.injectedText.Length > 0
+                                      && this.sourceText.Length > 0
+                                      && AtkText.ReadNodeText(textNode) == this.injectedText;
+
             textNode->TextFlags = this.originalTextFlags;
             textNode->FontSize = this.originalFontSize;
             textNode->SetWidth(this.originalWidth);
-            textNode->SetText(this.sourceText);
+
+            if (oursIsStillOnScreen)
+            {
+                textNode->SetText(this.sourceText);
+            }
+            else
+            {
+                // Re-apply what is already there. Restoring a width does not re-flow text that has
+                // been laid out, so without this the node ends up the right width still carrying
+                // the breaks it was given at the wrong one.
+                var current = AtkText.ReadNodeText(textNode);
+                if (current.Length > 0)
+                {
+                    textNode->SetText(current);
+                }
+            }
+
             textNode->ResizeNodeForCurrentText();
+
+            // The snapshot described a node that no longer exists in that state. Keeping it would let
+            // it be restored a second time over a line it was never taken for.
+            this.nodeStateCaptured = false;
+            this.capturedForSourceText = string.Empty;
         }
         catch (Exception ex)
         {
-            this.log.Error(ex, "Failed to restore original Talk text.");
+            this.log.Error(ex, "Failed to restore the Talk node.");
         }
     }
 
