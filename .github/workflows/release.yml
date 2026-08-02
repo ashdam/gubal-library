@@ -77,8 +77,26 @@ jobs:
           $entry.Description     = $manifest.Description
           $entry.LastUpdate      = [DateTimeOffset]::UtcNow.ToUnixTimeSeconds()
 
+          # No @() around $entry. -AsArray already guarantees array output, so wrapping first yields
+          # [[{...}]] -- which Dalamud cannot read, and which shipped once because the obvious check
+          # ($parsed[0].Name) walks straight through the extra nesting and looks correct.
           # utf8NoBOM: a BOM in front of '[' makes some JSON parsers reject the whole repository.
-          ConvertTo-Json @($entry) -Depth 10 -AsArray | Set-Content repo.json -Encoding utf8NoBOM
+          ConvertTo-Json $entry -Depth 10 -AsArray | Set-Content repo.json -Encoding utf8NoBOM
+
+          # Structural gate, not a spot check. Asserts the shape Dalamud requires: a top-level array
+          # whose elements are objects carrying InternalName.
+          #
+          # -NoEnumerate is load-bearing. Piping into ConvertFrom-Json unwraps a single-element array,
+          # so [{...}] arrives as a bare object and [[{...}]] arrives as an array -- which makes the
+          # naive check pass the broken shape and reject the correct one. The first version of this
+          # gate did exactly that.
+          $parsed = ConvertFrom-Json (Get-Content repo.json -Raw) -NoEnumerate
+          if ($parsed -isnot [System.Collections.IList]) { throw 'repo.json is not a top-level array.' }
+          foreach ($e in $parsed) {
+            if ($e -is [System.Collections.IList]) { throw 'repo.json entries are arrays, not objects -- double-nested.' }
+            if (-not $e.InternalName) { throw 'a repo.json entry has no InternalName.' }
+          }
+          Write-Host "repo.json validated: $($parsed.Count) entry(s), $($parsed[0].InternalName) $($parsed[0].AssemblyVersion)"
 
           git config user.name  'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
