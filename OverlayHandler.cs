@@ -90,7 +90,17 @@ internal sealed unsafe class OverlayHandler : IDisposable
     /// <summary>Reused across frames so the per-frame node sweep does not allocate.</summary>
     private readonly List<nint> nodeBuffer = [];
 
-    /// <summary>Last on-screen text looked up per addon, hit or miss, so a miss is not retried.</summary>
+    /// <summary>
+    ///     Last on-screen text looked up per <em>node</em>, hit or miss, so a miss is not retried.
+    /// </summary>
+    /// <remarks>
+    ///     Keyed by node and not merely by addon, which is how it started and which produced a
+    ///     visible defect: <c>TalkSubtitle</c> draws its line through two overlapping text nodes, and
+    ///     the second one carries the same string as the first. Sharing one entry per addon meant the
+    ///     first node translated, wrote the English into this map, and the second node then matched it
+    ///     and was skipped — every frame, permanently, because the state that produced the skip was
+    ///     the state the skip preserved. On screen: Spanish over English, both legible.
+    /// </remarks>
     private readonly Dictionary<string, string> attempted = new(StringComparer.Ordinal);
 
     public OverlayHandler(
@@ -218,18 +228,22 @@ internal sealed unsafe class OverlayHandler : IDisposable
             // line is on screen — and a lookup is not free: it normalises the key and walks all 629
             // loaded event handlers to resolve the conversation. In a duty where nothing is
             // translated yet, that is the whole run.
-            if (onScreen == this.attempted.GetValueOrDefault(name, string.Empty))
+            //
+            // Per node. Sibling nodes showing the same string are not a repeat of one lookup, they
+            // are two nodes that both need writing.
+            var nodeKey = $"{name}#{id}";
+            if (onScreen == this.attempted.GetValueOrDefault(nodeKey, string.Empty))
             {
                 continue;
             }
 
-            this.attempted[name] = onScreen;
+            this.attempted[nodeKey] = onScreen;
 
             // The node id goes into the miss record, not just the addon name. Without it the log
             // cannot distinguish the body from the speaker: a _BattleTalk pass recorded the NPC name
             // "Y'nazqha" as a missed line alongside two real ones, and there was no way to tell which
             // node each came from. Learn the layout from the log, then narrow this scan to the body.
-            if (!this.TryTranslate(onScreen, $"{name}#{id}", out var translated))
+            if (!this.TryTranslate(onScreen, nodeKey, out var translated))
             {
                 continue;
             }
