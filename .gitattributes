@@ -1,6 +1,9 @@
-# Normalise to LF in the repository, check out native. Without this the line endings depend on each
-# contributor's core.autocrlf, which turns into whole-file diffs that hide the real change.
-* text=auto
+# LF in the repository and LF on checkout, on every platform. Without this the line endings depend
+# on each contributor's core.autocrlf, which turns into whole-file diffs that hide the real change.
+#
+# `text=auto` alone only normalises what is stored; it still checks out CRLF on Windows. Pinning the
+# checkout too is what makes a file byte-identical wherever it is cloned.
+* text=auto eol=lf
 
 *.png binary
 *.zip binary
