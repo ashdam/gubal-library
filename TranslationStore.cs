@@ -491,11 +491,14 @@ internal sealed class TranslationStore(IPluginLog log, ISeStringEvaluator evalua
 
         if (evaluated > 0)
         {
+            // timed, not this.timeSensitive. The field is assigned by the caller once every file has
+            // been read, so reading it here reported the previous load's total — zero on the first
+            // load of a session, which read as "no line depends on the clock" while two of them did.
             log.Information(
                 "Resolved {Count} macro(s) through the game evaluator to build keys; {Timed} of them "
                 + "depend on the Eorzean clock and will be rekeyed as it advances.",
                 evaluated,
-                this.timeSensitive.Count);
+                timed.Count);
         }
 
         if (evaluationFailures > 0)
