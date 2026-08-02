@@ -147,7 +147,7 @@ internal sealed class TranslationStore(IPluginLog log, ISeStringEvaluator evalua
 
         foreach (var entry in this.timeSensitive)
         {
-            if (!this.TryEvaluate(entry.Macro, out var resolved))
+            if (!this.TryEvaluate(entry.Source, out var resolved))
             {
                 continue;
             }
@@ -337,30 +337,27 @@ internal sealed class TranslationStore(IPluginLog log, ISeStringEvaluator evalua
                 continue;
             }
 
-            // Key material is the macro form when there is one. ExtractText — which produced `source`
-            // — deletes macros rather than resolving them, so it reads "Off you go now, ." where the
-            // game says "Off you go now, Mini.". Running the macro through the game's own evaluator
-            // reproduces exactly what the player will see.
-            var source = entry.Source;
-            if (!string.IsNullOrWhiteSpace(entry.Macro))
+            // Every line goes through the game's own evaluator, with no test for whether it needs to.
+            // Evaluating a string that holds no macros returns the string, so the check would only
+            // buy speed, and any cheap version of it is wrong: searching for '<' catches an escaped
+            // \<sigh>, which is literal text. Schema 1 answered this with a second field whose mere
+            // presence was the signal, at the cost of shipping every macro line twice.
+            //
+            // What it does buy is exactness. The evaluator substitutes the player's name and takes
+            // the same branch the game will, so the key is what appears on screen — where a flattened
+            // rendering reads "Off you go now, ." against the game's "Off you go now, Mini.".
+            if (!this.TryEvaluate(entry.Source, out var source))
             {
-                if (this.TryEvaluate(entry.Macro, out var resolved))
-                {
-                    source = resolved;
-                    evaluated++;
-                }
-                else
-                {
-                    // Dropped rather than falling back to the flattened form, which has holes where
-                    // the macros were and so can only match by accident. Indexing it would inflate
-                    // the entry count into a claim of coverage that does not exist, and a holey
-                    // string that happened to collide with another line's real text would inject the
-                    // wrong translation over it. Leaving the game's own text on screen is the right
-                    // answer when we cannot work out what the line says.
-                    evaluationFailures++;
-                    continue;
-                }
+                // Dropped, not indexed under the raw macro text: that is a string the game will never
+                // draw, so it could only match by accident, and an accident here injects the wrong
+                // translation over whatever it collided with. It would also inflate the entry count
+                // into a claim of coverage that does not exist. Leaving the game's own text on screen
+                // is the right answer when the plugin cannot work out what the line says.
+                evaluationFailures++;
+                continue;
             }
+
+            evaluated++;
 
             var key = TextKey.Normalize(source);
             if (key.Length == 0)
@@ -380,10 +377,12 @@ internal sealed class TranslationStore(IPluginLog log, ISeStringEvaluator evalua
                 strippedEmphasis++;
             }
 
-            // gnum11 is the Eorzean hour; those keys need re-evaluating as the clock advances.
-            if (entry.Macro is not null && entry.Macro.Contains("gnum11", StringComparison.Ordinal))
+            // gnum11 is the Eorzean hour; those keys need re-evaluating as the clock advances. Tested
+            // against the unevaluated source deliberately — by this point the evaluated form has the
+            // hour already baked into it and says nothing about where it came from.
+            if (entry.Source.Contains("gnum11", StringComparison.Ordinal))
             {
-                timed.Add(new TimeSensitiveEntry(entry.Macro, value, entry.Conversation, key));
+                timed.Add(new TimeSensitiveEntry(entry.Source, value, entry.Conversation, key));
             }
 
             if (entry.Conversation is not null)
@@ -498,9 +497,10 @@ internal sealed class TranslationStore(IPluginLog log, ISeStringEvaluator evalua
     }
 
     /// <summary>An entry whose resolved key depends on the Eorzean clock.</summary>
-    private sealed class TimeSensitiveEntry(string macro, string value, string? conversation, string currentKey)
+    private sealed class TimeSensitiveEntry(string source, string value, string? conversation, string currentKey)
     {
-        public string Macro { get; } = macro;
+        /// <summary>The unevaluated source, kept so the key can be rebuilt against a later hour.</summary>
+        public string Source { get; } = source;
 
         public string Value { get; } = value;
 
@@ -543,27 +543,24 @@ internal sealed class TranslationStore(IPluginLog log, ISeStringEvaluator evalua
         public string? Conversation { get; set; }
 
         /// <summary>
-        ///     The source line, flattened. Which language it is in is stated once, in the header.
+        ///     The source line in its complete form: macro syntax intact wherever the line has any.
         /// </summary>
+        /// <remarks>
+        ///     <para>
+        ///         Not a flattened rendering. Macros must arrive unresolved so the plugin can put them
+        ///         through the game's own evaluator and reproduce what the player is actually shown;
+        ///         text with the macros deleted reads <c>"Off you go now, ."</c> against the game's
+        ///         <c>"Off you go now, Mini."</c> and matches nothing.
+        ///     </para>
+        ///     <para>
+        ///         Which language it is in is stated once, in the file header.
+        ///     </para>
+        /// </remarks>
         [JsonPropertyName("source")]
         public string? Source { get; set; }
 
         /// <summary>The translation. Which language it is in is stated once, in the header.</summary>
         [JsonPropertyName("target")]
         public string? Target { get; set; }
-
-        /// <summary>
-        ///     The unresolved macro form, present only when it differs from <see cref="Source" />.
-        /// </summary>
-        /// <remarks>
-        ///     Preferred over <see cref="Source" /> for building the key, and its mere presence is the
-        ///     signal that a line needs evaluating at all — the extractor sets it exactly when
-        ///     <c>ToMacroString()</c> and <c>ExtractText()</c> disagree. That is an exact answer,
-        ///     computed once with both renderings in hand, and worth more than any test the plugin
-        ///     could run on the string itself: a line carrying an escaped <c>\&lt;sigh&gt;</c>
-        ///     contains a <c>&lt;</c> and no macro.
-        /// </remarks>
-        [JsonPropertyName("macro")]
-        public string? Macro { get; set; }
     }
 }

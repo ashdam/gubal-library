@@ -28,9 +28,8 @@ fine.
     {
       "gameKey": "quest/047/SubWil901_04779#12",
       "conversation": "quest/047/SubWil901_04779",
-      "source": "Off you go now, .",
-      "macro": "Off you go now, <if(...)>.",
-      "target": "Vete ya, ."
+      "source": "Off you go now, <if(...)>.",
+      "target": "Vete ya, <if(...)>."
     }
   ]
 }
@@ -42,9 +41,8 @@ fine.
 | `sourceLanguage`, `targetLanguage` | no | Which languages the entries are in. Reported by `/gubal status`. |
 | `gameVersion` | no | The patch the corpus was built against. Reported by `/gubal status`. |
 | `npcNames` | no | Source → translated speaker names. Only used when **Translate NPC names** is on. |
-| `entries[].source` | yes | The source line **as the game renders it**. See below. |
+| `entries[].source` | yes | The source line, **macros unresolved**. See below. |
 | `entries[].target` | yes | The translation. Entries with either side empty are skipped at load. |
-| `entries[].macro` | no | The unresolved macro form. Preferred over `source` for building the key. |
 | `entries[].conversation` | no | Scopes the entry to one conversation, e.g. `quest/047/SubWil901_04779`. |
 | `entries[].gameKey` | no | Provenance only. **Never used for lookup.** |
 
@@ -71,22 +69,26 @@ game's real state instead (see below) and both sides arrive carrying identical l
 
 ## Macros
 
-Lines containing game macro syntax — `<if([gnum11<12],Good morning,Good evening)>` — must ship their
-`macro` field. The plugin runs it through the game's own evaluator at load to build the key, which
-reproduces exactly what the player sees. Flattened text does not: an extractor that deletes macros
-produces `"Off you go now, ."` where the game says `"Off you go now, Mini."`.
+**`source` must carry macros unresolved** — `<if([gnum11<12],Good morning,Good evening)>`, not one
+branch of it. Every entry goes through the game's own evaluator at load, which reproduces exactly
+what the player sees. Flattening beforehand cannot: an extractor that deletes macros produces
+`"Off you go now, ."` where the game says `"Off you go now, Mini."`, and that matches nothing.
 
-Two consequences worth knowing:
+There is no separate field for the macro form and no flag saying a line has one. Evaluating a string
+that holds no macros returns the string, so the distinction buys nothing, and no cheap test for it is
+correct anyway — searching for `<` catches an escaped `\<sigh>`, which is literal text.
+
+Three consequences worth knowing:
 
 - **Keys are per character.** Macros resolve against name, gender and Grand Company rank, so the
   index is rebuilt on login. A corpus indexed for one character does not match another.
 - **`gnum11` is the Eorzean hour.** Entries using it are re-keyed as the clock advances; an Eorzean
   hour is under three real minutes, so a key built once would stop matching almost immediately.
-- **A `macro` that will not evaluate drops the entry**, with a count in the load log. It is not
-  indexed under the flattened `source` instead: that form has holes where the macros were, so it can
-  only match by accident, and an accident here means injecting the wrong translation over a line that
-  happened to collide. Leaving the game's own text on screen is the correct answer when the plugin
-  cannot work out what the line says.
+- **A `source` that will not evaluate drops the entry**, with a count in the load log. It is not
+  indexed under its raw text instead: that is a string the game will never draw, so it could only
+  match by accident, and an accident here means injecting the wrong translation over whatever it
+  collided with. Leaving the game's own text on screen is the correct answer when the plugin cannot
+  work out what the line says.
 
 Translations may carry macro syntax too — `<if(gnum4,cansada,cansado)>` — and are resolved at display
 time. One syntax serves both sides, so there is no second format to define. A translation that fails
