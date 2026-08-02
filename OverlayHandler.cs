@@ -174,7 +174,7 @@ internal sealed unsafe class OverlayHandler : IDisposable
             return;
         }
 
-        if (!this.TryTranslate(text, name, out var translated))
+        if (!this.TryTranslate(text, name, EventContext.ActiveQuestConversation(), out var translated))
         {
             return;
         }
@@ -204,6 +204,12 @@ internal sealed unsafe class OverlayHandler : IDisposable
         AddonNodes.CollectTextNodes(addon, this.nodeBuffer);
 
         var known = BodyNode.TryGetValue(name, out var bodyId);
+
+        // Resolved once for the whole sweep rather than once per node. It walks every event handler
+        // the client has loaded — 629 in a typical session — and the answer cannot change between
+        // two nodes of the same addon in the same frame, so asking twice was only ever waste. This is
+        // most of what the per-node guard below was protecting against.
+        var conversation = EventContext.ActiveQuestConversation();
 
         foreach (var pointer in this.nodeBuffer)
         {
@@ -243,7 +249,7 @@ internal sealed unsafe class OverlayHandler : IDisposable
             // cannot distinguish the body from the speaker: a _BattleTalk pass recorded the NPC name
             // "Y'nazqha" as a missed line alongside two real ones, and there was no way to tell which
             // node each came from. Learn the layout from the log, then narrow this scan to the body.
-            if (!this.TryTranslate(onScreen, nodeKey, out var translated))
+            if (!this.TryTranslate(onScreen, nodeKey, conversation, out var translated))
             {
                 continue;
             }
@@ -254,11 +260,11 @@ internal sealed unsafe class OverlayHandler : IDisposable
         }
     }
 
-    private bool TryTranslate(string text, string addonName, out string translated)
+    private bool TryTranslate(string text, string addonName, string? conversation, out string translated)
     {
         var key = TextKey.Normalize(text);
 
-        if (this.store.TryGetTranslation(EventContext.ActiveQuestConversation(), key, out translated))
+        if (this.store.TryGetTranslation(conversation, key, out translated))
         {
             return true;
         }
