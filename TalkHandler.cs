@@ -2,6 +2,7 @@ using Dalamud.Game.Addon.Lifecycle;
 using Dalamud.Game.Addon.Lifecycle.AddonArgTypes;
 using Dalamud.Plugin.Services;
 using FFXIVClientStructs.FFXIV.Component.GUI;
+using Lumina.Text.ReadOnly;
 
 namespace GubalLibrary;
 
@@ -37,7 +38,7 @@ internal sealed unsafe class TalkHandler : IDisposable
     private readonly Configuration config;
     private readonly IAddonLifecycle lifecycle;
     private readonly IPluginLog log;
-    private readonly ISeStringEvaluator evaluator;
+    private readonly MacroResolver resolver;
     private readonly MissLog misses;
     private readonly TranslationStore store;
 
@@ -50,11 +51,38 @@ internal sealed unsafe class TalkHandler : IDisposable
     private readonly IAddonLifecycle.AddonEventDelegate onPreHide;
     private readonly IAddonLifecycle.AddonEventDelegate onPreRefresh;
 
-    // Current line. sourceText is what we looked up; injectedText is what we wrote.
+    // Current line. sourceText is what we looked up; injectedSeString is what we wrote.
     private string sourceText = string.Empty;
     private string sourceName = string.Empty;
-    private string injectedText = string.Empty;
     private string injectedName = string.Empty;
+
+    /// <summary>The bytes we injected, kept so PreDraw can re-assert exactly the same line.</summary>
+    private ReadOnlySeString injectedSeString;
+
+    /// <summary>The injected line with payloads stripped — for the font ladder and the log.</summary>
+    private string injectedPlain = string.Empty;
+
+    /// <summary>
+    ///     The game's own line, in bytes, for handing back in <see cref="RestoreNode" />.
+    /// </summary>
+    /// <remarks>
+    ///     Not <see cref="sourceText" />, which comes from <c>AtkText.ReadString</c> and therefore
+    ///     carries literal asterisks wherever the line was italicised. Writing that back is a visible
+    ///     defect; writing these bytes back is lossless.
+    /// </remarks>
+    private byte[] sourceBytes = [];
+
+    // What our own output reads back as. Both guards below compare a string read out of the game
+    // against one of these, so each has to be captured from the same place it will later be read
+    // from: the value for PreRefresh's re-entry guard, the node for PreDraw's flicker guard.
+    //
+    // Captured after writing rather than derived from what we meant to write. That is what makes the
+    // comparison immune to how Dalamud chooses to render a payload — asterisks for italics today,
+    // whatever it decides for the next payload type we meet. Deriving it cost a whole class of bug:
+    // the read-back never matched, so the plugin took its own Spanish for fresh source text, failed
+    // to find it, and reverted the line it had just translated.
+    private string injectedValueText = string.Empty;
+    private string injectedNodeText = string.Empty;
 
     // Node presentation state, captured before our first write so it can be put back.
     private bool nodeStateCaptured;
@@ -78,14 +106,14 @@ internal sealed unsafe class TalkHandler : IDisposable
         Configuration config,
         TranslationStore store,
         MissLog misses,
-        ISeStringEvaluator evaluator)
+        MacroResolver resolver)
     {
         this.lifecycle = lifecycle;
         this.log = log;
         this.config = config;
         this.store = store;
         this.misses = misses;
-        this.evaluator = evaluator;
+        this.resolver = resolver;
 
         this.onPreRefresh = this.OnPreRefresh;
         this.onPreDraw = this.OnPreDraw;
@@ -141,7 +169,8 @@ internal sealed unsafe class TalkHandler : IDisposable
         // Because we mutate the AtkValues in place, a later refresh can hand our own Spanish output
         // back as if it were fresh source text. Without this remap we'd look up Spanish in a
         // Spanish-keyed dictionary, miss, clear state, and revert the line.
-        if (this.injectedText.Length > 0 && text == this.injectedText)
+        var reentered = this.injectedValueText.Length > 0 && text == this.injectedValueText;
+        if (reentered)
         {
             text = this.sourceText;
             name = this.sourceName;
@@ -196,26 +225,52 @@ internal sealed unsafe class TalkHandler : IDisposable
             return;
         }
 
+        // A translation exists, which is not the same as a translation we can use. If its macros will
+        // not evaluate this line is a miss like any other — and it takes the miss path exactly, width
+        // restore included, because skipping that is what leaves the next English line wrapping after
+        // three words in a full-width box.
+        if (!this.resolver.TryResolve(translated, out var resolved, out var plain))
+        {
+            this.RestoreNode(args.Addon.Address, restoreText: false);
+            this.ClearLine();
+            return;
+        }
+
+        if (!reentered)
+        {
+            // Read before we overwrite it, and only while it still holds the game's own line. On a
+            // re-entry this value carries our Spanish, and capturing that would turn "restore" into a
+            // no-op that leaves Spanish on screen after the plugin is switched off.
+            this.sourceBytes = AtkText.ReadBytes(values[0]);
+        }
+
         this.sourceText = text;
         this.sourceName = name;
-        this.injectedText = this.ResolveValue(translated);
+        this.injectedSeString = resolved;
+        this.injectedPlain = plain;
         this.injectedName = this.config.TranslateNpcNames && this.store.TryGetNpcName(name, out var esName)
             ? esName
             : string.Empty;
 
-        // SetManagedString allocates through the game's allocator and takes ownership, so there is no
-        // buffer lifetime for us to manage.
-        values[0].SetManagedString(this.injectedText);
+        SeStringWriter.Write(&values[0], resolved);
         if (this.injectedName.Length > 0)
         {
+            // Still a string: NPC names carry no macros, so nothing is lost, and the name node is
+            // compared as a string too.
             values[1].SetManagedString(this.injectedName);
         }
 
+        // Now that it is in place, record what it reads back as. See the field comments: this is the
+        // only form the guards can safely compare against.
+        this.injectedValueText = AtkText.ReadString(values[0]);
+        this.injectedNodeText = this.injectedValueText;
+
         this.InjectedCount++;
         this.log.Debug(
-            "Injected line from '{Speaker}' ({Chars} chars, conversation={Conversation}).",
+            "Injected line from '{Speaker}' ({Chars} chars, {Bytes} bytes, conversation={Conversation}).",
             name,
-            this.injectedText.Length,
+            this.injectedPlain.Length,
+            resolved.ByteLength,
             conversation ?? "(none)");
     }
 
@@ -239,7 +294,7 @@ internal sealed unsafe class TalkHandler : IDisposable
         // Nothing of ours on screen: if we changed this node's presentation for a previous line, put
         // it back. Without this the width we forced survives into the next untranslated line, which
         // then wraps after two or three words in an otherwise full-width box.
-        if (this.injectedText.Length == 0)
+        if (this.injectedSeString.ByteLength == 0)
         {
             this.RestoreNode(args.Addon.Address);
             return;
@@ -264,7 +319,7 @@ internal sealed unsafe class TalkHandler : IDisposable
         }
 
         // The whole flicker defence: if the node already says what we want, do nothing.
-        if (AtkText.ReadNodeText(textNode) == this.injectedText)
+        if (AtkText.ReadNodeText(textNode) == this.injectedNodeText)
         {
             return;
         }
@@ -274,9 +329,17 @@ internal sealed unsafe class TalkHandler : IDisposable
         var wrapWidth = parentNode->GetWidth();
 
         textNode->TextFlags = TextFlags.WordWrap | TextFlags.MultiLine | TextFlags.AutoAdjustNodeSize;
-        textNode->FontSize = FontSizeFor(this.injectedText.Length);
+
+        // The character count, not the byte count. Every <italic> pair adds ten bytes and no
+        // characters, so sizing by bytes drops the font a step on lines that did not need it.
+        textNode->FontSize = FontSizeFor(this.injectedPlain.Length);
         textNode->SetWidth(wrapWidth);
-        textNode->SetText(this.injectedText);
+        SeStringWriter.Write(textNode, this.injectedSeString);
+
+        // What the node reads back as may not be what the value read back as — the game repopulates
+        // it — so re-anchor the guard on the node's own rendering, or this runs again next frame.
+        this.injectedNodeText = AtkText.ReadNodeText(textNode);
+
         textNode->ResizeNodeForCurrentText();
 
         // AutoAdjustNodeSize resizes both axes, so the call above can shrink the width we just set —
@@ -301,39 +364,6 @@ internal sealed unsafe class TalkHandler : IDisposable
         this.nodeStateCaptured = false;
         this.capturedForSourceText = string.Empty;
         this.ClearLine();
-    }
-
-    /// <summary>
-    ///     Resolves a translated value that carries game macro syntax.
-    /// </summary>
-    /// <remarks>
-    ///     Translations keep the game's own macro syntax — <c>&lt;if(gnum4,cansada,cansado)&gt;</c> —
-    ///     rather than a bespoke token format, so a single evaluator serves both the key and the value
-    ///     and there is no second syntax to define or keep in sync.
-    ///     <para>
-    ///         Resolved here rather than at load so the result reflects state at the moment of display,
-    ///         and because a translation that fails to evaluate degrades to showing its raw macro
-    ///         instead of breaking the line entirely.
-    ///     </para>
-    /// </remarks>
-    private string ResolveValue(string value)
-    {
-        // Most translations have no macro at all; skip the call rather than pay for it per line.
-        if (!value.Contains('<', StringComparison.Ordinal))
-        {
-            return value;
-        }
-
-        try
-        {
-            var resolved = this.evaluator.EvaluateMacroString(value).ExtractText();
-            return string.IsNullOrWhiteSpace(resolved) ? value : resolved;
-        }
-        catch (Exception ex)
-        {
-            this.log.Warning(ex, "Could not evaluate translated value; injecting it verbatim: {Value}", value);
-            return value;
-        }
     }
 
     /// <summary>
@@ -513,28 +543,28 @@ internal sealed unsafe class TalkHandler : IDisposable
             }
 
             var oursIsStillOnScreen = restoreText
-                                      && this.injectedText.Length > 0
-                                      && this.sourceText.Length > 0
-                                      && AtkText.ReadNodeText(textNode) == this.injectedText;
+                                      && this.injectedSeString.ByteLength > 0
+                                      && this.sourceBytes.Length > 0
+                                      && AtkText.ReadNodeText(textNode) == this.injectedNodeText;
 
             textNode->TextFlags = this.originalTextFlags;
             textNode->FontSize = this.originalFontSize;
             textNode->SetWidth(this.originalWidth);
 
+            // Both branches go through bytes, and both used to go through strings. Handing back the
+            // English via AtkText.ReadString's rendering wrote a literal "*Orion*" over a line the
+            // game had italicised properly — the same string round-trip that loses formatting on the
+            // way in, materialising it as visible junk on the way out.
             if (oursIsStillOnScreen)
             {
-                textNode->SetText(this.sourceText);
+                SeStringWriter.Write(textNode, this.sourceBytes);
             }
             else
             {
                 // Re-apply what is already there. Restoring a width does not re-flow text that has
                 // been laid out, so without this the node ends up the right width still carrying
                 // the breaks it was given at the wrong one.
-                var current = AtkText.ReadNodeText(textNode);
-                if (current.Length > 0)
-                {
-                    textNode->SetText(current);
-                }
+                SeStringWriter.Write(textNode, AtkText.ReadNodeBytes(textNode));
             }
 
             textNode->ResizeNodeForCurrentText();
@@ -563,7 +593,11 @@ internal sealed unsafe class TalkHandler : IDisposable
     {
         this.sourceText = string.Empty;
         this.sourceName = string.Empty;
-        this.injectedText = string.Empty;
+        this.sourceBytes = [];
+        this.injectedSeString = default;
+        this.injectedPlain = string.Empty;
         this.injectedName = string.Empty;
+        this.injectedValueText = string.Empty;
+        this.injectedNodeText = string.Empty;
     }
 }

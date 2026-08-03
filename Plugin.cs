@@ -42,6 +42,7 @@ public sealed class Plugin : IDalamudPlugin
     private readonly IPlayerState playerState;
     private readonly IDalamudPluginInterface pluginInterface;
     private readonly TranslationStore store;
+    private readonly MacroResolver resolver;
     private readonly TalkHandler talkHandler;
     private readonly OverlayHandler overlays;
     private readonly AddonFinder finder;
@@ -91,13 +92,17 @@ public sealed class Plugin : IDalamudPlugin
             log,
             Path.Combine(pluginInterface.GetPluginConfigDirectory(), MissLogFileName));
 
+        // One resolver for both handlers, so the "will not evaluate, not injected" rule and its
+        // failure count are stated once rather than reimplemented per addon.
+        this.resolver = new MacroResolver(evaluator, log);
+
         this.talkHandler = new TalkHandler(
             addonLifecycle,
             log,
             this.config,
             this.store,
             this.misses,
-            evaluator);
+            this.resolver);
 
         // One handler, several candidate addon names. TalkSubtitle is proven; the others are guesses
         // that cost nothing if they never fire and announce themselves in the log if they do.
@@ -107,6 +112,7 @@ public sealed class Plugin : IDalamudPlugin
             this.config,
             this.store,
             this.misses,
+            this.resolver,
             "TalkSubtitle",
             "_BattleTalk",
             "_ScreenInfoFront",
@@ -301,6 +307,11 @@ public sealed class Plugin : IDalamudPlugin
         this.chat.Print($"[Gubal]{snapshot.EntryCount} entries, {snapshot.NpcNameCount} NPC names.");
         this.chat.Print($"[Gubal]Source: {snapshot.LoadedFrom}");
         this.chat.Print($"[Gubal]Injected {snapshot.InjectedCount} line(s), {snapshot.MissCount} distinct miss(es).");
+        if (this.resolver.FailureCount > 0)
+        {
+            this.chat.Print(
+                $"[Gubal]{this.resolver.FailureCount} translation(s) refused: macros would not evaluate. See /xllog.");
+        }
         var character = this.playerState.IsLoaded ? this.playerState.CharacterName : "(not loaded)";
         this.chat.Print($"[Gubal]Enabled={this.config.Enabled}, indexed for '{character}'");
     }

@@ -54,6 +54,30 @@ internal static unsafe class AtkText
     }
 
     /// <summary>
+    ///     Reads an <see cref="AtkValue" />'s raw SeString bytes, payloads and all.
+    /// </summary>
+    /// <remarks>
+    ///     For anything that has to be written back byte-for-byte. <see cref="ReadString" /> is lossy in
+    ///     both directions at once: it deletes nothing but it renders italic payloads as literal
+    ///     asterisks, so a line read as a string and then written back arrives on screen as
+    ///     <c>*Orion*</c>. Keep the bytes when the plan is to restore them; keep the string when the
+    ///     plan is to compare or to look up.
+    ///     <para>
+    ///         Same type guard as the rest of this file, for the same non-negotiable reason.
+    ///     </para>
+    /// </remarks>
+    public static byte[] ReadBytes(AtkValue value)
+    {
+        if (!HoldsString(value))
+        {
+            return [];
+        }
+
+        var pointer = value.String;
+        return pointer.HasValue ? pointer.AsSpan().ToArray() : [];
+    }
+
+    /// <summary>
     ///     Reads a text node's on-screen string.
     /// </summary>
     /// <remarks>
@@ -81,5 +105,18 @@ internal static unsafe class AtkText
         {
             return node->NodeText.ToString();
         }
+    }
+
+    /// <summary>
+    ///     Reads a text node's raw SeString bytes, for text that has to be written back unchanged.
+    /// </summary>
+    /// <remarks>
+    ///     The node counterpart of <see cref="ReadBytes" />, and needed for the same reason: a node's
+    ///     text read as a string and written straight back is not the same text. Anything italicised
+    ///     gains a pair of literal asterisks on the round trip.
+    /// </remarks>
+    public static byte[] ReadNodeBytes(AtkTextNode* node)
+    {
+        return node is null || node->NodeText.IsEmpty ? [] : node->NodeText.AsSpan().ToArray();
     }
 }

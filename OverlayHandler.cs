@@ -2,6 +2,7 @@ using Dalamud.Game.Addon.Lifecycle;
 using Dalamud.Game.Addon.Lifecycle.AddonArgTypes;
 using Dalamud.Plugin.Services;
 using FFXIVClientStructs.FFXIV.Component.GUI;
+using Lumina.Text.ReadOnly;
 
 namespace GubalLibrary;
 
@@ -78,13 +79,14 @@ internal sealed unsafe class OverlayHandler : IDisposable
     private readonly IAddonLifecycle lifecycle;
     private readonly IPluginLog log;
     private readonly MissLog misses;
+    private readonly MacroResolver resolver;
     private readonly TranslationStore store;
 
     private readonly IAddonLifecycle.AddonEventDelegate onPreDraw;
     private readonly IAddonLifecycle.AddonEventDelegate onPreRefresh;
 
     private readonly Dictionary<string, int> inspections = new(StringComparer.Ordinal);
-    private readonly Dictionary<string, string> injected = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, Injection> injected = new(StringComparer.Ordinal);
     private readonly HashSet<string> seenAddons = new(StringComparer.Ordinal);
 
     /// <summary>Reused across frames so the per-frame node sweep does not allocate.</summary>
@@ -109,6 +111,7 @@ internal sealed unsafe class OverlayHandler : IDisposable
         Configuration config,
         TranslationStore store,
         MissLog misses,
+        MacroResolver resolver,
         params string[] addonNames)
     {
         this.lifecycle = lifecycle;
@@ -116,6 +119,7 @@ internal sealed unsafe class OverlayHandler : IDisposable
         this.config = config;
         this.store = store;
         this.misses = misses;
+        this.resolver = resolver;
         this.addonNames = addonNames;
 
         this.onPreRefresh = this.OnPreRefresh;
@@ -169,7 +173,7 @@ internal sealed unsafe class OverlayHandler : IDisposable
         }
 
         var text = AtkText.ReadString(values[index]);
-        if (string.IsNullOrWhiteSpace(text) || text == this.Injected(name))
+        if (string.IsNullOrWhiteSpace(text) || text == this.InjectedReadBack(name))
         {
             return;
         }
@@ -179,8 +183,20 @@ internal sealed unsafe class OverlayHandler : IDisposable
             return;
         }
 
-        this.injected[name] = translated;
-        values[index].SetManagedString(translated);
+        // This handler never resolved macros at all, which was worse than the lost formatting it is
+        // being fixed alongside: it wrote the corpus target verbatim, so a line whose Spanish carries
+        // <if(gnum4,cansada,cansado)> put that on screen, angle brackets and all.
+        if (!this.resolver.TryResolve(translated, out var resolved, out _))
+        {
+            return;
+        }
+
+        SeStringWriter.Write(&values[index], resolved);
+
+        // Recorded only after a successful write, and holding the read-back rather than the target.
+        // An entry here means "our line is already on screen", so writing one on the refusal path
+        // above would convince the guard a line it never wrote was in place.
+        this.injected[name] = new Injection(resolved, AtkText.ReadString(values[index]));
         this.InjectedCount++;
     }
 
@@ -224,7 +240,7 @@ internal sealed unsafe class OverlayHandler : IDisposable
             }
 
             var onScreen = AtkText.ReadNodeText(node);
-            if (onScreen.Length == 0 || onScreen == this.Injected(name))
+            if (onScreen.Length == 0 || onScreen == this.InjectedReadBack(name))
             {
                 continue;
             }
@@ -254,8 +270,14 @@ internal sealed unsafe class OverlayHandler : IDisposable
                 continue;
             }
 
-            this.injected[name] = translated;
-            node->SetText(translated);
+            if (!this.resolver.TryResolve(translated, out var resolved, out _))
+            {
+                // attempted[nodeKey] is already set above, so a refusal is not retried next frame.
+                continue;
+            }
+
+            SeStringWriter.Write(node, resolved);
+            this.injected[name] = new Injection(resolved, AtkText.ReadNodeText(node));
             this.InjectedCount++;
         }
     }
@@ -277,10 +299,30 @@ internal sealed unsafe class OverlayHandler : IDisposable
         return false;
     }
 
-    private string Injected(string addonName)
+    /// <summary>
+    ///     What our own line on this addon reads back as, or empty if we have not written one.
+    /// </summary>
+    /// <remarks>
+    ///     Returns the string rather than the <see cref="Injection" /> deliberately.
+    ///     <c>GetValueOrDefault</c> on a struct hands back <c>default</c>, whose <c>ReadBack</c> is
+    ///     <see langword="null" /> — a record struct's property initialisers only run through its
+    ///     primary constructor — and a null there would be a non-nullable field holding null with
+    ///     <c>Nullable</c> enabled. Resolving it here keeps that value from ever escaping.
+    /// </remarks>
+    private string InjectedReadBack(string addonName)
     {
-        return this.injected.GetValueOrDefault(addonName, string.Empty);
+        return this.injected.TryGetValue(addonName, out var entry) ? entry.ReadBack : string.Empty;
     }
+
+    /// <summary>
+    ///     One injected line: the bytes that were written, and what they read back as.
+    /// </summary>
+    /// <remarks>
+    ///     Two fields because they answer different questions. The bytes are what to re-assert; the
+    ///     read-back is the only thing a guard can compare against, since the API that reads text out
+    ///     of the game renders payloads differently from the way they went in.
+    /// </remarks>
+    private readonly record struct Injection(ReadOnlySeString Text, string ReadBack);
 
     private bool Inspect(string addonName)
     {
