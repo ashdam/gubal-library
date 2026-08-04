@@ -86,7 +86,7 @@ internal sealed class MissLog(IPluginLog log, string path) : IDisposable
             // Only carry `raw` when normalization actually changed something — otherwise it is noise.
             var line = JsonSerializer.Serialize(
                 new Miss(
-                    DateTime.Now.ToString("HH:mm:ss", CultureInfo.InvariantCulture),
+                    DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss", CultureInfo.InvariantCulture),
                     key,
                     string.Equals(key, raw, StringComparison.Ordinal) ? null : raw,
                     speaker),
@@ -122,5 +122,13 @@ internal sealed class MissLog(IPluginLog log, string path) : IDisposable
     ///     to tell a stale miss from before a reload apart from a live one, which already cost one
     ///     round of misdiagnosis.
     /// </summary>
+    /// <remarks>
+    ///     <b>With the date, and it earned it the hard way.</b> This was <c>HH:mm:ss</c>, which is no
+    ///     help across days — a reading of this file dated yesterday's entries as today's and reported
+    ///     a bug that had already been fixed. It also explains the one thing about this file that looks
+    ///     broken and is not: the timestamps are not monotonic, because misses are deduplicated per
+    ///     session, so a key first seen in a later session is appended after entries with earlier
+    ///     clock times. With a date on every line that reads as two sessions rather than as disorder.
+    /// </remarks>
     private sealed record Miss(string Time, string Key, string? Raw, string Speaker);
 }
