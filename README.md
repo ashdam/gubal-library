@@ -60,7 +60,7 @@ already published a conclusion that rested on the second being assumed from the 
 | `<split>` and `<string>` on screen | no — 903 and 918 occurrences, never observed |
 | The bundled sample injects in game | no |
 | The red sample warning renders | no |
-| The release workflow | no — never executed, never pushed |
+| The release workflow | yes — four tags built and published a `latest.zip`, 0.1.3.0 through 0.1.6.0 |
 
 **The crash fix is the one that matters.** It is the reason the plugin was touched at all: an
 `AccessViolationException` was killing the client at character select, the cause was found (see
