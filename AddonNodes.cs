@@ -60,6 +60,21 @@ internal static unsafe class AddonNodes
                 continue;
             }
 
+            // Hidden subtrees are pruned, not merely skipped at the leaves. A speech balloon addon
+            // keeps a pool of four bubbles and every unused one retains the last line it drew, so
+            // walking them all hands back text that is not on screen — and the plugin then read its own
+            // Spanish out of a dormant bubble, failed to find it in a Spanish-keyed index, and filed it
+            // as an untranslated line. Nothing was visibly wrong, which is what made it a log full of
+            // phantom misses rather than a bug anyone would notice.
+            //
+            // The node's own flag, checked top-down, rather than IsVisible(): pruning the parent makes
+            // an ancestor walk at each leaf redundant, and it does not depend on how far up that helper
+            // looks.
+            if ((node->NodeFlags & NodeFlags.Visible) == 0)
+            {
+                continue;
+            }
+
             if ((ushort)node->Type >= ComponentTypeFloor)
             {
                 var component = ((AtkComponentNode*)node)->Component;

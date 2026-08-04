@@ -1,4 +1,5 @@
 using Dalamud.Plugin.Services;
+using FFXIVClientStructs.FFXIV.Client.UI;
 using FFXIVClientStructs.FFXIV.Component.GUI;
 
 namespace GubalLibrary;
@@ -65,6 +66,125 @@ internal static unsafe class AddonInspector
             }
 
             log.Information("  node {Id}: w={Width} {Text}", id, node->GetWidth(), AtkText.ReadNodeText(node));
+        }
+    }
+
+    /// <summary>
+    ///     Describes every text node found by walking the tree, with the geometry that decides layout.
+    /// </summary>
+    /// <remarks>
+    ///     <see cref="Dump" /> cannot see these. It asks <c>GetTextNodeById</c>, which only reaches the
+    ///     addon's own top-level list, so for any addon that wraps its text in a component it reports
+    ///     nothing at all — which is why no balloon was ever described despite the inspector existing.
+    ///     This takes the list <see cref="AddonNodes.CollectTextNodes" /> already built.
+    ///     <para>
+    ///         Width alone is not enough to reason about overflow. The flags decide whether a line-break
+    ///         payload breaks anything and whether long text wraps or runs off the edge; the font size
+    ///         and line spacing decide how much room the text needs. Printing only width is what left
+    ///         the balloon overflow undiagnosable from a log.
+    ///     </para>
+    /// </remarks>
+    public static void DumpTextNodes(IPluginLog log, string addonName, string when, List<nint> textNodes)
+    {
+        log.Information("=== {Addon} ({When}): {Count} text node(s) ===", addonName, when, textNodes.Count);
+
+        foreach (var pointer in textNodes)
+        {
+            var node = (AtkTextNode*)pointer;
+
+            log.Information(
+                "  node {Id}: {Width}x{Height} font={Font} flags={Flags} spacing={Spacing} align={Align} text={Text}",
+                node->NodeId,
+                node->GetWidth(),
+                node->GetHeight(),
+                node->FontSize,
+                node->TextFlags,
+                node->LineSpacing,
+                node->AlignmentType,
+                AtkText.ReadNodeText(node));
+        }
+    }
+
+    /// <summary>
+    ///     Describes a speech balloon's nodes, which are sized independently of one another.
+    /// </summary>
+    /// <remarks>
+    ///     <c>AddonMiniTalk.TalkBubbleEntry</c> gives the layout authoritatively: the line lives in
+    ///     <c>BubbleTextNode</c>, the balloon graphic behind it is a separate
+    ///     <c>BubbleNineGridNode</c>, and the tail that points at the NPC is a third
+    ///     <c>BubbleImageNode</c>. Writing longer text into the first grows nothing else, which is the
+    ///     shape of the reported overflow — so all four sizes have to be on the record before anything
+    ///     is resized, or the fix is guesswork that can leave balloons detached from their speaker.
+    /// </remarks>
+    public static void DumpMiniTalk(IPluginLog log, AtkUnitBase* addon, string when)
+    {
+        if (addon is null)
+        {
+            return;
+        }
+
+        var mini = (AddonMiniTalk*)addon;
+        var index = 0;
+
+        foreach (ref var bubble in mini->TalkBubbles)
+        {
+            var current = index++;
+            var text = bubble.BubbleTextNode;
+
+            // Empty bubbles are the pool's unused slots, not information.
+            if (text is null || text->NodeText.IsEmpty)
+            {
+                continue;
+            }
+
+            log.Information("  --- bubble {Index} ({When}) ---", current, when);
+            log.Information(
+                "    text     {Width}x{Height} at ({X},{Y}) font={Font} flags={Flags} spacing={Spacing} text={Text}",
+                text->GetWidth(),
+                text->GetHeight(),
+                text->AtkResNode.X,
+                text->AtkResNode.Y,
+                text->FontSize,
+                text->TextFlags,
+                text->LineSpacing,
+                AtkText.ReadNodeText(text));
+
+            if (bubble.BubbleNineGridNode is not null)
+            {
+                var grid = bubble.BubbleNineGridNode;
+                log.Information(
+                    "    ninegrid {Width}x{Height} at ({X},{Y}) insets t={Top} b={Bottom} l={Left} r={Right}",
+                    grid->GetWidth(),
+                    grid->GetHeight(),
+                    grid->AtkResNode.X,
+                    grid->AtkResNode.Y,
+                    grid->TopOffset,
+                    grid->BottomOffset,
+                    grid->LeftOffset,
+                    grid->RightOffset);
+            }
+
+            if (bubble.BubbleImageNode is not null)
+            {
+                var image = bubble.BubbleImageNode;
+                log.Information(
+                    "    tail     {Width}x{Height} at ({X},{Y})",
+                    image->GetWidth(),
+                    image->GetHeight(),
+                    image->AtkResNode.X,
+                    image->AtkResNode.Y);
+            }
+
+            if (bubble.BubbleResNode is not null)
+            {
+                var res = bubble.BubbleResNode;
+                log.Information(
+                    "    root     {Width}x{Height} at ({X},{Y})",
+                    res->GetWidth(),
+                    res->GetHeight(),
+                    res->X,
+                    res->Y);
+            }
         }
     }
 }

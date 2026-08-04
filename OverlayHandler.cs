@@ -2,7 +2,6 @@ using Dalamud.Game.Addon.Lifecycle;
 using Dalamud.Game.Addon.Lifecycle.AddonArgTypes;
 using Dalamud.Plugin.Services;
 using FFXIVClientStructs.FFXIV.Component.GUI;
-using Lumina.Text.ReadOnly;
 
 namespace GubalLibrary;
 
@@ -86,8 +85,28 @@ internal sealed unsafe class OverlayHandler : IDisposable
     private readonly IAddonLifecycle.AddonEventDelegate onPreRefresh;
 
     private readonly Dictionary<string, int> inspections = new(StringComparer.Ordinal);
-    private readonly Dictionary<string, Injection> injected = new(StringComparer.Ordinal);
     private readonly HashSet<string> seenAddons = new(StringComparer.Ordinal);
+
+    /// <summary>What our own output reads back as on the value route, per addon.</summary>
+    private readonly Dictionary<string, string> valueInjected = new(StringComparer.Ordinal);
+
+    /// <summary>
+    ///     What our own output reads back as on the node route, per <em>node</em>.
+    /// </summary>
+    /// <remarks>
+    ///     <b>Keyed by node pointer, and it has to be.</b> One entry per addon was wrong and the miss
+    ///     log proved it: several balloons on screen at once are each a separate component instance of
+    ///     the same layout, so every one of their text nodes carries node id 3. One shared entry meant
+    ///     the guard only ever recognised the most recent balloon's text, so the others' Spanish came
+    ///     back round as though it were fresh English — and got recorded as missing translations for
+    ///     lines that had just been translated.
+    ///     <para>
+    ///         The key is never dereferenced, only compared, so a pointer the game later reuses for a
+    ///         different node costs one comparison that fails and re-translates. That is why this can
+    ///         be a raw pointer without a lifetime story.
+    ///     </para>
+    /// </remarks>
+    private readonly Dictionary<nint, string> nodeInjected = [];
 
     /// <summary>Reused across frames so the per-frame node sweep does not allocate.</summary>
     private readonly List<nint> nodeBuffer = [];
@@ -102,8 +121,14 @@ internal sealed unsafe class OverlayHandler : IDisposable
     ///     first node translated, wrote the English into this map, and the second node then matched it
     ///     and was skipped — every frame, permanently, because the state that produced the skip was
     ///     the state the skip preserved. On screen: Spanish over English, both legible.
+    ///     <para>
+    ///         By pointer rather than by <c>addon#nodeId</c>, which was the same near-miss as
+    ///         <see cref="nodeInjected" />: the id is unique within one component, not across the
+    ///         several a balloon addon instantiates, so two balloons shared an entry and each blocked
+    ///         the other's lookup.
+    ///     </para>
     /// </remarks>
-    private readonly Dictionary<string, string> attempted = new(StringComparer.Ordinal);
+    private readonly Dictionary<nint, string> attempted = [];
 
     public OverlayHandler(
         IAddonLifecycle lifecycle,
@@ -147,12 +172,7 @@ internal sealed unsafe class OverlayHandler : IDisposable
         }
 
         var name = args.AddonName;
-
-        // Which candidate names actually exist is itself a finding worth recording once.
-        if (this.seenAddons.Add(name))
-        {
-            this.log.Information("Overlay addon '{Addon}' is live.", name);
-        }
+        this.NoteLive(name, "values");
 
         var values = (AtkValue*)refresh.AtkValues;
         var count = (int)refresh.AtkValueCount;
@@ -173,7 +193,7 @@ internal sealed unsafe class OverlayHandler : IDisposable
         }
 
         var text = AtkText.ReadString(values[index]);
-        if (string.IsNullOrWhiteSpace(text) || text == this.InjectedReadBack(name))
+        if (string.IsNullOrWhiteSpace(text) || text == this.valueInjected.GetValueOrDefault(name, string.Empty))
         {
             return;
         }
@@ -196,7 +216,7 @@ internal sealed unsafe class OverlayHandler : IDisposable
         // Recorded only after a successful write, and holding the read-back rather than the target.
         // An entry here means "our line is already on screen", so writing one on the refusal path
         // above would convince the guard a line it never wrote was in place.
-        this.injected[name] = new Injection(resolved, AtkText.ReadString(values[index]));
+        this.valueInjected[name] = AtkText.ReadString(values[index]);
         this.InjectedCount++;
     }
 
@@ -214,10 +234,24 @@ internal sealed unsafe class OverlayHandler : IDisposable
         }
 
         var name = args.AddonName;
+        this.NoteLive(name, "nodes");
 
         // The whole tree, not GetTextNodeById: _MiniTalk keeps its line in a component one level
         // down, where an id lookup on the addon's own list finds nothing at all.
         AddonNodes.CollectTextNodes(addon, this.nodeBuffer);
+
+        // Only for the balloon addons. Both the refit and the dump reinterpret the addon as
+        // AddonMiniTalk, and doing that to _BattleTalk would read a different struct's memory as if it
+        // were bubble pointers.
+        var isMiniTalk = name is "_MiniTalk" or "MiniTalk";
+
+        // Characterising an unknown addon: what nodes it has and how they are set up. Budgeted, unlike
+        // the balloon dumps below, because it answers a question about the addon rather than about a
+        // line — a handful of frames shows the layout and repeating it forever shows nothing new.
+        if (this.config.ProbeEvents && this.Inspect(name))
+        {
+            AddonInspector.DumpTextNodes(this.log, name, "layout", this.nodeBuffer);
+        }
 
         var known = BodyNode.TryGetValue(name, out var bodyId);
 
@@ -240,7 +274,7 @@ internal sealed unsafe class OverlayHandler : IDisposable
             }
 
             var onScreen = AtkText.ReadNodeText(node);
-            if (onScreen.Length == 0 || onScreen == this.InjectedReadBack(name))
+            if (onScreen.Length == 0 || onScreen == this.nodeInjected.GetValueOrDefault(pointer, string.Empty))
             {
                 continue;
             }
@@ -253,31 +287,54 @@ internal sealed unsafe class OverlayHandler : IDisposable
             //
             // Per node. Sibling nodes showing the same string are not a repeat of one lookup, they
             // are two nodes that both need writing.
-            var nodeKey = $"{name}#{id}";
-            if (onScreen == this.attempted.GetValueOrDefault(nodeKey, string.Empty))
+            if (onScreen == this.attempted.GetValueOrDefault(pointer, string.Empty))
             {
                 continue;
             }
 
-            this.attempted[nodeKey] = onScreen;
+            this.attempted[pointer] = onScreen;
 
             // The node id goes into the miss record, not just the addon name. Without it the log
             // cannot distinguish the body from the speaker: a _BattleTalk pass recorded the NPC name
             // "Y'nazqha" as a missed line alongside two real ones, and there was no way to tell which
             // node each came from. Learn the layout from the log, then narrow this scan to the body.
-            if (!this.TryTranslate(onScreen, nodeKey, conversation, out var translated))
+            if (!this.TryTranslate(onScreen, $"{name}#{id}", conversation, out var translated))
             {
                 continue;
             }
 
             if (!this.resolver.TryResolve(translated, out var resolved, out _))
             {
-                // attempted[nodeKey] is already set above, so a refusal is not retried next frame.
+                // attempted[pointer] is already set above, so a refusal is not retried next frame.
                 continue;
             }
 
+            // Gated on the write, not on a frame budget. PreDraw runs every frame, so an
+            // inspection counter is spent within a few frames of the first line and every dump after
+            // that is lost — which is how eight identical dumps of one untranslated balloon were
+            // collected while the injected ones went unrecorded. One line injected, one pair of dumps.
+            var probing = this.config.ProbeEvents && isMiniTalk;
+            if (probing)
+            {
+                AddonInspector.DumpMiniTalk(this.log, addon, "before inject");
+            }
+
             SeStringWriter.Write(node, resolved);
-            this.injected[name] = new Injection(resolved, AtkText.ReadNodeText(node));
+
+            // Balloons only. Everything else this handler writes to is a fixed-size overlay that
+            // already arrives with WordWrap set.
+            if (isMiniTalk)
+            {
+                BalloonLayout.Fit(addon, node);
+            }
+
+            // After the refit, so it is the geometry actually on screen.
+            if (probing)
+            {
+                AddonInspector.DumpMiniTalk(this.log, addon, "after inject");
+            }
+
+            this.nodeInjected[pointer] = AtkText.ReadNodeText(node);
             this.InjectedCount++;
         }
     }
@@ -300,29 +357,22 @@ internal sealed unsafe class OverlayHandler : IDisposable
     }
 
     /// <summary>
-    ///     What our own line on this addon reads back as, or empty if we have not written one.
+    ///     Records, once per addon and route, that this handler has actually seen it.
     /// </summary>
     /// <remarks>
-    ///     Returns the string rather than the <see cref="Injection" /> deliberately.
-    ///     <c>GetValueOrDefault</c> on a struct hands back <c>default</c>, whose <c>ReadBack</c> is
-    ///     <see langword="null" /> — a record struct's property initialisers only run through its
-    ///     primary constructor — and a null there would be a non-nullable field holding null with
-    ///     <c>Nullable</c> enabled. Resolving it here keeps that value from ever escaping.
+    ///     <b>Both routes, and the route is named.</b> This used to log only from the value path, which
+    ///     made it a misleading signal rather than a useful one: <c>_MiniTalk</c> carries no
+    ///     <c>AtkValues</c> at all, so it can be handled every frame through the node path and still
+    ///     never appear in the log. Reading its absence as "that addon never fired" is exactly the
+    ///     wrong conclusion, and it was drawn.
     /// </remarks>
-    private string InjectedReadBack(string addonName)
+    private void NoteLive(string addonName, string route)
     {
-        return this.injected.TryGetValue(addonName, out var entry) ? entry.ReadBack : string.Empty;
+        if (this.seenAddons.Add($"{addonName}#{route}"))
+        {
+            this.log.Information("Overlay addon '{Addon}' is live (via {Route}).", addonName, route);
+        }
     }
-
-    /// <summary>
-    ///     One injected line: the bytes that were written, and what they read back as.
-    /// </summary>
-    /// <remarks>
-    ///     Two fields because they answer different questions. The bytes are what to re-assert; the
-    ///     read-back is the only thing a guard can compare against, since the API that reads text out
-    ///     of the game renders payloads differently from the way they went in.
-    /// </remarks>
-    private readonly record struct Injection(ReadOnlySeString Text, string ReadBack);
 
     private bool Inspect(string addonName)
     {
