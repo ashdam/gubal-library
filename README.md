@@ -29,8 +29,9 @@ translation, and the settings window stays red for as long as it is all that is 
 ## Status
 
 Testing build. Covers `Talk` (NPC dialogue, quest text, cutscene speech), `TalkSubtitle` (cutscene
-narration) and `_MiniTalk` (speech balloons). `_BattleTalk` and `_ScreenInfoFront` are registered and
-report themselves in the log when they fire, but are not characterised. `SelectString` is not handled.
+narration), `_MiniTalk` (speech balloons) and `_BattleTalk` (combat callouts). `_ScreenInfoFront` is
+registered and reports itself in the log when it fires, but is not characterised. `SelectString` is
+not handled.
 
 **Formatting survives injection.** Italics, colour and gender conditionals reach the screen, because
 the injected value is written as SeString bytes rather than flattened to a string — see
@@ -55,8 +56,8 @@ already published a conclusion that rested on the second being assumed from the 
 | `<br>` breaks the line | yes — Tatasosa, three lines |
 | Restoring the game's line on unload | yes — English returns, with its own italics intact |
 | Speech balloons resize to the translation | yes — several FATEs, native size for the line count |
+| `_BattleTalk` injecting and fitting | yes — Enuo, The Unmaking; node 6 grew 20 → 46 for a two-line line |
 | **The character-select crash fix, in game** | **no — never re-run** |
-| `_BattleTalk` injecting in game | no — the addon fires, but no translated line has been seen in it |
 | `<split>` and `<string>` on screen | no — 903 and 918 occurrences, never observed |
 | The bundled sample injects in game | no |
 | The red sample warning renders | no |

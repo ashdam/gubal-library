@@ -321,11 +321,21 @@ internal sealed unsafe class OverlayHandler : IDisposable
 
             SeStringWriter.Write(node, resolved);
 
-            // Balloons only. Everything else this handler writes to is a fixed-size overlay that
-            // already arrives with WordWrap set.
+            // Two layout models, and which one applies is written on the node. A balloon has no
+            // WordWrap: the game breaks its lines only where the text says so and widens the balloon,
+            // so the translation needs more WIDTH. A battle-talk banner has WordWrap and a fixed
+            // column: the game reflows the line, so a longer translation needs more HEIGHT.
+            //
+            // Getting this backwards is not a near miss. Widening a wrapping node does nothing, and
+            // wrapping a widening one collapses it into a column — both were tried on balloons before
+            // the flags were read.
             if (isMiniTalk)
             {
                 BalloonLayout.Fit(addon, node);
+            }
+            else
+            {
+                FitHeight(node);
             }
 
             // After the refit, so it is the geometry actually on screen.
@@ -354,6 +364,43 @@ internal sealed unsafe class OverlayHandler : IDisposable
         }
 
         return false;
+    }
+
+    /// <summary>
+    ///     Grows a wrapping text node to the height its text now needs, leaving the width alone.
+    /// </summary>
+    /// <remarks>
+    ///     <para>
+    ///         For the overlays the game reflows itself. Enuo's line in The Unmaking arrived as
+    ///         <c>node 6: 576x20</c> with <c>WordWrap, MultiLine</c> and line spacing 22 — a column
+    ///         576 wide and one line tall. The Spanish wrapped onto a second line, which was then drawn
+    ///         below the node and outside the banner. The width is the layout's and must not change;
+    ///         only the height was ever wrong.
+    ///     </para>
+    ///     <para>
+    ///         Measured with <c>GetTextDrawSize</c> rather than <c>ResizeNodeForCurrentText</c>, which
+    ///         only ever grows and would leave a two-line height behind on the next one-line label.
+    ///     </para>
+    ///     <para>
+    ///         A node without <c>WordWrap</c> is left alone: it does not reflow, so its height says
+    ///         nothing about how much room the text needs, and setting one would be guessing.
+    ///     </para>
+    /// </remarks>
+    private static void FitHeight(AtkTextNode* node)
+    {
+        if (node is null || (node->TextFlags & TextFlags.WordWrap) == 0)
+        {
+            return;
+        }
+
+        ushort width;
+        ushort height;
+        node->GetTextDrawSize(&width, &height);
+
+        if (height > 0 && height != node->GetHeight())
+        {
+            node->SetHeight(height);
+        }
     }
 
     /// <summary>
