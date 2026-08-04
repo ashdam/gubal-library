@@ -28,9 +28,14 @@ translation, and the settings window stays red for as long as it is all that is 
 
 ## Status
 
-Testing build. Covers `Talk` (NPC dialogue, quest text, cutscene speech) and `TalkSubtitle` (cutscene
-narration). `_BattleTalk`, `_MiniTalk` and `_ScreenInfoFront` are registered and report themselves in
-the log when they fire, but are not characterised. `SelectString` is not handled.
+Testing build. Covers `Talk` (NPC dialogue, quest text, cutscene speech), `TalkSubtitle` (cutscene
+narration) and `_MiniTalk` (speech balloons). `_BattleTalk` and `_ScreenInfoFront` are registered and
+report themselves in the log when they fire, but are not characterised. `SelectString` is not handled.
+
+**Formatting survives injection.** Italics, colour and gender conditionals reach the screen, because
+the injected value is written as SeString bytes rather than flattened to a string — see
+`SeStringWriter` and `MacroResolver` under *Layout*. A translation whose macros will not evaluate is
+not injected at all: the game's own line is better than a visible `<if(gnum4,…)>`.
 
 ### What is verified, and what is only compiled
 
@@ -44,7 +49,15 @@ already published a conclusion that rested on the second being assumed from the 
 | `repo.json` agrees with the built manifest | yes, field by field |
 | Dalamud / FFXIVClientStructs APIs used | verified by introspecting the installed DLLs |
 | Quest-scoped lookup resolves in game | yes — Nananji, quest 4779, 11 of 11 lines, zero misses |
+| Italics reach the screen | yes — Ahldskyf's *Orion*, Limsa Lominsa Lower Decks |
+| An escaped `\<` stays literal text | yes — Tatasosa's four `\<crujido>`, New Gridania |
+| Gender conditionals resolve | yes — Hida, New Gridania |
+| `<br>` breaks the line | yes — Tatasosa, three lines |
+| Restoring the game's line on unload | yes — English returns, with its own italics intact |
+| Speech balloons resize to the translation | yes — several FATEs, native size for the line count |
 | **The character-select crash fix, in game** | **no — never re-run** |
+| `_BattleTalk` injecting in game | no — the addon fires, but no translated line has been seen in it |
+| `<split>` and `<string>` on screen | no — 903 and 918 occurrences, never observed |
 | The bundled sample injects in game | no |
 | The red sample warning renders | no |
 | The release workflow | no — never executed, never pushed |
