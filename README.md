@@ -32,6 +32,28 @@ Testing build. Covers `Talk` (NPC dialogue, quest text, cutscene speech) and `Ta
 narration). `_BattleTalk`, `_MiniTalk` and `_ScreenInfoFront` are registered and report themselves in
 the log when they fire, but are not characterised. `SelectString` is not handled.
 
+### What is verified, and what is only compiled
+
+Kept honest on purpose, because "builds clean" and "works" are different claims and this project has
+already published a conclusion that rested on the second being assumed from the first.
+
+| | |
+|---|---|
+| Builds clean, 0 warnings | yes, repeatedly |
+| Release zip correct from a clean tree | yes — 4 entries, 45,042 bytes |
+| `repo.json` agrees with the built manifest | yes, field by field |
+| Dalamud / FFXIVClientStructs APIs used | verified by introspecting the installed DLLs |
+| Quest-scoped lookup resolves in game | yes — Nananji, quest 4779, 11 of 11 lines, zero misses |
+| **The character-select crash fix, in game** | **no — never re-run** |
+| The bundled sample injects in game | no |
+| The red sample warning renders | no |
+| The release workflow | no — never executed, never pushed |
+
+**The crash fix is the one that matters.** It is the reason the plugin was touched at all: an
+`AccessViolationException` was killing the client at character select, the cause was found (see
+`AtkText` under *Layout*) and the fix compiles — but reaching character select to reproduce it was
+never done again. Until that is run, the most important change in the plugin is unconfirmed.
+
 ## How it works
 
 On `PreRefresh` the plugin swaps the addon's **source values** before the game builds its text nodes,
