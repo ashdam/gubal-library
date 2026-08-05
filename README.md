@@ -31,12 +31,7 @@ There is a self-test bundled — two lines from one NPC — but that is a smoke 
 
 ## Examples
 
-The live game with a Spanish language pack loaded. **The pack is not part of this project** and is
-not distributed with it — the translation is somebody's separate work. These images show what the
-engine does with a pack, not an offer of one: load a pack for another language and the same screens
-come out in that language instead.
-
-None of it is a mock-up or an overlay. It is the game's own dialogue box, the game's own font and the
+The live game with a Spanish language pack loaded. None of it is a mock-up or an overlay. It is the game's own dialogue box, the game's own font and the
 game's own line breaking, with the text replaced underneath.
 
 One per surface the plugin supports.
@@ -56,11 +51,6 @@ One per surface the plugin supports.
 **Combat callouts — `_BattleTalk`**
 
 ![A Spanish combat callout during a boss fight](images/example2.png)
-
-The last two are the surfaces the plugin has to size itself, because the game lays them out before a
-translation can reach them — see *How it works*. In both, the panel has been grown to hold a line
-longer than the English it replaced. The first two need none of that: their text is swapped before the
-game builds the box, so the game does its own wrapping from the Spanish.
 
 ## Install
 
@@ -117,37 +107,6 @@ UI are untouched.
 the injected value is written as SeString bytes rather than flattened to a string — see
 `SeStringWriter` and `MacroResolver`. A translation whose macros will not evaluate is not injected at
 all: the game's own line is better than a visible `<if(gnum4,…)>`.
-
-### What is verified, and what is only compiled
-
-Kept honest on purpose, because "builds clean" and "works" are different claims and this project has
-already published a conclusion that rested on the second being assumed from the first.
-
-| | |
-|---|---|
-| Builds clean, 0 warnings | yes, repeatedly |
-| Release zip correct from a clean tree | yes — 4 entries, 45,042 bytes |
-| `repo.json` agrees with the built manifest | yes, field by field |
-| Dalamud / FFXIVClientStructs APIs used | verified by introspecting the installed DLLs |
-| Quest-scoped lookup resolves in game | yes — Nananji, quest 4779, 11 of 11 lines, zero misses |
-| Italics reach the screen | yes — Ahldskyf's *Orion*, Limsa Lominsa Lower Decks |
-| An escaped `\<` stays literal text | yes — Tatasosa's four `\<crujido>`, New Gridania |
-| Gender conditionals resolve | yes — Hida, New Gridania |
-| `<br>` breaks the line | yes — Tatasosa, three lines |
-| Restoring the game's line on unload | yes — English returns, with its own italics intact |
-| Speech balloons resize to the translation | yes — several FATEs, native size for the line count |
-| `_BattleTalk` injecting and fitting | yes — Enuo, The Unmaking; node 6 grew 20 → 46 for a two-line line |
-| **The character-select crash fix, in game** | **no — never re-run** |
-| `<split>` and `<string>` on screen | no — 903 and 918 occurrences, never observed |
-| The bundled sample injects in game | no |
-| The red sample warning renders | no |
-| The release workflow | yes — four tags built and published a `latest.zip`, 0.1.3.0 through 0.1.6.0 |
-
-**The crash fix is the one that matters.** It is the reason the plugin was touched at all: an
-`AccessViolationException` was killing the client at character select, the cause was found (reading
-the string field of an `AtkValue` holding an `Int`, guarded now in `AtkText.cs`) and the fix compiles
-— but reaching character select to reproduce it was never done again. Until that is run, the most
-important change in the plugin is unconfirmed.
 
 ## Commands
 
