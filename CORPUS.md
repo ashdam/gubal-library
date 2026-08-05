@@ -1,21 +1,24 @@
-# Building a corpus
+# Building a language pack
 
 Gubal Library is a lookup engine with no data in it. This document is the contract: produce a file
 that satisfies it and the plugin will use it, whatever built it and whatever language it targets.
 
 The plugin has no notion of Spanish, or of any particular language. `targetLanguage` is a field in
-the file, reported by `/gubal status` and otherwise unused. A corpus for any locale works the same
-way, and the mechanics below — text-keyed lookup, macro resolution, conversation scoping — are
-properties of how the game delivers text, not of the language you are translating into.
+the file, logged when the pack loads and otherwise unused. A pack for any locale works the same way,
+and the mechanics below — text-keyed lookup, macro resolution, conversation scoping — are properties
+of how the game delivers text, not of the language you are translating into.
 
-**No corpus is distributed from this repository.** The text is Square Enix's, and a translation of it
-is a derivative work; the plugin itself reproduces none of it. Where a corpus comes from is the
-corpus author's business, not the plugin's.
+**No language pack is distributed from this repository.** The text is Square Enix's, and a
+translation of it is a derivative work; the plugin itself reproduces none of it. Where a pack comes
+from is its author's business, not the plugin's.
 
 ## The file
 
 UTF-8, **no BOM**. Comments and trailing commas are tolerated by the loader, so a hand-edited file is
 fine.
+
+The plugin reads `corpus.json` from its config directory unless an explicit path is set in `/gubal`.
+`es.json` in the same directory is also accepted, as a legacy name.
 
 ```json
 {
@@ -23,6 +26,7 @@ fine.
   "sourceLanguage": "en",
   "targetLanguage": "es",
   "gameVersion": "2026.07.16.0001.0000",
+  "translationVersion": "2026-08-05 19:40",
   "npcNames": { "Alphinaud": "Alphinaud" },
   "entries": [
     {
@@ -37,18 +41,22 @@ fine.
 
 | Field | Required | Meaning |
 |---|---|---|
-| `schemaVersion` | yes | Must be `2`. Anything else loads with a warning. |
-| `sourceLanguage`, `targetLanguage` | no | Which languages the entries are in. Reported by `/gubal status`. |
-| `gameVersion` | no | The patch the corpus was built against. Reported by `/gubal status`. |
-| `npcNames` | no | Source → translated speaker names. Only used when **Translate NPC names** is on. |
+| `schemaVersion` | yes | Must be `2`. **Any other value is refused and nothing is loaded** — a schema this build cannot read parses without error and yields zero entries, which on screen is indistinguishable from a broken plugin. |
+| `sourceLanguage`, `targetLanguage` | no | Which languages the entries are in. Written to the load log; `sourceLanguage` is read and otherwise unused. |
+| `gameVersion` | no | The patch the pack was built against. Written to the load log. |
+| `translationVersion` | no | Which generation of the translation this is, stamped by the extractor. Written to the load log, which is the only way to tell a stale copy from a current one. |
+| `npcNames` | no | Source → translated speaker names. Only used when **Translate speaker names** is on. |
 | `entries[].source` | yes | The source line, **macros unresolved**. See below. |
 | `entries[].target` | yes | The translation. Entries with either side empty are skipped at load. |
 | `entries[].conversation` | no | Scopes the entry to one conversation, e.g. `quest/047/SubWil901_04779`. |
 | `entries[].gameKey` | no | Provenance only. **Never used for lookup.** |
 
+None of the header fields reach `/gubal status`, which reports counts and paths only. They are in the
+load log, `/xllog`.
+
 **The entry fields do not name their language.** Schema 1 called them `en` and `es`, which put the
 same fact in two places and let them disagree — a file declaring `"targetLanguage": "it"` whose
-entries still said `es`. The header is the single answer now, and an Italian corpus is this same file
+entries still said `es`. The header is the single answer now, and an Italian pack is this same file
 with a different header and nothing else changed.
 
 ## The one rule
@@ -81,7 +89,7 @@ correct anyway — searching for `<` catches an escaped `\<sigh>`, which is lite
 Three consequences worth knowing:
 
 - **Keys are per character.** Macros resolve against name, gender and Grand Company rank, so the
-  index is rebuilt on login. A corpus indexed for one character does not match another.
+  index is rebuilt on login. A pack indexed for one character does not match another.
 - **`gnum11` is the Eorzean hour.** Entries using it are re-keyed as the clock advances; an Eorzean
   hour is under three real minutes, so a key built once would stop matching almost immediately.
 - **A `source` that will not evaluate drops the entry**, with a count in the load log. It is not
@@ -90,16 +98,23 @@ Three consequences worth knowing:
   collided with. Leaving the game's own text on screen is the correct answer when the plugin cannot
   work out what the line says.
 
-Translations may carry macro syntax too — `<if(gnum4,cansada,cansado)>` — and are resolved at display
-time. One syntax serves both sides, so there is no second format to define. A translation that fails
-to evaluate is injected verbatim rather than dropping the line.
+Translations may carry macro syntax too, and it is resolved at display time — both conditionals like
+`<if(gnum4,cansada,cansado)>` and the game's formatting macros, which is how italics and colour reach
+the screen: the injected value is written as SeString bytes, not as characters. One syntax serves both
+sides, so there is no second format to define.
 
-Do not put asterisks in `target`. The injector marshals plain UTF-8 and does no macro parsing, so
-`*Orion*` renders with the asterisks visible. They are stripped at load, with a count in the log.
+**A `target` that will not evaluate is not injected either.** The game's own line stays instead;
+putting a visible `<if(gnum4,…)>` on screen is worse than the text it would replace. So is a
+translation that resolves to nothing but whitespace, which would blank the dialogue box. `/gubal
+status` counts every refusal and the log names the first twenty.
+
+Do not put asterisks in `target`. The game draws them literally rather than as emphasis, so `*Orion*`
+appears with the asterisks visible; use the game's own italic macro if you want emphasis. They are
+stripped at load, with a count in the log.
 
 ## Duplicate English
 
-Identical English in two different quests is common — in one measured corpus, 4,407 of 5,378 repeated
+Identical English in two different quests is common — in one measured pack, 4,407 of 5,378 repeated
 lines occurred in more than one quest. Set `conversation` and both stay reachable: the plugin keeps a
 conversation-scoped index consulted first, and a text-only index as the fallback. Without
 `conversation` they collapse onto whichever loaded first and the rest are unreachable.
@@ -118,10 +133,10 @@ Three stages, of which only the last is the plugin's concern:
    reference — French especially, for a Spanish target: same grammatical gender, same formal and
    informal split.
 2. **Translate.** Entirely offline, by whatever means. This is where a glossary of proper nouns earns
-   its keep; term drift across a corpus this size is invisible without one.
-3. **Merge.** Emit the runtime file: `source`/`target` only, translated entries only, compact. The editing
-   corpus and the runtime corpus are not the same artifact, and shipping the former wastes most of
-   the load.
+   its keep; term drift across a pack this size is invisible without one.
+3. **Merge.** Emit the runtime file: `source`/`target` only, translated entries only, compact. The
+   editing pack and the runtime pack are not the same artifact, and shipping the former wastes most
+   of the load.
 
 The extractor and merge tooling are not published. They are specific to one game install and one
 translation workflow, and the schema above is the whole interface — nothing in the plugin depends on
@@ -143,6 +158,10 @@ Turn on miss logging (`/gubal dump`, on by default) and read `misses.jsonl` in t
 directory. Each record holds the normalized key the lookup actually used and, when normalization
 changed something, the raw string as well — so a rule that eats something it should not looks
 different from a genuinely missing entry.
+
+Misses are deduplicated in memory, so a repeated line is written once, and writing stops after 5,000
+distinct keys with a warning in the log. `/gubal clearmisses` deletes the file and resets the dedup
+set.
 
 Paste a recorded key into `corpus.json` as a `source` value and you have an entry guaranteed to match.
 

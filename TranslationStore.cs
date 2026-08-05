@@ -60,10 +60,10 @@ internal sealed class TranslationStore(IPluginLog log, ISeStringEvaluator evalua
     ///     The corpus schema this build reads.
     /// </summary>
     /// <remarks>
-    ///     A mismatch is only a warning, because loading anyway is usually right — an unknown future
-    ///     version may well be readable. Schema 1 is the case where it is not: it named the entry
-    ///     fields <c>en</c> and <c>es</c>, so this build parses such a file without error, matches
-    ///     nothing in it, and loads zero entries. On screen that looks identical to a broken plugin.
+    ///     A mismatch is refused outright, not warned about and loaded anyway. Schema 1 is why: it
+    ///     named the entry fields <c>en</c> and <c>es</c>, so this build parses such a file without
+    ///     error, matches nothing in it, and loads zero entries. On screen that looks identical to a
+    ///     broken plugin, and it sends whoever hits it looking in the wrong place.
     /// </remarks>
     private const int SupportedSchemaVersion = 2;
 
@@ -488,7 +488,7 @@ internal sealed class TranslationStore(IPluginLog log, ISeStringEvaluator evalua
 
         if (skippedEmpty > 0)
         {
-            log.Warning("Skipped {Count} entries with a missing en or es field.", skippedEmpty);
+            log.Warning("Skipped {Count} entries with a missing source or target field.", skippedEmpty);
         }
 
         if (duplicates > 0)
