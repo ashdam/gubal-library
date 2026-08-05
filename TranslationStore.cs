@@ -98,6 +98,17 @@ internal sealed class TranslationStore(IPluginLog log, ISeStringEvaluator evalua
     public string? GameVersion { get; private set; }
 
     /// <summary>
+    ///     Which generation of the translation is loaded, stamped to the minute by the extractor.
+    /// </summary>
+    /// <remarks>
+    ///     Reported because the alternative is guessing. The corpus is regenerated several times in a
+    ///     working session, it is not distributed with the plugin, and its filename says nothing — so
+    ///     without this there is no way to tell a stale copy from a current one, and "did my new
+    ///     translation actually load?" has no answer. Null for a corpus written before the field existed.
+    /// </remarks>
+    public string? TranslationVersion { get; private set; }
+
+    /// <summary>
     ///     Loads the first readable file from <paramref name="candidatePaths" />, in order. The config
     ///     directory is checked before the bundled sample so a large translated file can be swapped in
     ///     without rebuilding the plugin.
@@ -444,6 +455,7 @@ internal sealed class TranslationStore(IPluginLog log, ISeStringEvaluator evalua
 
         this.TargetLanguage ??= model.TargetLanguage;
         this.GameVersion ??= model.GameVersion;
+        this.TranslationVersion ??= model.TranslationVersion;
 
         parseWatch.Stop();
 
@@ -456,12 +468,14 @@ internal sealed class TranslationStore(IPluginLog log, ISeStringEvaluator evalua
         var fileSize = new FileInfo(path).Length;
 
         log.Information(
-            "  {Path}: {Entries} entries, {Scoped} scoped (target={Lang}, gameVersion={GameVersion})",
+            "  {Path}: {Entries} entries, {Scoped} scoped (target={Lang}, gameVersion={GameVersion}, "
+            + "translationVersion={TranslationVersion})",
             Path.GetFileName(path),
             built.Count,
             builtScoped.Count,
             this.TargetLanguage ?? "?",
-            this.GameVersion ?? "?");
+            this.GameVersion ?? "?",
+            this.TranslationVersion ?? "not stated");
 
         log.Information(
             "  cost: file {FileMb:N1} MB | read {ReadMs} ms | parse+index {ParseMs} ms | "
@@ -558,6 +572,8 @@ internal sealed class TranslationStore(IPluginLog log, ISeStringEvaluator evalua
         [JsonPropertyName("targetLanguage")] public string? TargetLanguage { get; set; }
 
         [JsonPropertyName("gameVersion")] public string? GameVersion { get; set; }
+
+        [JsonPropertyName("translationVersion")] public string? TranslationVersion { get; set; }
 
         [JsonPropertyName("npcNames")] public Dictionary<string, string>? NpcNames { get; set; }
 
