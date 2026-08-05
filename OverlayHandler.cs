@@ -130,6 +130,9 @@ internal sealed unsafe class OverlayHandler : IDisposable
     /// </remarks>
     private readonly Dictionary<nint, string> attempted = [];
 
+    /// <summary>Holds the panel padding it measures, so it must outlive a single line.</summary>
+    private readonly OverlayLayout layout = new();
+
     public OverlayHandler(
         IAddonLifecycle lifecycle,
         IPluginLog log,
@@ -251,6 +254,10 @@ internal sealed unsafe class OverlayHandler : IDisposable
         if (this.config.ProbeEvents && this.Inspect(name))
         {
             AddonInspector.DumpTextNodes(this.log, name, "layout", this.nodeBuffer);
+
+            // The whole tree, not just the text. Whether a longer translation fits depends on what is
+            // drawn behind it, and the text nodes say nothing about that.
+            AddonInspector.DumpAllNodes(this.log, name, addon);
         }
 
         var known = BodyNode.TryGetValue(name, out var bodyId);
@@ -313,10 +320,27 @@ internal sealed unsafe class OverlayHandler : IDisposable
             // inspection counter is spent within a few frames of the first line and every dump after
             // that is lost — which is how eight identical dumps of one untranslated balloon were
             // collected while the injected ones went unrecorded. One line injected, one pair of dumps.
-            var probing = this.config.ProbeEvents && isMiniTalk;
+            // Every overlay, not just balloons. Restricting this to _MiniTalk left the banners with only
+            // the budgeted layout dump, which is spent within a few frames of the first line — so a
+            // guildhest reporting several overflowing lines produced evidence for none of them.
+            var probing = this.config.ProbeEvents;
             if (probing)
             {
-                AddonInspector.DumpMiniTalk(this.log, addon, "before inject");
+                if (isMiniTalk)
+                {
+                    AddonInspector.DumpMiniTalk(this.log, addon, "before inject");
+                }
+                else
+                {
+                    AddonInspector.DumpAllNodes(this.log, name, addon, "before inject");
+                }
+            }
+
+            // Before the write, because it can only learn the panel's chrome while the node still holds
+            // the game's own line at the height the game gave it.
+            if (!isMiniTalk)
+            {
+                this.layout.Learn(addon, node);
             }
 
             SeStringWriter.Write(node, resolved);
@@ -335,13 +359,20 @@ internal sealed unsafe class OverlayHandler : IDisposable
             }
             else
             {
-                FitHeight(node);
+                this.layout.Fit(addon, node);
             }
 
             // After the refit, so it is the geometry actually on screen.
             if (probing)
             {
-                AddonInspector.DumpMiniTalk(this.log, addon, "after inject");
+                if (isMiniTalk)
+                {
+                    AddonInspector.DumpMiniTalk(this.log, addon, "after inject");
+                }
+                else
+                {
+                    AddonInspector.DumpAllNodes(this.log, name, addon, "after inject");
+                }
             }
 
             this.nodeInjected[pointer] = AtkText.ReadNodeText(node);
@@ -364,43 +395,6 @@ internal sealed unsafe class OverlayHandler : IDisposable
         }
 
         return false;
-    }
-
-    /// <summary>
-    ///     Grows a wrapping text node to the height its text now needs, leaving the width alone.
-    /// </summary>
-    /// <remarks>
-    ///     <para>
-    ///         For the overlays the game reflows itself. Enuo's line in The Unmaking arrived as
-    ///         <c>node 6: 576x20</c> with <c>WordWrap, MultiLine</c> and line spacing 22 — a column
-    ///         576 wide and one line tall. The Spanish wrapped onto a second line, which was then drawn
-    ///         below the node and outside the banner. The width is the layout's and must not change;
-    ///         only the height was ever wrong.
-    ///     </para>
-    ///     <para>
-    ///         Measured with <c>GetTextDrawSize</c> rather than <c>ResizeNodeForCurrentText</c>, which
-    ///         only ever grows and would leave a two-line height behind on the next one-line label.
-    ///     </para>
-    ///     <para>
-    ///         A node without <c>WordWrap</c> is left alone: it does not reflow, so its height says
-    ///         nothing about how much room the text needs, and setting one would be guessing.
-    ///     </para>
-    /// </remarks>
-    private static void FitHeight(AtkTextNode* node)
-    {
-        if (node is null || (node->TextFlags & TextFlags.WordWrap) == 0)
-        {
-            return;
-        }
-
-        ushort width;
-        ushort height;
-        node->GetTextDrawSize(&width, &height);
-
-        if (height > 0 && height != node->GetHeight())
-        {
-            node->SetHeight(height);
-        }
     }
 
     /// <summary>
