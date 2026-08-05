@@ -24,6 +24,10 @@ namespace GubalLibrary;
 /// </remarks>
 internal static unsafe class AddonInspector
 {
+    /// <summary>Node types at or above this value are components holding their own node list.</summary>
+    private const ushort ComponentTypeFloor = 1000;
+
+
     /// <summary>
     ///     Dumps every value and every text node of an addon once.
     /// </summary>
@@ -102,6 +106,78 @@ internal static unsafe class AddonInspector
                 node->LineSpacing,
                 node->AlignmentType,
                 AtkText.ReadNodeText(node));
+        }
+    }
+
+    /// <summary>
+    ///     Describes <em>every</em> node of an addon, not only the ones holding text.
+    /// </summary>
+    /// <remarks>
+    ///     <para>
+    ///         The text nodes were never the whole story. Growing a text node to fit a longer
+    ///         translation only helps if whatever is drawn behind it grows too, and for a battle-talk
+    ///         banner nothing here knew whether that background is a fixed graphic or a nine-grid the
+    ///         game resizes per line. That question cannot be answered from the text nodes alone, and
+    ///         answering it by trying was what cost three rounds on the balloons.
+    ///     </para>
+    ///     <para>
+    ///         Invisible nodes are reported too, marked, because a pooled or alternate layout that is
+    ///         currently hidden is exactly the thing a walk that skips them would hide.
+    ///     </para>
+    /// </remarks>
+    public static void DumpAllNodes(IPluginLog log, string addonName, AtkUnitBase* addon, string when = "full tree")
+    {
+        if (addon is null)
+        {
+            return;
+        }
+
+        log.Information("=== {Addon} ({When}) ===", addonName, when);
+        WalkForDump(log, addon->UldManager, 0);
+    }
+
+    private static void WalkForDump(IPluginLog log, AtkUldManager manager, int depth)
+    {
+        if (depth > 6 || manager.NodeList is null)
+        {
+            return;
+        }
+
+        var indent = new string(' ', 2 + (depth * 2));
+
+        for (var i = 0; i < manager.NodeListCount; i++)
+        {
+            var node = manager.NodeList[i];
+            if (node is null)
+            {
+                continue;
+            }
+
+            var hidden = (node->NodeFlags & NodeFlags.Visible) == 0 ? " HIDDEN" : string.Empty;
+            var text = node->Type == NodeType.Text
+                ? " text=" + AtkText.ReadNodeText((AtkTextNode*)node)
+                : string.Empty;
+
+            log.Information(
+                "{Indent}node {Id} {Type}: {Width}x{Height} at ({X},{Y}){Hidden}{Text}",
+                indent,
+                node->NodeId,
+                node->Type,
+                node->GetWidth(),
+                node->GetHeight(),
+                node->X,
+                node->Y,
+                hidden,
+                text);
+
+            if ((ushort)node->Type >= ComponentTypeFloor)
+            {
+                var component = ((AtkComponentNode*)node)->Component;
+                if (component is not null)
+                {
+                    WalkForDump(log, component->UldManager, depth + 1);
+                }
+            }
         }
     }
 
