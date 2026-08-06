@@ -145,12 +145,30 @@ internal sealed unsafe class OverlayLayout
             node->SetHeight(height);
         }
 
-        // No sample yet means no idea what this panel's chrome is. Leaving it alone shows a line
-        // clipped at the edge of a correctly sized panel; guessing showed every banner carrying a
-        // blank line, which is worse and affects lines that were never too long in the first place.
-        if (backdrop is null || !this.padding.TryGetValue((nint)backdrop, out var chrome))
+        if (backdrop is null)
         {
             return;
+        }
+
+        // With no sample yet, fall back to twice the top margin.
+        //
+        // Leaving the panel alone was the previous behaviour and it cost one overflowing line per
+        // session, every session: the first line always arrives with the node at its ULD default, which
+        // is the one state Learn must reject, so the very first thing a player sees is the case with no
+        // measurement behind it. Measured on _BattleTalk at 15:54:07 — text grown to 46 inside a panel
+        // still at 50.
+        //
+        // The top margin is knowable without any sample, because both nodes' positions are the game's:
+        // panel at y=12, text at y=24. Doubling it assumes the bottom margin matches, which on the one
+        // panel measured is 14 against 12 — so this runs 2px tight. Two pixels beats a whole line, and
+        // it is superseded the moment a settled line yields a real sample.
+        if (!this.padding.TryGetValue((nint)backdrop, out var chrome))
+        {
+            chrome = (int)((node->AtkResNode.Y - backdrop->AtkResNode.Y) * 2);
+            if (chrome <= 0)
+            {
+                return;
+            }
         }
 
         var wanted = (ushort)(height + chrome);
