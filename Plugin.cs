@@ -106,6 +106,10 @@ public sealed class Plugin : IDalamudPlugin
 
         // One handler, several candidate addon names. TalkSubtitle is proven; the others are guesses
         // that cost nothing if they never fire and announce themselves in the log if they do.
+        //
+        // JournalDetail is not a guess: /gubal find traced the Duty Finder's description to it, and
+        // it is the panel the game shows for a selected duty. It is deliberately handled through its
+        // values only, which OverlayHandler.ValueOnly explains.
         this.overlays = new OverlayHandler(
             addonLifecycle,
             log,
@@ -117,7 +121,8 @@ public sealed class Plugin : IDalamudPlugin
             "_BattleTalk",
             "_ScreenInfoFront",
             "_MiniTalk",
-            "MiniTalk");
+            "MiniTalk",
+            "JournalDetail");
 
         this.finder = new AddonFinder(addonLifecycle, log);
         this.finder.Hunt(this.config.FindText);
