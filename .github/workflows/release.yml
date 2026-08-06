@@ -1,37 +1,49 @@
-name: Release
+# yaml-language-server: $schema=https://json.schemastore.org/github-workflow.json
+name: "Release"
 
 on:
   push:
-    tags: ['v*']
+    tags: ["v*"]
   workflow_dispatch:
 
-permissions:
-  contents: write
+# No permissions by default. Every job below has to name what it needs, so a job that is never
+# meant to write cannot write even if a step in it is compromised.
+permissions: {}
 
 jobs:
-  release:
-    runs-on: windows-latest
-
+  build:
+    name: "Build"
+    runs-on: "windows-latest"
+    # Read-only: this job compiles and gates the version. It never touches the repository or the
+    # release, so the token it holds while running third-party toolchains can do neither.
+    permissions:
+      contents: "read"
     steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/setup-dotnet@v4
+      - name: "Checkout"
+        uses: "actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1" # v7.0.1
         with:
-          dotnet-version: '10.0.x'
+          # Do not leave the token in .git/config for the rest of the job. Nothing here talks to
+          # the remote after checkout, so anything that reads the config finds no credential.
+          persist-credentials: false
+
+      - name: "Set up .NET"
+        uses: "actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68" # v6.0.0
+        with:
+          dotnet-version: "10.0.x"
 
       # Dalamud.NET.Sdk resolves its references from a local Dalamud install and hard-errors if the
       # folder is missing -- there is no NuGet package to restore instead. DALAMUD_HOME overrides the
       # path it would otherwise look for under %AppData%\XIVLauncher, which no runner has.
-      - name: Fetch Dalamud
-        shell: pwsh
+      - name: "Fetch Dalamud"
+        shell: "pwsh"
         run: |
           Invoke-WebRequest -Uri 'https://goatcorp.github.io/dalamud-distrib/latest.zip' -OutFile "$env:RUNNER_TEMP\dalamud.zip"
           Expand-Archive -Path "$env:RUNNER_TEMP\dalamud.zip" -DestinationPath "$env:RUNNER_TEMP\dalamud" -Force
 
-      - name: Build
-        shell: pwsh
+      - name: "Build"
+        shell: "pwsh"
         env:
-          DALAMUD_HOME: ${{ runner.temp }}\dalamud
+          DALAMUD_HOME: "${{ runner.temp }}\\dalamud"
         # No project file named: there is exactly one in the repo root, and not naming it means
         # renaming the csproj never silently breaks the release.
         run: dotnet build -c Release --nologo
@@ -39,38 +51,88 @@ jobs:
       # The tag names the release, but AssemblyVersion is what Dalamud actually compares to decide an
       # update exists. If they disagree, testers either never get offered the update or get offered
       # one that reinstalls the same build. Refuse to publish rather than ship that.
-      - name: Check the tag matches AssemblyVersion
-        if: startsWith(github.ref, 'refs/tags/')
-        shell: pwsh
+      - name: "Check the tag matches AssemblyVersion"
+        if: "startsWith(github.ref, 'refs/tags/')"
+        shell: "pwsh"
+        # The tag arrives through the environment, not through ${{ }} pasted into the script body.
+        # A tag is attacker-controllable text; interpolating it inline would let a crafted tag name
+        # close the string and run as PowerShell.
+        env:
+          TAG_NAME: "${{ github.ref_name }}"
         run: |
           # Versions are written with four parts throughout -- csproj, tag and manifest -- so this is
           # a plain string comparison. Note that .NET pads <Version> to four parts regardless, so a
           # csproj saying 0.1.2 builds an assembly saying 0.1.2.0 and the tag has to say the same.
           $manifest = Get-Content 'bin\x64\Release\win-x64\GubalLibrary.json' -Raw | ConvertFrom-Json
-          $tag = '${{ github.ref_name }}' -replace '^v', ''
+          $tag = $env:TAG_NAME -replace '^v', ''
           if ($tag -ne $manifest.AssemblyVersion) {
             throw "Tag '$tag' does not match AssemblyVersion '$($manifest.AssemblyVersion)'. Bump <Version> in the csproj and retag."
           }
 
-      - name: Publish the release
-        if: startsWith(github.ref, 'refs/tags/')
-        uses: softprops/action-gh-release@v2
+      # Hand the two files the later jobs need across as an artifact rather than rebuilding there.
+      # Both live in the plugin folder, so the artifact root is that folder: latest.zip and
+      # GubalLibrary.json land flat inside it.
+      - name: "Upload artifact"
+        uses: "actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a" # v7.0.1
         with:
-          files: bin/x64/Release/win-x64/GubalLibrary/latest.zip
+          name: "plugin"
+          path: |
+            bin/x64/Release/win-x64/GubalLibrary/latest.zip
+            bin/x64/Release/win-x64/GubalLibrary/GubalLibrary.json
+          if-no-files-found: "error"
+          retention-days: 1
+
+  publish-github-release:
+    name: "Publish GitHub release"
+    if: "startsWith(github.ref, 'refs/tags/')"
+    needs: ["build"]
+    runs-on: "ubuntu-latest"
+    # contents: write is only for creating the release. No checkout in this job, so the write token
+    # is never in the same room as the build toolchain or the repository working tree.
+    permissions:
+      contents: "write"
+    steps:
+      - name: "Download artifact"
+        uses: "actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c" # v8.0.1
+        with:
+          name: "plugin"
+          path: "assets"
+
+      - name: "Publish"
+        uses: "softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65" # v2.6.2
+        with:
+          files: "assets/latest.zip"
           generate_release_notes: true
 
-      # repo.json is the store front: Dalamud polls it and compares AssemblyVersion against what the
-      # tester has installed. Publishing a release without updating it means nobody is ever told.
-      # The download links point at /releases/latest/ and never change, so only the version and the
-      # metadata copied from the built manifest need rewriting.
-      - name: Update repo.json on main
-        if: startsWith(github.ref, 'refs/tags/')
-        shell: pwsh
-        run: |
-          $manifest = Get-Content 'bin\x64\Release\win-x64\GubalLibrary.json' -Raw | ConvertFrom-Json
+  # repo.json is the store front: Dalamud polls it and compares AssemblyVersion against what the
+  # tester has installed. Publishing a release without updating it means nobody is ever told.
+  # The download links point at /releases/latest/ and never change, so only the version and the
+  # metadata copied from the built manifest need rewriting.
+  update-repo-json:
+    name: "Update repo.json on main"
+    if: "startsWith(github.ref, 'refs/tags/')"
+    needs: ["publish-github-release"]
+    runs-on: "ubuntu-latest"
+    # This job does keep its credentials -- pushing to main is the whole point of it -- but it is
+    # the only job that does, and it builds nothing and runs no third-party action.
+    permissions:
+      contents: "write"
+    steps:
+      - name: "Checkout main"
+        uses: "actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1" # v7.0.1
+        with:
+          ref: "main"
 
-          git fetch origin main
-          git checkout -B main origin/main
+      - name: "Download artifact"
+        uses: "actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c" # v8.0.1
+        with:
+          name: "plugin"
+          path: "assets"
+
+      - name: "Rewrite and validate repo.json"
+        shell: "pwsh"
+        run: |
+          $manifest = Get-Content 'assets/GubalLibrary.json' -Raw | ConvertFrom-Json
 
           $entry = (Get-Content repo.json -Raw | ConvertFrom-Json)[0]
           $entry.AssemblyVersion = $manifest.AssemblyVersion
@@ -101,6 +163,9 @@ jobs:
           }
           Write-Host "repo.json validated: $($parsed.Count) entry(s), $($parsed[0].InternalName) $($parsed[0].AssemblyVersion)"
 
+      - name: "Commit and push"
+        shell: "pwsh"
+        run: |
           git config user.name  'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git add repo.json
@@ -109,6 +174,7 @@ jobs:
           # code deliberately: pwsh steps fail on a non-zero $LASTEXITCODE left behind at the end.
           git diff --cached --quiet
           if ($LASTEXITCODE -ne 0) {
+            $manifest = Get-Content 'assets/GubalLibrary.json' -Raw | ConvertFrom-Json
             git commit -m "repo.json: $($manifest.AssemblyVersion)"
             git push origin main
           } else {
