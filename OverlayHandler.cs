@@ -24,6 +24,11 @@ namespace GubalLibrary;
 ///         reasoning the other away has cost a debugging round twice now.
 ///     </para>
 ///     <para>
+///         <c>JournalDetail</c>, the duty description panel behind the Duty Finder, is the one
+///         addon that takes the values route alone. That is a measured exception rather than a
+///         relaxation of the rule above — see <see cref="ValueOnly" />.
+///     </para>
+///     <para>
 ///         Registered against several candidate names at once because Dalamud matches the game's own
 ///         addon names and this project has no authoritative list of them: <c>AddonBattleTalk</c> does
 ///         not exist in FFXIVClientStructs at all. A name that never fires costs nothing, and the log
@@ -71,6 +76,46 @@ internal sealed unsafe class OverlayHandler : IDisposable
     private static readonly Dictionary<string, int> BodyValue = new(StringComparer.Ordinal)
     {
         ["_ScreenInfoFront"] = 3,
+
+        // The duty description in the Duty Finder. Found with /gubal find on a guildhest: selecting
+        // one logs the same line arriving at 'ContentsFinder' value 1475 of 1830, at 'JournalDetail'
+        // value 12 of 330, and at 'JournalDetail' node 8 — three sightings, one of which is the one
+        // to use.
+        //
+        // JournalDetail, not ContentsFinder: the finder carries the string but draws it nowhere, and
+        // its .uld agrees — its largest text node is 414x21, a single line.
+        ["JournalDetail"] = 12,
+    };
+
+    /// <summary>
+    ///     Addons handled through their values alone, with the node sweep skipped entirely.
+    /// </summary>
+    /// <remarks>
+    ///     <para>
+    ///         The exception to "hook both routes, always". Everywhere else the two routes carry
+    ///         different lines and hooking one silently half-works. Here they carry the <em>same</em>
+    ///         line in two forms, and only one of the two can ever match.
+    ///     </para>
+    ///     <para>
+    ///         <b>The node has the game's line wrapping baked into it, and loses the paragraph
+    ///         break doing so.</b> Measured on <c>JournalDetail</c> with a guildhest: value 12 holds
+    ///         the description intact, blank line and all, while node 8 holds it broken into
+    ///         52-character lines and reading <c>…barricades.Slay the goblins…</c> — the two
+    ///         paragraphs run together with no separator at all. <see cref="TextKey.Normalize" />
+    ///         collapses the corpus source to <c>…barricades. Slay the goblins…</c>, with the space,
+    ///         so the node text is a key that cannot exist. Every frame of it would be a lookup that
+    ///         is guaranteed to fail.
+    ///     </para>
+    ///     <para>
+    ///         Skipping it is not merely an optimisation. The first run with the sweep left on
+    ///         recorded our own Spanish coming back through node 8 as a missing translation, and put
+    ///         the instance names from node 38 — Flicking Sticks and Taking Names, Solemn Trinity —
+    ///         through the corpus, which is exactly the text this project pins to English.
+    ///     </para>
+    /// </remarks>
+    private static readonly HashSet<string> ValueOnly = new(StringComparer.Ordinal)
+    {
+        "JournalDetail",
     };
 
     private readonly string[] addonNames;
@@ -225,7 +270,7 @@ internal sealed unsafe class OverlayHandler : IDisposable
 
     private void OnPreDraw(AddonEvent type, AddonArgs args)
     {
-        if (!this.config.Enabled)
+        if (!this.config.Enabled || ValueOnly.Contains(args.AddonName))
         {
             return;
         }

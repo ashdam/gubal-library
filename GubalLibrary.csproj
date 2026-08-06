@@ -6,7 +6,7 @@
     <Platforms>x64</Platforms>
     <AssemblyName>GubalLibrary</AssemblyName>
     <RootNamespace>GubalLibrary</RootNamespace>
-    <Version>0.1.9.0</Version>
+    <Version>0.1.10.0</Version>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
