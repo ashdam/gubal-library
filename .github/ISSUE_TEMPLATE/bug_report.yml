@@ -1,0 +1,150 @@
+name: Bug report
+description: Something in the plugin misbehaves — wrong text on screen, a broken window, a crash.
+title: "[Bug] "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for testing. This is a testing build, so reports are genuinely useful.
+
+        Two things this form is **not** for:
+
+        - **"There are no translations."** The plugin ships empty on purpose — see the
+          [README](https://github.com/ashdam/gubal-library/blob/main/README.md).
+        - **One line stayed in the original language.** That is nearly always the language pack, not
+          the plugin. Use the *Untranslated line* form instead; it asks for the one piece of evidence
+          that tells them apart.
+
+  - type: checkboxes
+    id: preflight
+    attributes:
+      label: Before reporting
+      options:
+        - label: I searched the existing issues and this is not one of them.
+          required: true
+        - label: I have run `/gubal status` in game and pasted its output below.
+          required: true
+        - label: The problem still happens with only Gubal Library enabled (other plugins disabled).
+          required: false
+
+  - type: input
+    id: version
+    attributes:
+      label: Plugin version
+      description: >-
+        `/xlplugins` → Gubal Library, or the title bar of the settings window. Four parts, e.g.
+        `0.1.13.0`.
+      placeholder: 0.1.13.0
+    validations:
+      required: true
+
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened, and what you expected instead
+      description: A screenshot beats a description. Drag images straight into this box.
+      placeholder: |
+        Expected: the balloon above the NPC to show the translated line.
+        Got: the balloon shows the translation but clipped to one line, the rest cut off.
+    validations:
+      required: true
+
+  - type: textarea
+    id: repro
+    attributes:
+      label: Steps to reproduce
+      description: >-
+        Name the place, NPC or duty if you can — a report that can be reproduced is fixed, one that
+        cannot usually is not.
+      placeholder: |
+        1. Load the pack, /gubal reload, status says 41,203 entries.
+        2. Go to Limsa Lominsa Lower Decks, talk to Ahldskyf.
+        3. Second line renders on top of the first.
+    validations:
+      required: true
+
+  - type: dropdown
+    id: surface
+    attributes:
+      label: Where does the text appear?
+      description: >-
+        If you are not sure of the addon name, pick by what it looks like. `/gubal find <text>` names
+        the addon carrying a given string.
+      options:
+        - NPC dialogue / quest text / cutscene speech (Talk)
+        - Cutscene narration (TalkSubtitle)
+        - Speech balloon above an NPC (_MiniTalk)
+        - Combat callout (_BattleTalk)
+        - Duty description in the Duty Finder (JournalDetail)
+        - On-screen banner (_ScreenInfoFront)
+        - The settings window or a /gubal command, not game text
+        - Somewhere else / not sure
+    validations:
+      required: true
+
+  - type: textarea
+    id: status
+    attributes:
+      label: Output of `/gubal status`
+      description: Paste it verbatim from chat. This answers half the questions I would otherwise ask.
+      render: text
+    validations:
+      required: true
+
+  - type: input
+    id: pack
+    attributes:
+      label: Which language pack is loaded?
+      description: >-
+        Its name, its target language and where you got it — a link if it is published. Say
+        "bundled sample only" if `/gubal status` reports the self-test.
+      placeholder: Spanish (es) community pack, from <link>
+    validations:
+      required: true
+
+  - type: dropdown
+    id: client-language
+    attributes:
+      label: Game client language
+      description: >-
+        Matters more than it looks: the lookup keys off the text the client renders, so a pack built
+        against English will not match a French client.
+      options:
+        - English
+        - Japanese
+        - German
+        - French
+    validations:
+      required: true
+
+  - type: textarea
+    id: log
+    attributes:
+      label: Dalamud log
+      description: >-
+        `/xllog`, the lines around the problem. Load failures and refused macros are reported there
+        and nowhere else. Trim it — a few dozen lines, not the whole file.
+      render: shell
+    validations:
+      required: false
+
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: >-
+        Dalamud branch (release / staging), XIVLauncher version, and whether you are on the Windows
+        client, Wine/Proton or Mac.
+      placeholder: |
+        Dalamud: release
+        XIVLauncher: 1.1.5.0
+        OS: Windows 11, native client
+    validations:
+      required: false
+
+  - type: markdown
+    attributes:
+      value: |
+        **If the game closed or froze**, attach the most recent `crash-<date>.tspack` from
+        `%AppData%\XIVLauncher\`. Without it a crash report is very hard to act on.

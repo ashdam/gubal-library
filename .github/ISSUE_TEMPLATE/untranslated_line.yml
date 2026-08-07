@@ -1,0 +1,110 @@
+name: A line stayed in the original language
+description: A specific line was not translated, while the rest of the pack works.
+title: "[Miss] "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        ## Read this first — it usually saves you the issue
+
+        A line that does not translate is, most of the time, **a gap or a mismatch in the language
+        pack, not a fault in the plugin.** The plugin only looks up what is on screen; if the pack has
+        no entry whose source text matches exactly, the game's own line is left alone on purpose.
+
+        So take it to **whoever maintains your language pack first.** Open this issue only if the
+        pack clearly *does* contain the line and it still is not injected — that is a plugin problem
+        and I want to know about it.
+
+        `misses.jsonl` is what tells the two cases apart. Turn it on with `/gubal dump`, trigger the
+        line again, then read the file in the plugin config directory:
+
+        ```
+        %AppData%\XIVLauncher\pluginConfigs\GubalLibrary\misses.jsonl
+        ```
+
+        It records the exact key the lookup used. Diff that against the source text in your pack and
+        the divergence — a stray space, a payload artifact, an untokenized macro — is usually visible
+        at a glance.
+
+  - type: checkboxes
+    id: preflight
+    attributes:
+      label: Before reporting
+      options:
+        - label: The language pack does contain this line — I checked the file itself.
+          required: true
+        - label: I have the `misses.jsonl` entry for it, or I explain below why there is none.
+          required: true
+
+  - type: textarea
+    id: line
+    attributes:
+      label: The line, as it appeared on screen
+      description: Copy the untranslated text, and name the speaker and where you were. A screenshot helps.
+      placeholder: |
+        Speaker: Ahldskyf
+        Where: Limsa Lominsa Lower Decks, the pier by the Orion
+        Text: "Well met, adventurer..."
+    validations:
+      required: true
+
+  - type: textarea
+    id: miss-entry
+    attributes:
+      label: The `misses.jsonl` entry
+      description: >-
+        One line of JSON. It carries both the normalized key and the raw string read out of the game
+        — paste it whole, the difference between the two is the point.
+      render: json
+    validations:
+      required: true
+
+  - type: textarea
+    id: pack-entry
+    attributes:
+      label: The matching entry in your language pack
+      description: The source-text field and the translation, straight out of the pack file.
+      render: json
+    validations:
+      required: true
+
+  - type: dropdown
+    id: surface
+    attributes:
+      label: Where does the line appear?
+      options:
+        - NPC dialogue / quest text / cutscene speech (Talk)
+        - Cutscene narration (TalkSubtitle)
+        - Speech balloon above an NPC (_MiniTalk)
+        - Combat callout (_BattleTalk)
+        - Duty description in the Duty Finder (JournalDetail)
+        - Somewhere else / not sure
+    validations:
+      required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: Plugin version
+      placeholder: 0.1.13.0
+    validations:
+      required: true
+
+  - type: textarea
+    id: status
+    attributes:
+      label: Output of `/gubal status`
+      description: >-
+        The refused-macro count matters here: a translation whose macros will not evaluate is
+        deliberately not injected, and that is a pack fix rather than a plugin one.
+      render: text
+    validations:
+      required: true
+
+  - type: input
+    id: pack
+    attributes:
+      label: Which language pack, and who maintains it?
+      placeholder: Spanish (es) community pack, from <link>
+    validations:
+      required: true
