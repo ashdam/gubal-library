@@ -37,6 +37,7 @@ public sealed class Plugin : IDalamudPlugin
     private readonly FileDialogManager fileDialogs = new();
     private readonly Configuration config;
     private readonly ConfigWindow configWindow;
+    private readonly IFramework framework;
     private readonly IPluginLog log;
     private readonly MissLog misses;
     private readonly IPlayerState playerState;
@@ -48,6 +49,14 @@ public sealed class Plugin : IDalamudPlugin
     private readonly AddonFinder finder;
     private readonly WindowSystem windows = new("GubalLibrary");
 
+    /// <summary>Cancels a rebuild that has been queued but not yet run when the plugin unloads.</summary>
+    /// <remarks>
+    ///     Indexing the corpus takes seconds and touches nothing but managed memory, so a stray run
+    ///     after unload would not be dangerous — only wasteful, and it would log as though the plugin
+    ///     were still live. Cheap enough to just not do.
+    /// </remarks>
+    private readonly CancellationTokenSource unloading = new();
+
     public Plugin(
         IDalamudPluginInterface pluginInterface,
         ICommandManager commands,
@@ -55,6 +64,7 @@ public sealed class Plugin : IDalamudPlugin
         IClientState clientState,
         IAddonLifecycle addonLifecycle,
         IChatGui chat,
+        IFramework framework,
         ISeStringEvaluator evaluator,
         IPluginLog log)
     {
@@ -63,6 +73,7 @@ public sealed class Plugin : IDalamudPlugin
         this.playerState = playerState;
         this.clientState = clientState;
         this.chat = chat;
+        this.framework = framework;
         this.log = log;
 
         this.config = pluginInterface.GetPluginConfig() as Configuration ?? new Configuration();
@@ -71,17 +82,24 @@ public sealed class Plugin : IDalamudPlugin
 
         this.store = new TranslationStore(log, evaluator);
 
-        // Not loaded unconditionally. Keys are built by resolving macros against live game state —
-        // the character's name, gender and Grand Company rank — so building before a character
-        // exists produces keys that cannot match. Measured: loading at the title screen dropped 45
-        // lines as unevaluable, and the login rebuild a minute later dropped none of them.
+        // Not loaded unconditionally, and never loaded from here directly. Two separate rules.
         //
-        // The rebuild always covered it, so this was never wrong on screen. What it was, was two
-        // full builds of 15,759 keys where one would do, and a startup log full of alarming
-        // warnings about lines that were fine.
+        // IsLoggedIn, because keys are built by resolving macros against live game state — the
+        // character's name, gender and Grand Company rank — so building before a character exists
+        // produces keys that cannot match, and once crashed outright.
+        //
+        // On the next tick, because a plugin constructor does not run on the game's update thread and
+        // the evaluator needs to be on it to read that state. Enabling the plugin mid-session — the
+        // first thing anyone does after installing it — therefore built a quietly broken index:
+        // every line with an <if( or <switch( threw and was dropped, and every player-name line was
+        // keyed under a string with a hole where the name goes. Measured on one session, minutes
+        // apart: 71,495 entries and 903 dropped through here, against 72,337 and none through
+        // /gubal reload. Nothing on screen distinguishes that from an untranslated line.
+        //
+        // The deferral fixes the cause; LoadCorpus's canary catches the symptom whatever the cause.
         if (clientState.IsLoggedIn)
         {
-            this.store.Load(this.TranslationFileCandidates());
+            this.RebuildOnNextTick("the plugin was enabled with a session already running");
         }
         else
         {
@@ -158,8 +176,80 @@ public sealed class Plugin : IDalamudPlugin
     private void OnLogin()
     {
         var name = this.playerState.IsLoaded ? this.playerState.CharacterName : "(unknown)";
-        this.log.Information("Login as '{Name}'; indexing so macro-derived keys match this character.", name);
-        this.store.Load(this.TranslationFileCandidates());
+
+        // Inline, not deferred: this event is raised from the game's update thread, so the evaluator
+        // can already read state here. That is why this route never produced a degraded index while
+        // the constructor's did.
+        this.LoadCorpus($"login as '{name}'; keys must match this character");
+    }
+
+    /// <summary>
+    ///     Builds the index, then checks it against live game state and rebuilds once if it is bad.
+    /// </summary>
+    /// <remarks>
+    ///     <para>
+    ///         The check is <see cref="TranslationStore.IndexIsSound" /> — two canary macros — rather
+    ///         than a test for the condition that caused the defect. A degraded index is silently
+    ///         partial and looks exactly like a corpus that is missing those lines, so something has
+    ///         to assert the difference; asserting it by re-testing the known cause would only catch
+    ///         the cause we already fixed.
+    ///     </para>
+    ///     <para>
+    ///         One rebuild, then an error. Retrying forever would turn a corpus defect into a load
+    ///         loop, and the second failure is worth a person's attention rather than another frame's.
+    ///     </para>
+    /// </remarks>
+    /// <returns>Whether a translation file was read at all — the canary is reported, not returned.</returns>
+    private bool LoadCorpus(string why, bool isRebuild = false)
+    {
+        this.log.Information("Indexing the corpus: {Why}.", why);
+
+        if (!this.store.Load(this.TranslationFileCandidates()))
+        {
+            return false;
+        }
+
+        if (this.store.IndexIsSound(out var complaint))
+        {
+            return true;
+        }
+
+        if (isRebuild)
+        {
+            // Error, not a warning. A warning here would say the same thing the first one said and be
+            // read the same way it was: as noise from a plugin that is working. It is not working —
+            // the index in memory is the degraded one, and only /gubal reload replaces it.
+            this.log.Error(
+                "The index is STILL degraded after rebuilding on the game's update thread: {Complaint}. "
+                + "{Dropped} line(s) dropped. Those lines will not be translated this session; "
+                + "/gubal reload rebuilds.",
+                complaint,
+                this.store.DroppedCount);
+            return true;
+        }
+
+        this.log.Warning(
+            "Built an index the evaluator could not resolve game state for: {Complaint}. "
+            + "{Dropped} line(s) dropped; rebuilding on the next frame.",
+            complaint,
+            this.store.DroppedCount);
+
+        this.RebuildOnNextTick("the first index came out degraded", isRebuild: true);
+        return true;
+    }
+
+    /// <summary>Queues an index build for the game's next update.</summary>
+    /// <remarks>
+    ///     <c>RunOnTick</c> with a tick of delay rather than <c>RunOnFrameworkThread</c>, which runs
+    ///     inline when it is already on that thread. The retry path always is — that is the point of
+    ///     the retry — so it would recurse instead of trying again a frame later.
+    /// </remarks>
+    private void RebuildOnNextTick(string why, bool isRebuild = false)
+    {
+        _ = this.framework.RunOnTick(
+            () => { this.LoadCorpus(why, isRebuild); },
+            delayTicks: 1,
+            cancellationToken: this.unloading.Token);
     }
 
     /// <summary>
@@ -177,6 +267,9 @@ public sealed class Plugin : IDalamudPlugin
 
     public void Dispose()
     {
+        this.unloading.Cancel();
+        this.unloading.Dispose();
+
         this.pluginInterface.UiBuilder.Draw -= this.DrawUi;
         this.pluginInterface.UiBuilder.OpenConfigUi -= this.OpenConfig;
         this.pluginInterface.UiBuilder.OpenMainUi -= this.OpenConfig;
@@ -296,7 +389,7 @@ public sealed class Plugin : IDalamudPlugin
 
     private void ReloadTranslations()
     {
-        if (this.store.Load(this.TranslationFileCandidates()))
+        if (this.LoadCorpus("/gubal reload"))
         {
             this.chat.Print($"[Gubal]Reloaded {this.store.Count} entries from {this.store.LoadedFrom}");
         }
