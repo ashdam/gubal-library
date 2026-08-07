@@ -404,7 +404,13 @@ public sealed class Plugin : IDalamudPlugin
         var snapshot = this.Snapshot();
         this.chat.Print($"[Gubal]{snapshot.EntryCount} entries, {snapshot.NpcNameCount} NPC names.");
         this.chat.Print($"[Gubal]Source: {snapshot.LoadedFrom}");
-        this.chat.Print($"[Gubal]Injected {snapshot.InjectedCount} line(s), {snapshot.MissCount} distinct miss(es).");
+        // Split, not summed. Which handler is working is the question this line gets asked, and a
+        // total cannot answer it — reporting TalkHandler's count alone once cost a verification round,
+        // because "12 injected" was read as proof the subtitle overlay had run when it says nothing
+        // about it at all.
+        this.chat.Print(
+            $"[Gubal]Injected {snapshot.InjectedCount} dialogue line(s) and "
+            + $"{snapshot.OverlayInjectedCount} overlay line(s), {snapshot.MissCount} distinct miss(es).");
         if (this.resolver.FailureCount > 0)
         {
             this.chat.Print(
@@ -420,6 +426,7 @@ public sealed class Plugin : IDalamudPlugin
             this.store.Count,
             this.store.NpcNameCount,
             this.talkHandler.InjectedCount,
+            this.overlays.InjectedCount,
             this.misses.Count,
             this.store.LoadedFrom,
             this.misses.Path,

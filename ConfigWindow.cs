@@ -40,7 +40,11 @@ internal sealed class ConfigWindow : Window
 
         ImGui.TextUnformatted($"Entries loaded: {snapshot.EntryCount}");
         ImGui.TextUnformatted($"NPC names:      {snapshot.NpcNameCount}");
-        ImGui.TextUnformatted($"Lines injected: {snapshot.InjectedCount}");
+        // Both handlers, itemised. One number here used to mean TalkHandler alone, so every subtitle,
+        // balloon, battle banner and duty description injected counted as zero — and that is not a
+        // cosmetic undercount: it was read as evidence that an overlay had not injected at all.
+        ImGui.TextUnformatted(
+            $"Lines injected: {snapshot.InjectedCount} dialogue + {snapshot.OverlayInjectedCount} overlay");
         ImGui.TextUnformatted($"Misses seen:    {snapshot.MissCount}");
         ImGui.Spacing();
         ImGui.TextWrapped($"Source: {snapshot.LoadedFrom}");
@@ -209,6 +213,7 @@ internal readonly record struct StatusSnapshot(
     int EntryCount,
     int NpcNameCount,
     int InjectedCount,
+    int OverlayInjectedCount,
     int MissCount,
     string LoadedFrom,
     string MissLogPath,

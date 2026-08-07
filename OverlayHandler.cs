@@ -118,6 +118,45 @@ internal sealed unsafe class OverlayHandler : IDisposable
         "JournalDetail",
     };
 
+    /// <summary>
+    ///     Addons that still get translated, but whose misses are only recorded while the event probe
+    ///     is on.
+    /// </summary>
+    /// <remarks>
+    ///     <para>
+    ///         <c>_ScreenInfoFront</c> is the screen-centre overlay, and its value 3 carries two
+    ///         completely different kinds of text down one channel: the narration banner in variant
+    ///         dungeons, which this plugin exists to translate, and the game's own UI toasts, which it
+    ///         must never touch. A measured session recorded ten distinct misses through this addon and
+    ///         <em>all ten</em> were toasts — "Target out of range.", "Invalid target.", an item
+    ///         obtained, a quest objective tally, a market board sale. None of them can ever be in the
+    ///         corpus, and together they were the entire miss log for that session.
+    ///     </para>
+    ///     <para>
+    ///         <b>Suppressed rather than filtered, because nothing observed separates the two.</b> The
+    ///         value index does not: both arrive at 3. The text does not: a toast and a banner line are
+    ///         both ordinary sentences. Inventing a discriminator here — a length threshold, a keyword
+    ///         list — would be a guess that fails silently on the day it is wrong, which is the failure
+    ///         mode every other note in this file is about.
+    ///     </para>
+    ///     <para>
+    ///         The diagnostic is not thrown away, only moved behind <c>/gubal probe</c> — which is
+    ///         already what you turn on when you are investigating one addon, and which is on when
+    ///         anyone is standing in a variant dungeon asking why the banner is still English. What
+    ///         would retire this entry is a dump of the addon in a variant dungeon showing a node or
+    ///         value that carries the narration alone; until someone has one, there is nothing to
+    ///         narrow to.
+    ///     </para>
+    ///     <para>
+    ///         Injection is deliberately untouched. Translating the banner is a shipped feature, and
+    ///         a toast only reaches the corpus lookup, misses, and leaves the game's own text alone.
+    ///     </para>
+    /// </remarks>
+    private static readonly HashSet<string> MissesOnlyWhileProbing = new(StringComparer.Ordinal)
+    {
+        "_ScreenInfoFront",
+    };
+
     private readonly string[] addonNames;
     private readonly Configuration config;
     private readonly IAddonLifecycle lifecycle;
@@ -257,7 +296,7 @@ internal sealed unsafe class OverlayHandler : IDisposable
             return;
         }
 
-        if (!this.TryTranslate(text, name, EventContext.ActiveQuestConversation(), out var translated))
+        if (!this.TryTranslate(text, name, name, EventContext.ActiveQuestConversation(), out var translated))
         {
             return;
         }
@@ -385,7 +424,7 @@ internal sealed unsafe class OverlayHandler : IDisposable
             // cannot distinguish the body from the speaker: a _BattleTalk pass recorded the NPC name
             // "Y'nazqha" as a missed line alongside two real ones, and there was no way to tell which
             // node each came from. Learn the layout from the log, then narrow this scan to the body.
-            if (!this.TryTranslate(onScreen, $"{name}#{id}", conversation, out var translated))
+            if (!this.TryTranslate(onScreen, name, $"{name}#{id}", conversation, out var translated))
             {
                 continue;
             }
@@ -460,7 +499,13 @@ internal sealed unsafe class OverlayHandler : IDisposable
         }
     }
 
-    private bool TryTranslate(string text, string addonName, string? conversation, out string translated)
+    /// <param name="addon">
+    ///     The bare addon name. Separate from <paramref name="label" /> because the recording rules key
+    ///     on the addon, and the node route's label carries a node id glued to it.
+    /// </param>
+    /// <param name="label">What identifies the line in the miss record: the addon, plus the node id
+    ///     where the text came off a node.</param>
+    private bool TryTranslate(string text, string addon, string label, string? conversation, out string translated)
     {
         var key = TextKey.Normalize(text);
 
@@ -469,9 +514,13 @@ internal sealed unsafe class OverlayHandler : IDisposable
             return true;
         }
 
-        if (this.config.LogMisses)
+        // Two conditions, and they answer different questions. LogMisses is the user asking for a miss
+        // log at all; the second is whether this particular addon's misses are worth anything right
+        // now. See MissesOnlyWhileProbing.
+        if (this.config.LogMisses
+            && (this.config.ProbeEvents || !MissesOnlyWhileProbing.Contains(addon)))
         {
-            this.misses.Record(key, text, addonName);
+            this.misses.Record(key, text, label);
         }
 
         return false;
