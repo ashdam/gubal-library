@@ -136,6 +136,17 @@ internal sealed unsafe class OverlayHandler : IDisposable
     private readonly Dictionary<string, string> valueInjected = new(StringComparer.Ordinal);
 
     /// <summary>
+    ///     The same again as a lookup key, so the <em>node</em> route can recognise it too.
+    /// </summary>
+    /// <remarks>
+    ///     Normalized rather than kept verbatim because the two routes see different renderings of one
+    ///     line: the value is what we wrote, the node is what the game drew from it, with its own line
+    ///     breaks baked in. <see cref="TextKey.Normalize" /> collapses exactly that difference, and it
+    ///     is what the lookup would use a moment later anyway.
+    /// </remarks>
+    private readonly Dictionary<string, string> valueInjectedKey = new(StringComparer.Ordinal);
+
+    /// <summary>
     ///     What our own output reads back as on the node route, per <em>node</em>.
     /// </summary>
     /// <remarks>
@@ -264,7 +275,9 @@ internal sealed unsafe class OverlayHandler : IDisposable
         // Recorded only after a successful write, and holding the read-back rather than the target.
         // An entry here means "our line is already on screen", so writing one on the refusal path
         // above would convince the guard a line it never wrote was in place.
-        this.valueInjected[name] = AtkText.ReadString(values[index]);
+        var readBack = AtkText.ReadString(values[index]);
+        this.valueInjected[name] = readBack;
+        this.valueInjectedKey[name] = TextKey.Normalize(readBack);
         this.InjectedCount++;
     }
 
@@ -345,6 +358,28 @@ internal sealed unsafe class OverlayHandler : IDisposable
             }
 
             this.attempted[pointer] = onScreen;
+
+            // Our own line arriving back through the other route. TalkSubtitle takes both: the value
+            // route writes the Spanish, the game draws it into this node, and the node route reads it
+            // as if it were fresh source text. nodeInjected cannot catch that, because this node was
+            // never written *here* — so the lookup missed and misses.jsonl gained
+            // {"Key":"Y así fue como nuestro barco se separó del muelle.","Speaker":"TalkSubtitle#4"},
+            // which is a line out of our own translations/VoiceMan_07000.json.
+            //
+            // Nothing was wrong on screen; the cost was a miss log claiming translated lines need
+            // translating, which is the one thing that file exists to tell the truth about.
+            //
+            // Placed after the attempted guard rather than before it, so the normalization runs once
+            // per new line per node instead of once per frame — the same reason that guard exists.
+            if (this.valueInjectedKey.TryGetValue(name, out var ours)
+                && ours.Length > 0
+                && string.Equals(TextKey.Normalize(onScreen), ours, StringComparison.Ordinal))
+            {
+                // Recorded as ours, not merely skipped, so every later frame settles it on the cheap
+                // string compare at the top of the loop.
+                this.nodeInjected[pointer] = onScreen;
+                continue;
+            }
 
             // The node id goes into the miss record, not just the addon name. Without it the log
             // cannot distinguish the body from the speaker: a _BattleTalk pass recorded the NPC name

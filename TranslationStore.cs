@@ -70,6 +70,26 @@ internal sealed class TranslationStore(IPluginLog log, ISeStringEvaluator evalua
     /// <summary>How many unevaluable lines to name in the log before falling back to a tally.</summary>
     private const int MaxReportedFailures = 10;
 
+    /// <summary>
+    ///     A conditional canary: whatever the branch, the answer must be one of the two.
+    /// </summary>
+    /// <remarks>
+    ///     <c>gnum4</c> is a global parameter, so evaluating this reads game state — which is the
+    ///     whole point. It is the same shape as the 885 corpus lines with an <c>&lt;if(</c> in them,
+    ///     and it fails the same way they do.
+    /// </remarks>
+    private const string ConditionalCanary = "<if(gnum4,a,b)>";
+
+    /// <summary>
+    ///     The player-name canary, spelled exactly as the corpus spells it.
+    /// </summary>
+    /// <remarks>
+    ///     This one does not throw when it cannot read the character — it resolves to nothing, and
+    ///     the line gets indexed under a string with a hole where the name should be. That is worse
+    ///     than being dropped, because the entry count still counts it.
+    /// </remarks>
+    private const string PlayerNameCanary = "<split(<string(gstr1)>, ,1)>";
+
     private List<TimeSensitiveEntry> timeSensitive = [];
 
     private long lastTimeRefreshTicks;
@@ -80,6 +100,16 @@ internal sealed class TranslationStore(IPluginLog log, ISeStringEvaluator evalua
     public int ScopedCount => this.scoped.Count;
 
     public int NpcNameCount => this.npcNames.Count;
+
+    /// <summary>
+    ///     How many source lines the last load refused to index because they would not evaluate.
+    /// </summary>
+    /// <remarks>
+    ///     Kept as a number and not only as a log line so <see cref="IndexIsSound" />'s caller can say
+    ///     how much of the corpus a degraded index actually cost. A healthy load of the Spanish corpus
+    ///     drops none.
+    /// </remarks>
+    public int DroppedCount { get; private set; }
 
     public string LoadedFrom { get; private set; } = "(not loaded)";
 
@@ -143,6 +173,50 @@ internal sealed class TranslationStore(IPluginLog log, ISeStringEvaluator evalua
         this.LoadedFrom = "(no translation file found)";
         this.LoadedPath = string.Empty;
         return false;
+    }
+
+    /// <summary>
+    ///     Asks the evaluator two questions whose answers are known, to decide whether the index just
+    ///     built can be trusted.
+    /// </summary>
+    /// <remarks>
+    ///     <para>
+    ///         <b>A canary rather than a test for the cause.</b> The cause is knowable — see
+    ///         <c>Plugin</c>'s constructor — but the symptom is what matters and it is otherwise
+    ///         invisible: an index built while the evaluator cannot reach game state loses every line
+    ///         with a branch in it and keys every player-name line under a string with a hole in it,
+    ///         and on screen that is indistinguishable from those lines simply not being translated
+    ///         yet. Measured on one session, minutes apart: 71,495 entries with 903 dropped through
+    ///         the constructor, 72,337 with none through <c>/gubal reload</c>.
+    ///     </para>
+    ///     <para>
+    ///         Two canaries because the two failure modes are different. The conditional throws and
+    ///         the line is dropped; the name macro resolves to empty and the line is kept under a key
+    ///         the game will never draw. Either alone would miss half of it.
+    ///     </para>
+    /// </remarks>
+    /// <param name="complaint">What the canary did instead, for the log. Empty when sound.</param>
+    public bool IndexIsSound(out string complaint)
+    {
+        if (!this.TryEvaluate(ConditionalCanary, out var branch)
+            || (branch is not "a" && branch is not "b"))
+        {
+            complaint =
+                $"the conditional {ConditionalCanary} resolved to '{branch}' instead of one of its "
+                + "two branches, so every line with an <if( or <switch( in it was dropped";
+            return false;
+        }
+
+        if (!this.TryEvaluate(PlayerNameCanary, out _))
+        {
+            complaint =
+                $"the player-name macro {PlayerNameCanary} resolved to nothing, so every line "
+                + "addressing the player is indexed under text the game will never draw";
+            return false;
+        }
+
+        complaint = string.Empty;
+        return true;
     }
 
     /// <summary>
@@ -290,16 +364,18 @@ internal sealed class TranslationStore(IPluginLog log, ISeStringEvaluator evalua
         var builtScoped = new Dictionary<string, string>(StringComparer.Ordinal);
         var timed = new List<TimeSensitiveEntry>();
         var names = new Dictionary<string, string>(StringComparer.Ordinal);
+        var dropped = 0;
 
         foreach (var path in paths)
         {
-            this.LoadFile(path, built, builtScoped, timed, names);
+            dropped += this.LoadFile(path, built, builtScoped, timed, names);
         }
 
         this.entries = built;
         this.scoped = builtScoped;
         this.timeSensitive = timed;
         this.npcNames = names;
+        this.DroppedCount = dropped;
         this.lastTimeRefreshTicks = Environment.TickCount64;
         this.LoadedFrom = string.Join(" + ", paths.Select(Path.GetFileName));
         this.LoadedPath = paths.Length == 1 ? paths[0] : string.Empty;
@@ -313,7 +389,8 @@ internal sealed class TranslationStore(IPluginLog log, ISeStringEvaluator evalua
             this.LoadedFrom);
     }
 
-    private void LoadFile(
+    /// <returns>How many source lines were dropped because they would not evaluate.</returns>
+    private int LoadFile(
         string path,
         Dictionary<string, string> built,
         Dictionary<string, string> builtScoped,
@@ -353,7 +430,7 @@ internal sealed class TranslationStore(IPluginLog log, ISeStringEvaluator evalua
                 path,
                 model.SchemaVersion,
                 SupportedSchemaVersion);
-            return;
+            return 0;
         }
 
         var skippedEmpty = 0;
@@ -522,6 +599,8 @@ internal sealed class TranslationStore(IPluginLog log, ISeStringEvaluator evalua
                 + "own language; nothing is injected over them.",
                 evaluationFailures);
         }
+
+        return evaluationFailures;
     }
 
     /// <summary>
