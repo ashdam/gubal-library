@@ -56,7 +56,7 @@ internal sealed class ConfigWindow : Window
         {
             ImGui.Spacing();
             ImGui.TextWrapped(
-                "Nothing loaded yet. The corpus is indexed against the logged-in character, so it "
+                "Nothing loaded yet. The language pack is indexed against the logged-in character, so it "
                 + "loads when you enter the world — not at the title screen.");
         }
 
@@ -68,9 +68,9 @@ internal sealed class ConfigWindow : Window
             ImGui.Spacing();
             ImGui.PushStyleColor(ImGuiCol.Text, new Vector4(1f, 0.35f, 0.35f, 1f));
             ImGui.TextWrapped(
-                "NO CORPUS LOADED — running on the built-in self-test, which covers two lines from "
+                "NO LANGUAGE PACK LOADED — running on the built-in self-test, which covers two lines from "
                 + "Ahldskyf in Limsa Lominsa Lower Decks and nothing else. The rest of the game is "
-                + "untranslated. Use Browse below to load a real corpus.");
+                + "untranslated. Use Browse below to load a real language pack.");
             ImGui.PopStyleColor();
         }
 
@@ -112,13 +112,22 @@ internal sealed class ConfigWindow : Window
 
         SetTooltip("Reports which quest the game thinks is running, and the conversation the lookup\n" +
                    "is scoped to. Use it when a line stays English and you want to know whether the\n" +
-                   "scoping or the corpus is at fault.");
+                   "scoping or the language pack is at fault.");
 
         ImGui.Separator();
 
         // The corpus is not shipped with the plugin, so it has to be findable. Blank means the
         // plugin config directory.
         var corpusPath = this.config.CorpusPath;
+
+        // Aligned to the frame padding, not drawn at the raw cursor: text placed beside an input box
+        // sits at the top of it otherwise, a couple of pixels above the text inside the box.
+        ImGui.AlignTextToFramePadding();
+        ImGui.TextDisabled("Language pack");
+        ImGui.SameLine();
+
+        // Negative width, so the box gives back a fixed strip to Browse and Clear on its right and
+        // takes whatever is left of the row after the label. Both ends stay put as the window resizes.
         ImGui.SetNextItemWidth(-140f * ImGuiHelpers.GlobalScale);
         if (ImGui.InputText("##corpusPath", ref corpusPath, 1024))
         {
@@ -126,7 +135,7 @@ internal sealed class ConfigWindow : Window
             changed = true;
         }
 
-        SetTooltip("Absolute path to the translated corpus JSON.\n" +
+        SetTooltip("Absolute path to the language pack JSON.\n" +
                    "Leave empty to use corpus.json in the plugin config directory:\n" +
                    snapshot.ConfigDirectory);
 
@@ -145,7 +154,24 @@ internal sealed class ConfigWindow : Window
 
         SetTooltip("Fall back to the plugin config directory.");
 
-        ImGui.TextDisabled("Corpus path");
+        // Directly under the row that loads the pack, because it is the answer to what that row just
+        // did. Up beside the entry counts it read as a statistic about the plugin rather than as the
+        // identity of the file in the box above it. Green so a reload is visibly confirmed at a glance:
+        // the file is regenerated in place several times a session and its name never changes, so this
+        // string is the only thing on screen that differs between the old pack and the new one.
+        // Green only when there is a version to show. Painting "not stated" green would give an
+        // unstamped pack the same reassuring colour as a confirmed one, when it is the case where the
+        // question cannot be answered at all.
+        if (snapshot.TranslationVersion is { } version)
+        {
+            ImGui.PushStyleColor(ImGuiCol.Text, new Vector4(0.35f, 0.85f, 0.4f, 1f));
+            ImGui.TextWrapped($"Pack version: {version}");
+            ImGui.PopStyleColor();
+        }
+        else
+        {
+            ImGui.TextDisabled("Pack version: not stated — this pack predates the stamp");
+        }
 
         if (ImGui.Button("Reload translation file"))
         {
@@ -183,7 +209,7 @@ internal sealed class ConfigWindow : Window
 
         // The overload that accepts a start path reports results as a list, even with a max of one.
         this.fileDialogs.OpenFileDialog(
-            "Select translated corpus",
+            "Select language pack",
             "JSON{.json},All files{.*}",
             (accepted, selectedPaths) =>
             {
@@ -216,6 +242,7 @@ internal readonly record struct StatusSnapshot(
     int OverlayInjectedCount,
     int MissCount,
     string LoadedFrom,
+    string? TranslationVersion,
     string MissLogPath,
     string ConfigDirectory,
     bool UsingSampleCorpus);

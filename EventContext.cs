@@ -1,3 +1,5 @@
+using System.Text.RegularExpressions;
+using Dalamud.Plugin.Services;
 using FFXIVClientStructs.FFXIV.Client.Game.Event;
 
 namespace GubalLibrary;
@@ -28,19 +30,59 @@ namespace GubalLibrary;
 ///         anyway.
 ///     </para>
 /// </remarks>
-internal static unsafe class EventContext
+internal static unsafe partial class EventContext
 {
     /// <summary>A handler that is not running a scene reports this.</summary>
     private const short NoScene = -1;
 
     /// <summary>
-    ///     The active quest's conversation id, or <c>null</c> when no quest scene is running.
+    ///     The scope to look a line up under, or <c>null</c> when the game offers none.
     /// </summary>
     /// <remarks>
-    ///     Null is the normal case, not a failure: ambient chatter, shops and most incidental talk run
-    ///     no quest scene, and those lines fall back to the text-only index.
+    ///     <para>
+    ///         Two scopes, tried in that order, because a quest names one conversation while a
+    ///         territory names a whole duty — the narrower answer is the better key wherever it exists.
+    ///     </para>
+    ///     <para>
+    ///         The territory half exists because a dungeon boss has no quest handler, so every line it
+    ///         speaks used to resolve on text alone. That is how Malphas came to say <em>¡Baila!</em>:
+    ///         his "Dance!" and a FATE duellist's are the same English, the corpus holds a different
+    ///         Spanish for each, and the text index keeps only the first it loaded.
+    ///     </para>
+    ///     <para>
+    ///         Null is still the normal case — ambient chatter, shops and open-world talk have neither
+    ///         — and those lines fall back to the text index exactly as before.
+    ///     </para>
     /// </remarks>
-    public static string? ActiveQuestConversation()
+    /// <param name="territory">
+    ///     <c>IClientState.TerritoryType</c>, passed in rather than read here.
+    /// </param>
+    public static string? ActiveScope(uint territory, IPluginLog log)
+    {
+        // Not gated on "is this an instance". A pack only carries this scope for rows the game itself
+        // places in a duty, so an open-world territory matches nothing and falls through — one
+        // dictionary miss, against an extra API whose shape would be one more thing to be wrong about.
+        return ActiveQuestConversation(log)
+               ?? (territory == 0 ? null : "territory/" + territory);
+    }
+
+    /// <summary>
+    ///     What a real <c>ScriptPath</c> looks like: <c>047/SubWil901_04779</c>.
+    /// </summary>
+    /// <remarks>
+    ///     Measured, not assumed: of every quest conversation in the Spanish pack, the number that fail
+    ///     this pattern is zero.
+    /// </remarks>
+    [GeneratedRegex(@"^[0-9]{3}/[A-Za-z][A-Za-z0-9_]*$", RegexOptions.CultureInvariant)]
+    private static partial Regex ScriptPathShape();
+
+    /// <summary>Warned once already; the condition is per-build, not per-line.</summary>
+    private static bool shapeWarned;
+
+    /// <summary>
+    ///     The active quest's conversation id, or <c>null</c> when no quest scene is running.
+    /// </summary>
+    private static string? ActiveQuestConversation(IPluginLog log)
     {
         try
         {
@@ -69,7 +111,36 @@ internal static unsafe class EventContext
                 }
 
                 var script = ((QuestEventHandler*)handler)->ScriptPath.ToString();
-                return string.IsNullOrEmpty(script) ? null : "quest/" + script;
+                if (string.IsNullOrEmpty(script))
+                {
+                    return null;
+                }
+
+                // A smoke detector for the one failure this file cannot otherwise announce. The cast
+                // above reads a reverse-engineered struct layout, and a patch that moves ScriptPath's
+                // offset does not throw — it returns whatever bytes sit there. The scope then matches
+                // nothing, every quest line quietly falls back to the text index, and the 4,407 lines
+                // that need scoping to tell them apart start showing another quest's Spanish. Nothing
+                // on screen says so. Returning null changes none of that; it only makes it say so.
+                //
+                // Not a guarantee: junk that happens to look like NNN/Name passes. Junk usually does
+                // not.
+                if (!ScriptPathShape().IsMatch(script))
+                {
+                    if (!shapeWarned)
+                    {
+                        shapeWarned = true;
+                        log.Warning(
+                            "QuestEventHandler.ScriptPath read {Script}, which is not NNN/Name. The "
+                            + "struct layout has most likely moved with a patch; quest scoping is off "
+                            + "until it is fixed, and lines will resolve on text alone.",
+                            script);
+                    }
+
+                    return null;
+                }
+
+                return "quest/" + script;
             }
         }
         catch

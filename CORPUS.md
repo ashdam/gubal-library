@@ -26,7 +26,7 @@ The plugin reads `corpus.json` from its config directory unless an explicit path
   "sourceLanguage": "en",
   "targetLanguage": "es",
   "gameVersion": "2026.07.16.0001.0000",
-  "translationVersion": "2026-08-05 19:40",
+  "translationVersion": "2026.08.07.2228",
   "npcNames": { "Alphinaud": "Alphinaud" },
   "entries": [
     {
@@ -34,6 +34,12 @@ The plugin reads `corpus.json` from its config directory unless an explicit path
       "conversation": "quest/047/SubWil901_04779",
       "source": "Off you go now, <if(...)>.",
       "target": "Vete ya, <if(...)>."
+    },
+    {
+      "conversation": "InstanceContentTextData#44505",
+      "scope": "territory/1345",
+      "source": "Dance!",
+      "target": "¡Bailad!"
     }
   ]
 }
@@ -44,15 +50,23 @@ The plugin reads `corpus.json` from its config directory unless an explicit path
 | `schemaVersion` | yes | Must be `2`. **Any other value is refused and nothing is loaded** — a schema this build cannot read parses without error and yields zero entries, which on screen is indistinguishable from a broken plugin. |
 | `sourceLanguage`, `targetLanguage` | no | Which languages the entries are in. Written to the load log; `sourceLanguage` is read and otherwise unused. |
 | `gameVersion` | no | The patch the pack was built against. Written to the load log. |
-| `translationVersion` | no | Which generation of the translation this is, stamped by the extractor. Written to the load log, which is the only way to tell a stale copy from a current one. |
+| `translationVersion` | no | Which generation of the translation this is, stamped by the extractor. Shown in the `/gubal` window and printed on load, which is the only way to tell a stale copy from a current one. |
 | `npcNames` | no | Source → translated speaker names. Only used when **Translate speaker names** is on. |
 | `entries[].source` | yes | The source line, **macros unresolved**. See below. |
 | `entries[].target` | yes | The translation. Entries with either side empty are skipped at load. |
 | `entries[].conversation` | no | Scopes the entry to one conversation, e.g. `quest/047/SubWil901_04779`. |
+| `entries[].scope` | no | A second scope the same entry answers to, e.g. `territory/1345`. See below. |
 | `entries[].gameKey` | no | Provenance only. **Never used for lookup.** |
 
-None of the header fields reach `/gubal status`, which reports counts and paths only. They are in the
-load log, `/xllog`.
+`scope` was added without moving `schemaVersion` off 2, and deliberately. The compatibility runs both
+ways: a plugin that predates the field ignores it and behaves exactly as it did, and this build
+reading a pack that has none simply finds no territory scopes. Bumping would have broken every older
+plugin — the loader refuses any version but its own — to announce a field they are free to skip.
+
+Of the header fields only `translationVersion` leaves the log: it appears as **Pack version** in the
+`/gubal` window, in `/gubal status`, and in the line printed after a reload — always beside the source
+path, never instead of it. A reload that kept the old pack and one that picked up a freshly built file
+are otherwise indistinguishable, since both name the same file. The rest are in `/xllog`.
 
 **The entry fields do not name their language.** Schema 1 called them `en` and `es`, which put the
 same fact in two places and let them disagree — a file declaring `"targetLanguage": "it"` whose
@@ -121,6 +135,32 @@ conversation-scoped index consulted first, and a text-only index as the fallback
 
 The fallback matters as much as the scoped hit. Ambient chatter has no quest handler, so its
 `conversation` is null at runtime and the text-only index is the only thing that can answer.
+
+### The second scope, and why a conversation is not always enough
+
+A quest names its conversation because the live `QuestEventHandler` hands over its own `ScriptPath`.
+Nothing does that for a duty: a dungeon boss speaks through a content director, so every line it says
+had no scope at all and resolved on text alone.
+
+That is not theoretical. `NpcYell#5450` and `InstanceContentTextData#44505` are both the single word
+`Dance!` — a FATE duellist taunting you, and Malphas ordering his puppets — and they want *¡Baila!*
+and *¡Bailad!* respectively. The FATE line loaded first, so Malphas said the wrong one.
+
+`scope` is what the plugin *can* work out while a line is on screen: the territory the player is
+standing in. A pack should set it on any entry whose line belongs to a duty, and leave it off
+everywhere else.
+
+Both fields are indexed, and no precedence has to be decided, because they cannot compete: at a given
+moment the plugin can produce a conversation or a territory, never both keys for one line. An entry
+carrying both is reachable by whichever the moment allows. So `conversation` stays what it always was
+— for a flat sheet, the row the line came from, which is provenance the pack would otherwise lose —
+and `scope` carries the key that actually resolves.
+
+Two things a pack must not read into this. A territory is a *duty*, not a fight: two bosses in one
+dungeon share it, so it separates duty from open world and nothing finer. And a line used by two
+duties at once — the normal and savage versions of one encounter, in different territories — has no
+single correct value, so leave `scope` off rather than pick one. Falling back to the text index is
+the behaviour that field exists to improve on, never worse than it.
 
 ## The pipeline this was built against
 

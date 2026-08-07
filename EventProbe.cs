@@ -34,7 +34,7 @@ internal static unsafe class EventProbe
     /// <summary>A handler that is not running a scene reports this.</summary>
     private const short NoScene = -1;
 
-    public static void Dump(IPluginLog log, string displayedText)
+    public static void Dump(IPluginLog log, string displayedText, uint territory)
     {
         try
         {
@@ -53,7 +53,7 @@ internal static unsafe class EventProbe
                 "[probe] {Count} loaded handler(s); framework Scene={Scene}; resolved conversation={Conversation}",
                 handlers.Count,
                 framework->Scene,
-                EventContext.ActiveQuestConversation() ?? "(none — will fall back to the text index)");
+                EventContext.ActiveScope(territory, log) ?? "(none — will fall back to the text index)");
 
             var active = 0;
 

@@ -39,6 +39,9 @@ internal sealed unsafe class TalkHandler : IDisposable
     private readonly IAddonLifecycle lifecycle;
     private readonly IPluginLog log;
     private readonly MacroResolver resolver;
+
+    /// <summary>Source of the territory scope; see <see cref="EventContext.ActiveScope" />.</summary>
+    private readonly IClientState clientState;
     private readonly MissLog misses;
     private readonly TranslationStore store;
 
@@ -106,7 +109,8 @@ internal sealed unsafe class TalkHandler : IDisposable
         Configuration config,
         TranslationStore store,
         MissLog misses,
-        MacroResolver resolver)
+        MacroResolver resolver,
+        IClientState clientState)
     {
         this.lifecycle = lifecycle;
         this.log = log;
@@ -114,6 +118,7 @@ internal sealed unsafe class TalkHandler : IDisposable
         this.store = store;
         this.misses = misses;
         this.resolver = resolver;
+        this.clientState = clientState;
 
         this.onPreRefresh = this.OnPreRefresh;
         this.onPreDraw = this.OnPreDraw;
@@ -197,7 +202,7 @@ internal sealed unsafe class TalkHandler : IDisposable
 
         // Scopes the lookup to the quest being played, so identical English in another quest does not
         // shadow this line's own translation. Null outside a quest scene, which falls back to text.
-        var conversation = EventContext.ActiveQuestConversation();
+        var conversation = EventContext.ActiveScope(this.clientState.TerritoryType, this.log);
 
         if (!this.store.TryGetTranslation(conversation, key, out var translated))
         {
@@ -447,7 +452,7 @@ internal sealed unsafe class TalkHandler : IDisposable
         this.probeCount++;
 
         this.log.Information("[probe] line {Index}/{Max}: {Text}", this.probeCount, MaxProbeDumps, text);
-        EventProbe.Dump(this.log, text);
+        EventProbe.Dump(this.log, text, this.clientState.TerritoryType);
 
         if (this.probeCount == MaxProbeDumps)
         {

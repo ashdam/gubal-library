@@ -364,17 +364,25 @@ internal sealed class TranslationStore(IPluginLog log, ISeStringEvaluator evalua
         var builtScoped = new Dictionary<string, string>(StringComparer.Ordinal);
         var timed = new List<TimeSensitiveEntry>();
         var names = new Dictionary<string, string>(StringComparer.Ordinal);
+        var header = new CorpusHeader();
         var dropped = 0;
 
         foreach (var path in paths)
         {
-            dropped += this.LoadFile(path, built, builtScoped, timed, names);
+            dropped += this.LoadFile(path, built, builtScoped, timed, names, header);
         }
 
         this.entries = built;
         this.scoped = builtScoped;
         this.timeSensitive = timed;
         this.npcNames = names;
+        // A fresh header per load, not a field the first file of the session wins forever. These used
+        // to be filled with ??= against the properties themselves, so swapping in a newly merged pack
+        // kept reporting the version of whatever had been loaded first — which is the one question the
+        // stamp exists to answer, answered wrong, and confidently.
+        this.TargetLanguage = header.TargetLanguage;
+        this.GameVersion = header.GameVersion;
+        this.TranslationVersion = header.TranslationVersion;
         this.DroppedCount = dropped;
         this.lastTimeRefreshTicks = Environment.TickCount64;
         this.LoadedFrom = string.Join(" + ", paths.Select(Path.GetFileName));
@@ -395,7 +403,8 @@ internal sealed class TranslationStore(IPluginLog log, ISeStringEvaluator evalua
         Dictionary<string, string> built,
         Dictionary<string, string> builtScoped,
         List<TimeSensitiveEntry> timed,
-        Dictionary<string, string> names)
+        Dictionary<string, string> names,
+        CorpusHeader header)
     {
         // Instrumentation, kept permanently: at full corpus scale the cost of loading is the whole
         // question, and "it feels slow" is not something you can act on. Cheap enough to always run.
@@ -509,9 +518,16 @@ internal sealed class TranslationStore(IPluginLog log, ISeStringEvaluator evalua
                 timed.Add(new TimeSensitiveEntry(entry.Source, value, entry.Conversation, key));
             }
 
+            // Both scopes, not one. They never compete: only one kind can be produced at a time, so a
+            // line reachable by either is reachable by whichever the moment allows.
             if (entry.Conversation is not null)
             {
                 builtScoped[ScopedKey(entry.Conversation, key)] = value;
+            }
+
+            if (entry.Scope is not null)
+            {
+                builtScoped[ScopedKey(entry.Scope, key)] = value;
             }
 
             if (!built.TryAdd(key, value))
@@ -530,9 +546,11 @@ internal sealed class TranslationStore(IPluginLog log, ISeStringEvaluator evalua
             names[english] = spanish;
         }
 
-        this.TargetLanguage ??= model.TargetLanguage;
-        this.GameVersion ??= model.GameVersion;
-        this.TranslationVersion ??= model.TranslationVersion;
+        // ??= within one load only: several files can be merged into one index, and the first one that
+        // states a field describes the result.
+        header.TargetLanguage ??= model.TargetLanguage;
+        header.GameVersion ??= model.GameVersion;
+        header.TranslationVersion ??= model.TranslationVersion;
 
         parseWatch.Stop();
 
@@ -550,9 +568,9 @@ internal sealed class TranslationStore(IPluginLog log, ISeStringEvaluator evalua
             Path.GetFileName(path),
             built.Count,
             builtScoped.Count,
-            this.TargetLanguage ?? "?",
-            this.GameVersion ?? "?",
-            this.TranslationVersion ?? "not stated");
+            header.TargetLanguage ?? "?",
+            header.GameVersion ?? "?",
+            header.TranslationVersion ?? "not stated");
 
         log.Information(
             "  cost: file {FileMb:N1} MB | read {ReadMs} ms | parse+index {ParseMs} ms | "
@@ -628,6 +646,21 @@ internal sealed class TranslationStore(IPluginLog log, ISeStringEvaluator evalua
         }
     }
 
+    /// <summary>The header fields of one load, gathered across every file it read.</summary>
+    /// <remarks>
+    ///     Separate from the properties it ends up in so a load that throws part way through leaves the
+    ///     previous corpus and the version reported for it consistent with each other — the same reason
+    ///     the dictionaries are built aside and assigned at the end.
+    /// </remarks>
+    private sealed class CorpusHeader
+    {
+        public string? TargetLanguage { get; set; }
+
+        public string? GameVersion { get; set; }
+
+        public string? TranslationVersion { get; set; }
+    }
+
     /// <summary>An entry whose resolved key depends on the Eorzean clock.</summary>
     private sealed class TimeSensitiveEntry(string source, string value, string? conversation, string currentKey)
     {
@@ -675,6 +708,20 @@ internal sealed class TranslationStore(IPluginLog log, ISeStringEvaluator evalua
         /// </remarks>
         [JsonPropertyName("conversation")]
         public string? Conversation { get; set; }
+
+        /// <summary>
+        ///     A second scope the line answers to, where the game places it in a duty:
+        ///     <c>territory/1345</c>.
+        /// </summary>
+        /// <remarks>
+        ///     Both this and <see cref="Conversation" /> go into the scoped index, because they cover
+        ///     what the other cannot. A flat sheet's conversation is its own row id, which no addon
+        ///     hands over; a dungeon boss has no quest handler, so its lines had no scope at all and
+        ///     resolved on text alone — which is how Malphas came to say <em>¡Baila!</em>, the FATE
+        ///     duellist's translation of the same English word.
+        /// </remarks>
+        [JsonPropertyName("scope")]
+        public string? Scope { get; set; }
 
         /// <summary>
         ///     The source line in its complete form: macro syntax intact wherever the line has any.
