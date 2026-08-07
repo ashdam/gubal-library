@@ -71,7 +71,7 @@ A testing build, so expect rough edges. It needs XIVLauncher/Dalamud, and it mak
    red warning for as long as it is all that is loaded; `/gubal status` says how many entries loaded.
 
 4. **Load a language pack.** The step that actually matters — everything else in the game stays as it
-   was until you do. Keep the file wherever you like: `/gubal` → **Browse...** under *Corpus path* →
+   was until you do. Keep the file wherever you like: `/gubal` → **Browse...** under *Language pack* →
    pick it. It loads immediately, with no renaming, no restart and no `reload`; the entry count
    updates and the red warning goes. If you would rather not set a path, name it `corpus.json` in
    `%AppData%\XIVLauncher\pluginConfigs\GubalLibrary` and run `/gubal reload`. Still 0 entries means

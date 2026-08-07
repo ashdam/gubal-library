@@ -120,7 +120,8 @@ public sealed class Plugin : IDalamudPlugin
             this.config,
             this.store,
             this.misses,
-            this.resolver);
+            this.resolver,
+            clientState);
 
         // One handler, several candidate addon names. TalkSubtitle is proven; the others are guesses
         // that cost nothing if they never fire and announce themselves in the log if they do.
@@ -135,6 +136,7 @@ public sealed class Plugin : IDalamudPlugin
             this.store,
             this.misses,
             this.resolver,
+            clientState,
             "TalkSubtitle",
             "_BattleTalk",
             "_ScreenInfoFront",
@@ -391,7 +393,9 @@ public sealed class Plugin : IDalamudPlugin
     {
         if (this.LoadCorpus("/gubal reload"))
         {
-            this.chat.Print($"[Gubal]Reloaded {this.store.Count} entries from {this.store.LoadedFrom}");
+            this.chat.Print(
+                $"[Gubal]Reloaded {this.store.Count} entries from {this.store.LoadedFrom}"
+                + $" ({this.store.TranslationVersion ?? "no translationVersion — corpus predates the stamp"})");
         }
         else
         {
@@ -403,7 +407,12 @@ public sealed class Plugin : IDalamudPlugin
     {
         var snapshot = this.Snapshot();
         this.chat.Print($"[Gubal]{snapshot.EntryCount} entries, {snapshot.NpcNameCount} NPC names.");
-        this.chat.Print($"[Gubal]Source: {snapshot.LoadedFrom}");
+        // The generation, not just the filename. A reload that silently kept the old corpus and one
+        // that picked up a freshly merged file print the identical "Source:" line, so the name alone
+        // cannot answer the question anybody actually asks after regenerating: is this the new one?
+        this.chat.Print(
+            $"[Gubal]Source: {snapshot.LoadedFrom}"
+            + $" ({snapshot.TranslationVersion ?? "no translationVersion — corpus predates the stamp"})");
         // Split, not summed. Which handler is working is the question this line gets asked, and a
         // total cannot answer it — reporting TalkHandler's count alone once cost a verification round,
         // because "12 injected" was read as proof the subtitle overlay had run when it says nothing
@@ -429,6 +438,7 @@ public sealed class Plugin : IDalamudPlugin
             this.overlays.InjectedCount,
             this.misses.Count,
             this.store.LoadedFrom,
+            this.store.TranslationVersion,
             this.misses.Path,
             this.pluginInterface.GetPluginConfigDirectory(),
             string.Equals(this.store.LoadedPath, this.SampleCorpusPath, StringComparison.OrdinalIgnoreCase));

@@ -163,6 +163,9 @@ internal sealed unsafe class OverlayHandler : IDisposable
     private readonly IPluginLog log;
     private readonly MissLog misses;
     private readonly MacroResolver resolver;
+
+    /// <summary>Source of the territory scope; see <see cref="EventContext.ActiveScope" />.</summary>
+    private readonly IClientState clientState;
     private readonly TranslationStore store;
 
     private readonly IAddonLifecycle.AddonEventDelegate onPreDraw;
@@ -235,6 +238,7 @@ internal sealed unsafe class OverlayHandler : IDisposable
         TranslationStore store,
         MissLog misses,
         MacroResolver resolver,
+        IClientState clientState,
         params string[] addonNames)
     {
         this.lifecycle = lifecycle;
@@ -243,6 +247,7 @@ internal sealed unsafe class OverlayHandler : IDisposable
         this.store = store;
         this.misses = misses;
         this.resolver = resolver;
+        this.clientState = clientState;
         this.addonNames = addonNames;
 
         this.onPreRefresh = this.OnPreRefresh;
@@ -296,7 +301,7 @@ internal sealed unsafe class OverlayHandler : IDisposable
             return;
         }
 
-        if (!this.TryTranslate(text, name, name, EventContext.ActiveQuestConversation(), out var translated))
+        if (!this.TryTranslate(text, name, name, EventContext.ActiveScope(this.clientState.TerritoryType, this.log), out var translated))
         {
             return;
         }
@@ -363,7 +368,7 @@ internal sealed unsafe class OverlayHandler : IDisposable
         // the client has loaded — 629 in a typical session — and the answer cannot change between
         // two nodes of the same addon in the same frame, so asking twice was only ever waste. This is
         // most of what the per-node guard below was protecting against.
-        var conversation = EventContext.ActiveQuestConversation();
+        var conversation = EventContext.ActiveScope(this.clientState.TerritoryType, this.log);
 
         foreach (var pointer in this.nodeBuffer)
         {
