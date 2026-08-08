@@ -142,7 +142,19 @@ public sealed class Plugin : IDalamudPlugin
             "_ScreenInfoFront",
             "_MiniTalk",
             "MiniTalk",
-            "JournalDetail");
+            "JournalDetail",
+
+            // The dialogue choice list, and the menu that precedes it. SelectString is not a guess:
+            // /gubal find traced Urianger's "What of the primals?" to it, node 2. See BodyNode.
+            //
+            // SelectIconString is the icon list — the first menu an NPC with several services shows,
+            // "Small Talk" over the quests they offer. It is a guess, made on this file's standing
+            // terms: it never fired on Urianger, who has nothing but small talk and so opens the
+            // choice list directly, and there was no second NPC to hand. Deliberately absent from
+            // BodyNode, so an addon nobody has characterised gets the full node sweep and the miss log
+            // reveals its layout — the progression that established both ids above.
+            "SelectString",
+            "SelectIconString");
 
         this.finder = new AddonFinder(addonLifecycle, log);
         this.finder.Hunt(this.config.FindText);
