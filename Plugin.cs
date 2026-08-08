@@ -233,6 +233,12 @@ public sealed class Plugin : IDalamudPlugin
             return false;
         }
 
+        // The index the overlays have been failing against is gone, so their record of what is not in
+        // it is worthless — and worse than worthless, because it stops them ever asking again. The
+        // quest tracker is the addon that proved it: on screen before the first index was built, it
+        // missed both its lines against an empty store and stayed English for the session.
+        this.overlays.ForgetFailedLookups();
+
         if (this.store.IndexIsSound(out var complaint))
         {
             return true;
