@@ -42,7 +42,7 @@ internal sealed unsafe class OverlayHandler : IDisposable
     private const int MaxInspections = 8;
 
     /// <summary>
-    ///     Which node carries the dialogue body, for addons whose layout has been observed.
+    ///     Which node<em>s</em> carry text the player reads, for addons whose layout has been observed.
     /// </summary>
     /// <remarks>
     ///     Filled from the miss log rather than guessed. A pass through the Sil'dihn variant dungeon
@@ -55,14 +55,25 @@ internal sealed unsafe class OverlayHandler : IDisposable
     ///         fills the miss log with names that are not missing translations at all.
     ///     </para>
     ///     <para>
+    ///         It matters for cost too, and for one addon that is the whole reason it is narrowed.
+    ///         The id test in <see cref="OnPreDraw" /> runs <em>before</em> the node's text is read,
+    ///         and reading a node's text allocates a string. An overlay is on screen for seconds;
+    ///         <c>_ToDoList</c> is on screen always, so an unnarrowed sweep of it would allocate a
+    ///         string per node per frame for the whole session.
+    ///     </para>
+    ///     <para>
+    ///         A set per addon, because a tracker is not an overlay: it draws the quest name and the
+    ///         objective under it, from two different nodes, and one id can only name one of them.
+    ///     </para>
+    ///     <para>
     ///         An addon not listed here keeps the scan, which is what discovers its layout in the
     ///         first place. That is the intended progression: scan, read the log, add an entry.
     ///     </para>
     /// </remarks>
-    private static readonly Dictionary<string, uint> BodyNode = new(StringComparer.Ordinal)
+    private static readonly Dictionary<string, uint[]> BodyNodes = new(StringComparer.Ordinal)
     {
-        ["_BattleTalk"] = 6,
-        ["_MiniTalk"] = 3,
+        ["_BattleTalk"] = [6],
+        ["_MiniTalk"] = [3],
 
         // The dialogue choice list — "What will you ask?" over "How fares the realm?", "What of the
         // primals?". Measured with /gubal find on Urianger at the Waking Sands, 8 August 2026:
@@ -79,7 +90,19 @@ internal sealed unsafe class OverlayHandler : IDisposable
         // both are text the player reads and both are in the corpus. What does matter is that the
         // per-node bookkeeping is keyed by POINTER — see nodeInjected and attempted, which already are,
         // and which is the only reason five rows sharing one id do not overwrite each other's state.
-        ["SelectString"] = 2,
+        ["SelectString"] = [2],
+
+        // The quest list down the left of the journal. Measured with /gubal find on "The Price of
+        // Principles", 8 August 2026:
+        //
+        //   [find] *** 'Journal' NODE 3 (written direct, no value): The Price of Principles
+        //
+        // Narrowed rather than swept, though this window is only open when the player opens it. The
+        // list interleaves quest rows with place headers — Limsa Lominsa, Ul'dah, The Waking Sands —
+        // and those are names this project leaves in English. None of them is in the corpus today, so
+        // a sweep would not mistranslate them; it would only record every zone the player has a quest
+        // in as a missing translation, which is a miss log that lies about what is missing.
+        ["Journal"] = [3],
     };
 
     /// <summary>Where an addon with no entry in <see cref="BodyValues" /> keeps its text.</summary>
@@ -535,7 +558,7 @@ internal sealed unsafe class OverlayHandler : IDisposable
             AddonInspector.DumpAllNodes(this.log, name, addon);
         }
 
-        var known = BodyNode.TryGetValue(name, out var bodyId);
+        var known = BodyNodes.TryGetValue(name, out var bodyIds);
 
         // Resolved once for the whole sweep rather than once per node. It walks every event handler
         // the client has loaded — 629 in a typical session — and the answer cannot change between
@@ -548,9 +571,13 @@ internal sealed unsafe class OverlayHandler : IDisposable
             var node = (AtkTextNode*)pointer;
             var id = node->NodeId;
 
-            // A characterised addon gets exactly its body node; an unknown one gets every node, so
-            // the miss log reveals its layout. That is how both known ids here were established.
-            if (known && id != bodyId)
+            // A characterised addon gets exactly its body nodes; an unknown one gets every node, so
+            // the miss log reveals its layout. That is how every known id here was established.
+            //
+            // Before the text is read, deliberately. Array.IndexOf over two or three ids is cheaper
+            // than the string allocation ReadNodeText would do, and for an addon that is on screen
+            // every frame that difference is the entire cost of listing it.
+            if (known && Array.IndexOf(bodyIds!, id) < 0)
             {
                 continue;
             }
