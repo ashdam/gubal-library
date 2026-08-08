@@ -102,6 +102,13 @@ internal sealed unsafe class OverlayHandler : IDisposable
         // and those are names this project leaves in English. None of them is in the corpus today, so
         // a sweep would not mistranslate them; it would only record every zone the player has a quest
         // in as a missing translation, which is a miss log that lies about what is missing.
+        //
+        // Note what the id does NOT separate. A probe of the window shows three different things
+        // wearing node 3: the quest rows at 312x22, the window's own "Journal" header at 86x31, and
+        // the "/" between the counters. The rows are the only ones that matter and the other two are
+        // reached as well — harmlessly, because this corpus translates dialogue and not the client's
+        // chrome, so neither string is in it. That is a property of the corpus rather than of this
+        // entry, and it is the thing to re-check if UI sheets are ever added to it.
         ["Journal"] = [3],
     };
 
