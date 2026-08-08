@@ -110,6 +110,19 @@ internal sealed unsafe class OverlayHandler : IDisposable
         // chrome, so neither string is in it. That is a property of the corpus rather than of this
         // entry, and it is the thing to re-check if UI sheets are ever added to it.
         ["Journal"] = [3],
+
+        // The quest tracker under the minimap. Measured with /gubal find, 8 August 2026, two hunts:
+        //
+        //   [find] *** '_ToDoList' NODE 2 (written direct, no value): The Price of Principles
+        //   [find] *** '_ToDoList' NODE 6 (written direct, no value): Speak with Alphinaud.
+        //
+        // Two ids because the tracker draws two different things — the quest name and the objective
+        // under it — and this is the entry a single-id map could not express at all.
+        //
+        // This is the addon the narrowing is not optional for. Every other one here is on screen for
+        // seconds at a time; the tracker is on screen for the whole session, so an unnarrowed sweep
+        // would read every node's text into a fresh string on every frame, forever.
+        ["_ToDoList"] = [2, 6],
     };
 
     /// <summary>Where an addon with no entry in <see cref="BodyValues" /> keeps its text.</summary>
