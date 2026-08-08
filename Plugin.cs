@@ -37,9 +37,13 @@ public sealed class Plugin : IDalamudPlugin
 
     private readonly ExdRedirector? redirector;
     private readonly string? redirectorError;
+    private readonly PackInstaller installer;
 
     private readonly SqPackProbe? probe;
     private readonly WindowSystem windows = new("GubalLibrary");
+
+    /// <summary>What the background check made of the pack's declared update address.</summary>
+    private UpdateStatus update;
 
     public Plugin(
         IDalamudPluginInterface pluginInterface,
@@ -53,11 +57,6 @@ public sealed class Plugin : IDalamudPlugin
         this.chat = chat;
 
         this.config = pluginInterface.GetPluginConfig() as Configuration ?? new Configuration();
-        if (this.config.Migrate())
-        {
-            log.Information("Carried the configured language pack over from the previous setting names.");
-            this.SaveConfig(this.config);
-        }
 
         Directory.CreateDirectory(pluginInterface.GetPluginConfigDirectory());
 
@@ -80,14 +79,22 @@ public sealed class Plugin : IDalamudPlugin
             }
         }
 
+        this.installer = new PackInstaller(log, pluginInterface.GetPluginConfigDirectory());
+
         this.configWindow = new ConfigWindow(
             this.config,
             this.SaveConfig,
             this.fileDialogs,
             this.PageSnapshot,
+            this.installer,
             pluginInterface.Manifest.AssemblyVersion.ToString());
 
         this.windows.AddWindow(this.configWindow);
+
+        // On a background task, and never awaited. It reaches the network, so putting it anywhere on
+        // the path the constructor takes would spend the startup margin the whole design rests on —
+        // and it would do it for a two-kilobyte answer nobody is waiting for.
+        _ = Task.Run(this.CheckForUpdateAsync);
 
         this.commands.AddHandler(CommandName, new CommandInfo(this.OnCommand)
         {
@@ -198,8 +205,40 @@ public sealed class Plugin : IDalamudPlugin
     private PageStatus PageSnapshot()
     {
         return this.redirector is { } r
-            ? new PageStatus(true, r.PageCount, r.ServedCount, null, r.Manifest)
-            : new PageStatus(false, 0, 0, this.redirectorError, null);
+            ? new PageStatus(true, r.PageCount, r.ServedCount, null, r.Manifest, this.update)
+            : new PageStatus(false, 0, 0, this.redirectorError, null, this.update);
+    }
+
+    /// <summary>
+    ///     Asks once, in the background, whether the publisher has a newer generation.
+    /// </summary>
+    /// <remarks>
+    ///     Nothing is downloaded and nothing is changed; it sets a field the window reads. Updating a
+    ///     pack means replacing thousands of files and then restarting the client, which is not
+    ///     something to do to somebody who was about to play — so this offers, and the person decides.
+    /// </remarks>
+    private async Task CheckForUpdateAsync()
+    {
+        // Read from the pack rather than from this plugin's configuration, deliberately. The address
+        // to poll travels inside whatever is installed, so installing a newer pack replaces it — and
+        // a publisher who moves hosts takes their existing users with them. Caching it here would
+        // undo exactly that.
+        var installed = this.redirector?.Manifest ?? this.InstalledManifest();
+
+        this.update = await this.installer.CheckForUpdateAsync(installed).ConfigureAwait(false);
+    }
+
+    /// <summary>The manifest of the configured pack when it is not being served.</summary>
+    /// <remarks>
+    ///     Someone who has turned the pack off, or has installed one and not restarted yet, should
+    ///     still be told that a newer one exists — those are the states where they are most likely to
+    ///     be about to act on it.
+    /// </remarks>
+    private PackManifest? InstalledManifest()
+    {
+        return this.config.LanguagePackPath.Length > 0
+            ? PackManifest.Read(this.config.LanguagePackPath).Manifest
+            : null;
     }
 
     private void SaveConfig(Configuration configuration)

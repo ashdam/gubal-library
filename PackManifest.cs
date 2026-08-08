@@ -37,24 +37,45 @@ internal sealed class PackManifest
 
     [JsonPropertyName("author")] public string? Author { get; init; }
 
+    /// <summary>
+    ///     A manifest to fetch to find out whether a newer generation of this pack exists.
+    /// </summary>
+    /// <remarks>
+    ///     <para>
+    ///         <b>The pack says where to look; the plugin imposes nothing.</b> An earlier design
+    ///         derived this from the download address by convention — <c>…/x.zip</c> implies
+    ///         <c>…/x.json</c> — which quietly required every publisher in every language to lay their
+    ///         hosting out the way this project happened to. A Spanish pack and an Italian one have no
+    ///         reason to share a repository, let alone a filename scheme.
+    ///     </para>
+    ///     <para>
+    ///         Because it travels inside the pack, it also updates itself: whatever is installed next
+    ///         brings its own address, so a publisher can move hosts between releases and the people
+    ///         who already installed one follow along. Nothing about it is stored in this plugin's
+    ///         configuration, which is what makes that true rather than merely intended.
+    ///     </para>
+    ///     <para>
+    ///         <b>Optional, and unreachable is not the same as absent.</b> A test build, or an author
+    ///         who has nowhere to host a manifest, simply leaves it out and is never nagged. Filling
+    ///         it in is a promise to keep answering at that address, so failing to is worth telling
+    ///         the user about — from their side the two look identical, and one of them means their
+    ///         translation has quietly stopped receiving corrections.
+    ///     </para>
+    ///     <para>
+    ///         There is deliberately no companion field saying where the archive lives. The user
+    ///         typed that in to install the pack, so the manifest repeating it would be a second copy
+    ///         of a fact that can disagree with the first. The contract it implies is the right one
+    ///         anyway: publish successive versions at a stable address.
+    ///     </para>
+    /// </remarks>
+    [JsonPropertyName("updateUrl")] public string? UpdateUrl { get; init; }
+
     /// <summary>Which generation of the translation this is, stamped to the minute at build time.</summary>
     [JsonPropertyName("translationVersion")] public string? TranslationVersion { get; init; }
 
     /// <summary>The patch the pages were rebuilt from. The one field that gates serving them.</summary>
     [JsonPropertyName("gameVersion")] public string? GameVersion { get; init; }
 
-    /// <summary>
-    ///     Every patch the delivered translation files claim.
-    /// </summary>
-    /// <remarks>
-    ///     A spread is normal for a corpus worked on across patches and is not an error. It is worth
-    ///     surfacing anyway: a file translated against an older patch may be describing text the game
-    ///     has since changed, which no version check can see because the pages themselves rebuild
-    ///     cleanly either way.
-    /// </remarks>
-    [JsonPropertyName("corpusGameVersions")] public List<string> CorpusGameVersions { get; init; } = [];
-
-    [JsonPropertyName("corpusCommit")] public string? CorpusCommit { get; init; }
 
     [JsonPropertyName("pages")] public int Pages { get; init; }
 
@@ -74,12 +95,6 @@ internal sealed class PackManifest
     ///     number. The window says so rather than showing a percentage that reads as coverage.
     /// </remarks>
     public double TranslatedFraction => this.Rows > 0 ? (double)this.Lines / this.Rows : 0d;
-
-    /// <summary>Translation files delivered against a patch other than the one the pages were built from.</summary>
-    public IReadOnlyList<string> OlderCorpusVersions =>
-        this.GameVersion is { Length: > 0 } built
-            ? this.CorpusGameVersions.Where(v => !string.Equals(v, built, StringComparison.Ordinal)).ToList()
-            : [];
 
     /// <summary>
     ///     Reads the manifest out of a page directory, or says why it could not.
@@ -112,4 +127,5 @@ internal sealed class PackManifest
         }
     }
 }
+
 

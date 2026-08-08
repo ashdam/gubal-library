@@ -9,13 +9,24 @@ internal sealed class Configuration : IPluginConfiguration
     public int Version { get; set; } = 2;
 
     /// <summary>
-    ///     Absolute path to the installed language pack. Empty means nothing is served.
+    ///     Where the user got the pack from: a folder, a <c>.zip</c>, or a URL to one.
+    /// </summary>
+    /// <remarks>
+    ///     Kept alongside <see cref="LanguagePackPath" /> rather than replacing it, because they
+    ///     answer different questions. This one is where to look for a newer generation, and only a
+    ///     URL can answer that; the other is what to serve at the next start, and after an archive is
+    ///     unpacked that is somewhere else entirely.
+    /// </remarks>
+    public string PackSource { get; set; } = string.Empty;
+
+    /// <summary>
+    ///     Absolute path to the folder actually served. Empty means nothing is served.
     /// </summary>
     /// <remarks>
     ///     <para>
-    ///         A folder today, holding the rebuilt <c>.exd</c> pages and the <c>gubal-manifest.json</c>
-    ///         that describes them — which is also exactly what a distributable zip would unpack to,
-    ///         so a future installer changes how the folder gets there and not what is in it.
+    ///         Set by installing, not typed. For an archive it is the plugin's own directory, where
+    ///         <see cref="PackInstaller" /> unpacked it; for a folder source it is that folder,
+    ///         because copying it would make a second copy that no build writes to.
     ///     </para>
     ///     <para>
     ///         Nothing is bundled with the plugin: a pack is tens of megabytes across thousands of
@@ -47,42 +58,4 @@ internal sealed class Configuration : IPluginConfiguration
     /// </remarks>
     public bool ProbeSqPack { get; set; }
 
-    /// <summary>Previous name of <see cref="LanguagePackPath" />. Read once, then never written.</summary>
-    /// <remarks>
-    ///     Kept solely so an existing install does not silently forget where its pack is. Dropping the
-    ///     property instead would deserialize to empty and present as "no language pack loaded", which
-    ///     is indistinguishable from a broken plugin and would send people looking in the wrong place.
-    /// </remarks>
-    [Obsolete("Migrated into LanguagePackPath by Migrate().")]
-    public string? PagesPath { get; set; }
-
-    /// <inheritdoc cref="PagesPath" />
-    [Obsolete("Migrated into ServeLanguagePack by Migrate().")]
-    public bool? ServePages { get; set; }
-
-    /// <summary>Folds a version 1 configuration into the current names.</summary>
-    /// <returns>Whether anything moved, so the caller can save only when it did.</returns>
-    public bool Migrate()
-    {
-#pragma warning disable CS0618
-        var moved = false;
-
-        if (this.LanguagePackPath.Length == 0 && this.PagesPath is { Length: > 0 } path)
-        {
-            this.LanguagePackPath = path;
-            moved = true;
-        }
-
-        if (this.ServePages is { } serve)
-        {
-            this.ServeLanguagePack = serve;
-            moved = true;
-        }
-
-        this.PagesPath = null;
-        this.ServePages = null;
-        this.Version = 2;
-        return moved;
-#pragma warning restore CS0618
-    }
 }

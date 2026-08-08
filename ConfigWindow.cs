@@ -28,6 +28,11 @@ internal sealed class ConfigWindow : Window
     private readonly FileDialogManager fileDialogs;
     private readonly Action<Configuration> save;
     private readonly Func<PageStatus> pageStatus;
+    private readonly PackInstaller installer;
+
+    private volatile bool installing;
+    private string? installMessage;
+    private bool installFailed;
 
     /// <param name="version">The plugin's own version, shown in the title bar.</param>
     /// <remarks>
@@ -39,6 +44,7 @@ internal sealed class ConfigWindow : Window
         Action<Configuration> save,
         FileDialogManager fileDialogs,
         Func<PageStatus> pageStatus,
+        PackInstaller installer,
         string version)
         : base($"Gubal Library ({version})###GubalLibraryConfig")
     {
@@ -46,6 +52,7 @@ internal sealed class ConfigWindow : Window
         this.save = save;
         this.fileDialogs = fileDialogs;
         this.pageStatus = pageStatus;
+        this.installer = installer;
 
         this.SizeConstraints = new WindowSizeConstraints
         {
@@ -60,6 +67,7 @@ internal sealed class ConfigWindow : Window
         var changed = false;
 
         this.DrawHeadline(pages);
+        this.DrawUpdateNotice(pages);
         ImGui.Spacing();
 
         // First, because on a fresh install it is the only thing that can be done and everything
@@ -129,6 +137,95 @@ internal sealed class ConfigWindow : Window
     }
 
     /// <summary>
+    ///     Says whether the installed pack can keep itself current, and never acts on the answer.
+    /// </summary>
+    /// <remarks>
+    ///     <para>
+    ///         A newer version is offered rather than applied, even though this plugin could obviously
+    ///         just fetch it. Taking the update means downloading tens of megabytes and then
+    ///         restarting the client, and doing that to somebody who sat down to play is not an
+    ///         improvement however new the translation is. The check costs two kilobytes and runs by
+    ///         itself; the twenty megabytes are a decision.
+    ///     </para>
+    ///     <para>
+    ///         A pack that <em>cannot</em> update is said out loud too, whether because it declares no
+    ///         address or because the address it declares has gone quiet. Those differ in blame and
+    ///         not in effect: either way the translation on screen is the last one this person will
+    ///         ever see unless they go looking, and that is worth knowing before they wonder for
+    ///         months why a line they reported is still wrong.
+    ///     </para>
+    /// </remarks>
+    private void DrawUpdateNotice(PageStatus pages)
+    {
+        // Nothing to say about updating something that is not there. The headline above already says
+        // no pack is loaded, and following it with "and it will never update" reads as a second,
+        // separate fault.
+        if (pages.Manifest is null)
+        {
+            return;
+        }
+
+        switch (pages.Update.State)
+        {
+            case UpdateState.Available when pages.Update.Published is { } update:
+                Icon(FontAwesomeIcon.ArrowUp, Amber);
+                ImGui.TextWrapped(
+                    $"A newer language pack is published: {update.TranslationVersion}"
+                    + (update.GameVersion is { Length: > 0 } game ? $", built for game {game}" : string.Empty));
+                ImGui.PopStyleColor();
+
+                using (ImRaii.Disabled(this.installing || this.config.PackSource.Trim().Length == 0))
+                {
+                    // Reinstalls from where this one came from. There is no address in the manifest
+                    // to prefer, on purpose: the pack does not repeat a fact the user already
+                    // supplied, and successive versions are expected at a stable address.
+                    if (ImGui.Button("Update##pack"))
+                    {
+                        this.Install(this.config.PackSource);
+                    }
+                }
+
+                break;
+
+            // Both halves of "this pack will not improve on its own" get said, because from where the
+            // player sits the consequence is the same and only the wording should differ. Never
+            // reached while the pack is merely being checked: that state is the enum's default for
+            // exactly this reason.
+            // Red, and short. It is a failure of something that was promised, and the reason it
+            // failed belongs in the log rather than on screen: the exception text runs to a line and
+            // a half of Winsock, which buries the one sentence that tells the reader what to do.
+            case UpdateState.Unreachable:
+                Icon(FontAwesomeIcon.ExclamationTriangle, Red);
+                ImGui.TextWrapped(
+                    "No connection to the language pack update URL. If it persists, this pack will "
+                    + "not update itself — check where you got it from.");
+                ImGui.PopStyleColor();
+                break;
+
+            // Amber, not red: nothing is broken. The pack simply never offered to keep itself
+            // current, which is a limitation to know about rather than a fault to chase.
+            case UpdateState.NotDeclared:
+                Icon(FontAwesomeIcon.ExclamationTriangle, Amber);
+                ImGui.TextWrapped(
+                    "This language pack has no update URL, so it will never update itself.");
+                ImGui.PopStyleColor();
+                break;
+        }
+    }
+
+    /// <summary>Draws a coloured icon and leaves the colour pushed for the text that follows.</summary>
+    private static void Icon(FontAwesomeIcon icon, Vector4 colour)
+    {
+        ImGui.PushStyleColor(ImGuiCol.Text, colour);
+        using (ImRaii.PushFont(UiBuilder.IconFont, true))
+        {
+            ImGui.TextUnformatted(icon.ToIconString());
+        }
+
+        ImGui.SameLine();
+    }
+
+    /// <summary>
     ///     Where the language pack is, and the switch that turns it on.
     /// </summary>
     /// <remarks>
@@ -149,7 +246,7 @@ internal sealed class ConfigWindow : Window
     /// </remarks>
     private void DrawLanguagePackRow(ref bool changed)
     {
-        var path = this.config.LanguagePackPath;
+        var source = this.config.PackSource;
 
         // Aligned to the frame padding, not drawn at the raw cursor: text placed beside an input box
         // sits at the top of it otherwise, a couple of pixels above the text inside the box.
@@ -157,24 +254,36 @@ internal sealed class ConfigWindow : Window
         ImGui.TextDisabled("Language pack");
         ImGui.SameLine();
 
-        // Negative width, so the box gives back a fixed strip to Browse on its right and takes
+        // Negative width, so the box gives back a fixed strip to the buttons on its right and takes
         // whatever is left of the row. Both ends stay put as the window resizes.
-        ImGui.SetNextItemWidth(-80f * ImGuiHelpers.GlobalScale);
-        if (ImGui.InputText("##languagePackPath", ref path, 1024))
+        ImGui.SetNextItemWidth(-150f * ImGuiHelpers.GlobalScale);
+        if (ImGui.InputText("##packSource", ref source, 2048))
         {
-            this.config.LanguagePackPath = path;
+            this.config.PackSource = source;
             changed = true;
         }
 
-        SetTooltip("Folder holding an installed language pack.\n"
-                   + "It must contain gubal-manifest.json, which says what the pack is\n"
-                   + "and which game version it was built for.");
+        SetTooltip("A .zip, a link to one, or a folder that has already been unpacked.\n"
+                   + "Whatever it is must contain gubal-manifest.json, which says what the\n"
+                   + "pack is and which game version it was built for.");
 
         ImGui.SameLine();
-        if (ImGui.Button("Browse...##languagePack"))
+        if (ImGui.Button("Browse...##packSource"))
         {
             this.BrowseForLanguagePack();
         }
+
+        ImGui.SameLine();
+        using (ImRaii.Disabled(this.installing || this.config.PackSource.Trim().Length == 0))
+        {
+            if (ImGui.Button("Install##packSource"))
+            {
+                this.Install(this.config.PackSource);
+            }
+        }
+
+        SetTooltip("Downloads and unpacks it if it needs it, then serves it from the next start.\n"
+                   + "Nothing is fetched unless you press this.");
 
         var serve = this.config.ServeLanguagePack;
         using (ImRaii.Disabled(this.config.LanguagePackPath.Length == 0))
@@ -189,6 +298,57 @@ internal sealed class ConfigWindow : Window
         SetTooltip("Gives the game the pack's text instead of its own.\n"
                    + "Takes effect when the client next starts: the game reads its text once\n"
                    + "at startup and keeps it for the session, so this cannot be switched on mid-game.");
+
+        if (this.installing)
+        {
+            ImGui.TextDisabled("Installing...");
+        }
+        else if (this.installMessage is { Length: > 0 } message)
+        {
+            ImGui.PushStyleColor(ImGuiCol.Text, this.installFailed ? Red : Green);
+            ImGui.TextWrapped(message);
+            ImGui.PopStyleColor();
+        }
+    }
+
+    /// <summary>
+    ///     Runs the install off the UI thread and reports the outcome back into the window.
+    /// </summary>
+    /// <remarks>
+    ///     ImGui redraws every frame from the game's own update, so doing this inline would freeze
+    ///     the client for the length of a download. The three fields it writes are only ever read by
+    ///     <see cref="Draw" />, a frame or more later, which is why they need no synchronisation
+    ///     beyond being set in this order.
+    /// </remarks>
+    private void Install(string source)
+    {
+        this.installing = true;
+        this.installMessage = null;
+
+        _ = Task.Run(async () =>
+        {
+            var result = await this.installer.InstallAsync(source).ConfigureAwait(false);
+
+            if (result.Success)
+            {
+                this.config.LanguagePackPath = result.Path;
+                this.config.ServeLanguagePack = true;
+                this.save(this.config);
+
+                var pack = result.Manifest!;
+                this.installFailed = false;
+                this.installMessage =
+                    $"Installed {pack.DisplayName} ({pack.TranslationVersion ?? "unversioned"}). "
+                    + "RESTART THE CLIENT to see it — the game reads its text once at startup.";
+            }
+            else
+            {
+                this.installFailed = true;
+                this.installMessage = result.Error;
+            }
+
+            this.installing = false;
+        });
     }
 
     /// <summary>What the loaded pack is, who made it, and how much of it is translated.</summary>
@@ -208,32 +368,11 @@ internal sealed class ConfigWindow : Window
                 + $"across {pack.Pages:N0} page(s), in the sheets the pack covers");
         }
 
-        ImGui.TextDisabled(
-            $"Built for game {pack.GameVersion ?? "unknown"}"
-            + (pack.CorpusCommit is { Length: > 0 } commit ? $", corpus {commit}" : string.Empty));
+        ImGui.TextDisabled($"Built for game {pack.GameVersion ?? "unknown"}");
 
         if (pages.Active)
         {
             ImGui.TextDisabled($"{pages.ServedCount:N0} read(s) answered from disk this session");
-        }
-
-        // Not the version check — that one refuses outright and never gets this far. This is the
-        // quieter drift: pages that rebuild cleanly against today's patch, carrying translations
-        // delivered against an older one, which may describe text the game has changed since. No
-        // version comparison can see it, because both halves are individually consistent.
-        if (pack.OlderCorpusVersions is { Count: > 0 } older)
-        {
-            ImGui.PushStyleColor(ImGuiCol.Text, Amber);
-            using (ImRaii.PushFont(UiBuilder.IconFont, true))
-            {
-                ImGui.TextUnformatted(FontAwesomeIcon.ExclamationTriangle.ToIconString());
-            }
-
-            ImGui.SameLine();
-            ImGui.TextWrapped(
-                $"Some translations were delivered against {string.Join(", ", older)} rather than "
-                + $"{pack.GameVersion}. They may describe text the game has changed since.");
-            ImGui.PopStyleColor();
         }
     }
 
@@ -264,6 +403,21 @@ internal sealed class ConfigWindow : Window
                    + "Attaches at load, so it takes effect on the next client start.");
     }
 
+    /// <summary>
+    ///     Picks a <c>.zip</c> or an already-unpacked folder, and fills the source box with it.
+    /// </summary>
+    /// <remarks>
+    ///     <para>
+    ///         A file dialog rather than a folder one, with a filter that admits both. Browse cannot
+    ///         offer a URL, so restricting it to folders would have made the commonest local case —
+    ///         somebody who has just downloaded a zip — the one case the button could not help with.
+    ///     </para>
+    ///     <para>
+    ///         Fills the box and stops there. Installing from a path the moment it is picked would
+    ///         start a download or unpack thousands of files on a single click, before the person has
+    ///         had a chance to read what they picked.
+    ///     </para>
+    /// </remarks>
     private void BrowseForLanguagePack()
     {
         var startPath = this.config.LanguagePackPath;
@@ -272,18 +426,20 @@ internal sealed class ConfigWindow : Window
             startPath = string.Empty;
         }
 
-        this.fileDialogs.OpenFolderDialog(
-            "Select a language pack folder",
-            (confirmed, selectedPath) =>
+        this.fileDialogs.OpenFileDialog(
+            "Select a language pack (.zip) or an unpacked folder",
+            ".zip,.*",
+            (confirmed, selected) =>
             {
-                if (!confirmed || string.IsNullOrWhiteSpace(selectedPath))
+                if (!confirmed || selected.Count == 0 || string.IsNullOrWhiteSpace(selected[0]))
                 {
                     return;
                 }
 
-                this.config.LanguagePackPath = selectedPath;
+                this.config.PackSource = selected[0];
                 this.save(this.config);
             },
+            selectionCountMax: 1,
             startPath);
     }
 
@@ -301,8 +457,11 @@ internal sealed class ConfigWindow : Window
 /// <param name="ServedCount">How many reads it has actually answered — the number that proves it.</param>
 /// <param name="Error">Why it is not installed, when it is not. Null when it is, or when nobody asked.</param>
 /// <param name="Manifest">What the loaded pack says about itself. Null when none loaded.</param>
+/// <param name="Update">What the background check made of the pack's declared update address.</param>
 internal readonly record struct PageStatus(
-    bool Active, int PageCount, int ServedCount, string? Error, PackManifest? Manifest);
+    bool Active, int PageCount, int ServedCount, string? Error, PackManifest? Manifest, UpdateStatus Update);
+
+
 
 
 
