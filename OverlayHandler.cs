@@ -136,6 +136,37 @@ internal sealed unsafe class OverlayHandler : IDisposable
     };
 
     /// <summary>
+    ///     Addons carrying MANY translatable strings in one value array, rather than one.
+    /// </summary>
+    /// <remarks>
+    ///     <para>
+    ///         A choice list is not a bigger overlay, it is a different shape: five options and a
+    ///         prompt arrive together, and <see cref="BodyValue" /> can only name one index. Every
+    ///         string-typed value is translated instead, which needs no index map at all — a value that
+    ///         is a number, a flag or a string with no translation is left exactly as it was.
+    ///     </para>
+    ///     <para>
+    ///         <b>Added because the node route alone flickers, visibly.</b> With only
+    ///         <c>BodyNode["SelectString"]</c> in place the list drew correct Spanish, and then
+    ///         clicking an option showed English for an instant before it corrected itself. That is the
+    ///         two routes racing: the click refreshes the addon, the game rebuilds each node from the
+    ///         English in its <c>AtkValues</c>, and <c>PreDraw</c> only translates it back on the
+    ///         following frame. Writing the values means the game draws Spanish the first time and
+    ///         there is no frame to catch.
+    ///     </para>
+    ///     <para>
+    ///         The node route stays on for these addons, deliberately. It is what covers a list the
+    ///         game populates without a refresh, and it is now cheap: the values it would otherwise
+    ///         re-translate are recognised as ours through <see cref="valueInjectedKey" />.
+    ///     </para>
+    /// </remarks>
+    private static readonly HashSet<string> ListValues = new(StringComparer.Ordinal)
+    {
+        "SelectString",
+        "SelectIconString",
+    };
+
+    /// <summary>
     ///     Addons that still get translated, but whose misses are only recorded while the event probe
     ///     is on.
     /// </summary>
@@ -191,19 +222,32 @@ internal sealed unsafe class OverlayHandler : IDisposable
     private readonly Dictionary<string, int> inspections = new(StringComparer.Ordinal);
     private readonly HashSet<string> seenAddons = new(StringComparer.Ordinal);
 
-    /// <summary>What our own output reads back as on the value route, per addon.</summary>
+    /// <summary>
+    ///     What our own output reads back as on the value route, keyed by addon AND value index.
+    /// </summary>
+    /// <remarks>
+    ///     By index and not by addon alone, because a list writes several values in one refresh — one
+    ///     shared entry would let each option overwrite the previous one's guard, so every option after
+    ///     the first would be rewritten on every refresh forever. Single-value addons simply have one
+    ///     entry, at their own <see cref="BodyValue" /> index.
+    /// </remarks>
     private readonly Dictionary<string, string> valueInjected = new(StringComparer.Ordinal);
 
     /// <summary>
-    ///     The same again as a lookup key, so the <em>node</em> route can recognise it too.
+    ///     The same again as lookup keys, so the <em>node</em> route can recognise them too.
     /// </summary>
     /// <remarks>
     ///     Normalized rather than kept verbatim because the two routes see different renderings of one
     ///     line: the value is what we wrote, the node is what the game drew from it, with its own line
     ///     breaks baked in. <see cref="TextKey.Normalize" /> collapses exactly that difference, and it
     ///     is what the lookup would use a moment later anyway.
+    ///     <para>
+    ///         A SET per addon rather than one string, for the list addons: any of the six strings we
+    ///         wrote into a choice list can come back round through any of its nodes, and the node
+    ///         route has no way to know which value produced which row.
+    ///     </para>
     /// </remarks>
-    private readonly Dictionary<string, string> valueInjectedKey = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, HashSet<string>> valueInjectedKey = new(StringComparer.Ordinal);
 
     /// <summary>
     ///     What our own output reads back as on the node route, per <em>node</em>.
@@ -306,19 +350,46 @@ internal sealed unsafe class OverlayHandler : IDisposable
             AddonInspector.Dump(this.log, name, (AtkUnitBase*)args.Addon.Address, values, count);
         }
 
-        var index = BodyValue.GetValueOrDefault(name, 0);
-        if (index >= count)
+        var scope = EventContext.ActiveScope(this.clientState.TerritoryType, this.log);
+
+        // A list carries every option in one array and no index map can name them; everything else
+        // carries exactly one line, at a known index. See ListValues.
+        if (ListValues.Contains(name))
         {
+            for (var i = 0; i < count; i++)
+            {
+                this.TranslateValue(values, i, name, scope);
+            }
+
             return;
         }
+
+        var index = BodyValue.GetValueOrDefault(name, 0);
+        if (index < count)
+        {
+            this.TranslateValue(values, index, name, scope);
+        }
+    }
+
+    /// <summary>
+    ///     Translates one <c>AtkValue</c> in place, if it holds text this corpus knows.
+    /// </summary>
+    /// <remarks>
+    ///     Every refusal path leaves the value untouched and records nothing, which is what makes it
+    ///     safe to call on all of them: a value holding a number, a flag or an untranslated string is
+    ///     indistinguishable here from one that simply missed, and both must be left alone.
+    /// </remarks>
+    private void TranslateValue(AtkValue* values, int index, string name, string? scope)
+    {
+        var slot = $"{name}#{index}";
 
         var text = AtkText.ReadString(values[index]);
-        if (string.IsNullOrWhiteSpace(text) || text == this.valueInjected.GetValueOrDefault(name, string.Empty))
+        if (string.IsNullOrWhiteSpace(text) || text == this.valueInjected.GetValueOrDefault(slot, string.Empty))
         {
             return;
         }
 
-        if (!this.TryTranslate(text, name, name, EventContext.ActiveScope(this.clientState.TerritoryType, this.log), out var translated))
+        if (!this.TryTranslate(text, name, slot, scope, out var translated))
         {
             return;
         }
@@ -337,8 +408,15 @@ internal sealed unsafe class OverlayHandler : IDisposable
         // An entry here means "our line is already on screen", so writing one on the refusal path
         // above would convince the guard a line it never wrote was in place.
         var readBack = AtkText.ReadString(values[index]);
-        this.valueInjected[name] = readBack;
-        this.valueInjectedKey[name] = TextKey.Normalize(readBack);
+        this.valueInjected[slot] = readBack;
+
+        if (!this.valueInjectedKey.TryGetValue(name, out var ours))
+        {
+            ours = new HashSet<string>(StringComparer.Ordinal);
+            this.valueInjectedKey[name] = ours;
+        }
+
+        ours.Add(TextKey.Normalize(readBack));
         this.InjectedCount++;
     }
 
@@ -433,8 +511,7 @@ internal sealed unsafe class OverlayHandler : IDisposable
             // Placed after the attempted guard rather than before it, so the normalization runs once
             // per new line per node instead of once per frame — the same reason that guard exists.
             if (this.valueInjectedKey.TryGetValue(name, out var ours)
-                && ours.Length > 0
-                && string.Equals(TextKey.Normalize(onScreen), ours, StringComparison.Ordinal))
+                && ours.Contains(TextKey.Normalize(onScreen)))
             {
                 // Recorded as ours, not merely skipped, so every later frame settles it on the cheap
                 // string compare at the top of the loop.
