@@ -8,6 +8,16 @@ using Dalamud.Interface.Windowing;
 
 namespace GubalLibrary;
 
+/// <summary>
+///     The whole user interface: where the pages are, whether they are reaching the game, and what
+///     they contain.
+/// </summary>
+/// <remarks>
+///     Ordered by what a new user has to do, not by what the plugin does internally. The plugin
+///     ships no translations, so a fresh install can do exactly one useful thing — be pointed at a
+///     folder — and that row is therefore first, under whatever the status line has to say about it.
+///     Everything below it only has meaning once that folder exists.
+/// </remarks>
 internal sealed class ConfigWindow : Window
 {
     private static readonly Vector4 Green = new(0.4f, 0.9f, 0.4f, 1f);
@@ -17,12 +27,9 @@ internal sealed class ConfigWindow : Window
     private readonly Configuration config;
     private readonly FileDialogManager fileDialogs;
     private readonly Action<Configuration> save;
-    private readonly Func<StatusSnapshot> status;
     private readonly Func<PageStatus> pageStatus;
 
-    /// <param name="version">
-    ///     The plugin's own version, shown in the title bar.
-    /// </param>
+    /// <param name="version">The plugin's own version, shown in the title bar.</param>
     /// <remarks>
     ///     The window id is pinned with <c>###</c> so the title can carry the version without ImGui
     ///     treating each build as a different window and forgetting its size and position.
@@ -30,7 +37,6 @@ internal sealed class ConfigWindow : Window
     public ConfigWindow(
         Configuration config,
         Action<Configuration> save,
-        Func<StatusSnapshot> status,
         FileDialogManager fileDialogs,
         Func<PageStatus> pageStatus,
         string version)
@@ -38,38 +44,55 @@ internal sealed class ConfigWindow : Window
     {
         this.config = config;
         this.save = save;
-        this.status = status;
         this.fileDialogs = fileDialogs;
         this.pageStatus = pageStatus;
 
         this.SizeConstraints = new WindowSizeConstraints
         {
-            MinimumSize = new Vector2(420, 260),
+            MinimumSize = new Vector2(460, 220),
             MaximumSize = new Vector2(900, 800),
         };
     }
 
-    public Action? OnReloadRequested { get; set; }
-
-    /// <summary>
-    ///     The first thing in the window: whether translated pages are actually reaching the game.
-    /// </summary>
-    /// <remarks>
-    ///     <para>
-    ///         Recomputed every frame rather than cached, because the interesting part of it changes
-    ///         while the window is open. It reports two different things on purpose: how many pages
-    ///         are registered, and how many reads have been <em>answered</em> from them. Those are not
-    ///         the same number and confusing them cost a whole session — a route that is installed but
-    ///         has served nothing looks, from every other indicator, exactly like one that is working.
-    ///     </para>
-    ///     <para>
-    ///         What used to be here was a Penumbra status line. It went with the dependency: the
-    ///         redirection now happens inside this plugin, so there is nothing left to check for.
-    ///     </para>
-    /// </remarks>
-    private void DrawPageStatus()
+    public override void Draw()
     {
         var pages = this.pageStatus();
+        var changed = false;
+
+        this.DrawHeadline(pages);
+        ImGui.Spacing();
+
+        // First, because on a fresh install it is the only thing that can be done and everything
+        // else on screen is a consequence of it.
+        this.DrawLanguagePackRow(ref changed);
+
+        if (pages.Manifest is { } pack)
+        {
+            ImGui.Separator();
+            DrawPackDetail(pack, pages);
+        }
+
+        ImGui.Separator();
+        this.DrawDiagnostics(ref changed);
+
+        if (changed)
+        {
+            this.save(this.config);
+        }
+    }
+
+    /// <summary>
+    ///     One line at the top saying whether another language is actually reaching the game.
+    /// </summary>
+    /// <remarks>
+    ///     Recomputed every frame rather than cached, because the interesting part of it changes
+    ///     while the window is open. The distinction between <em>loaded</em> and <em>read from</em>
+    ///     is carried in the colour and it is not a nicety: a route installed too late to matter
+    ///     looks, on every other indicator, exactly like one that is working, and confusing those two
+    ///     states cost a full session of testing.
+    /// </remarks>
+    private void DrawHeadline(PageStatus pages)
+    {
         var pack = pages.Manifest;
 
         var (colour, icon, text) = pages switch
@@ -86,15 +109,12 @@ internal sealed class ConfigWindow : Window
                 FontAwesomeIcon.Check,
                 $"{pack!.DisplayName} ({pack.TranslationVersion ?? "unversioned"}) — loaded, nothing read yet."),
 
-            { Error: { Length: > 0 } error } => (
-                Red,
-                FontAwesomeIcon.ExclamationTriangle,
-                error),
+            { Error: { Length: > 0 } error } => (Red, FontAwesomeIcon.ExclamationTriangle, error),
 
             _ => (
                 Amber,
                 FontAwesomeIcon.ExclamationTriangle,
-                "NO LANGUAGE PACK LOADED. Point at a page folder below and restart the client."),
+                "NO LANGUAGE PACK LOADED. This plugin ships no translations — install one, point at it below, tick the box, and restart the client."),
         };
 
         ImGui.PushStyleColor(ImGuiCol.Text, colour);
@@ -106,12 +126,74 @@ internal sealed class ConfigWindow : Window
         ImGui.SameLine();
         ImGui.TextWrapped(text);
         ImGui.PopStyleColor();
+    }
 
-        if (pack is null)
+    /// <summary>
+    ///     Where the language pack is, and the switch that turns it on.
+    /// </summary>
+    /// <remarks>
+    ///     <para>
+    ///         <b>"Language pack", never "pages".</b> A page is an <c>.exd</c> file, which is this
+    ///         project's vocabulary and not a user's; what somebody installs is a language. The
+    ///         distinction is not pedantry — it is what the folder will stop being, since the intent
+    ///         is to ship a pack as a single zip holding the same files and the same manifest, at
+    ///         which point "page folder" would name an implementation detail that had gone away.
+    ///     </para>
+    ///     <para>
+    ///         A checkbox rather than a Serve button, and it says so, because there is nothing this
+    ///         can do now. The game reads its sheets once, seconds into startup, and caches them for
+    ///         the session; the redirection has to be in place before that or it may as well not
+    ///         exist. So this decides what happens at the <em>next</em> start, and a button labelled
+    ///         Serve that changed nothing visible was read — correctly — as a broken button.
+    ///     </para>
+    /// </remarks>
+    private void DrawLanguagePackRow(ref bool changed)
+    {
+        var path = this.config.LanguagePackPath;
+
+        // Aligned to the frame padding, not drawn at the raw cursor: text placed beside an input box
+        // sits at the top of it otherwise, a couple of pixels above the text inside the box.
+        ImGui.AlignTextToFramePadding();
+        ImGui.TextDisabled("Language pack");
+        ImGui.SameLine();
+
+        // Negative width, so the box gives back a fixed strip to Browse on its right and takes
+        // whatever is left of the row. Both ends stay put as the window resizes.
+        ImGui.SetNextItemWidth(-80f * ImGuiHelpers.GlobalScale);
+        if (ImGui.InputText("##languagePackPath", ref path, 1024))
         {
-            return;
+            this.config.LanguagePackPath = path;
+            changed = true;
         }
 
+        SetTooltip("Folder holding an installed language pack.\n"
+                   + "It must contain gubal-manifest.json, which says what the pack is\n"
+                   + "and which game version it was built for.");
+
+        ImGui.SameLine();
+        if (ImGui.Button("Browse...##languagePack"))
+        {
+            this.BrowseForLanguagePack();
+        }
+
+        var serve = this.config.ServeLanguagePack;
+        using (ImRaii.Disabled(this.config.LanguagePackPath.Length == 0))
+        {
+            if (ImGui.Checkbox("Use this language pack from the next start", ref serve))
+            {
+                this.config.ServeLanguagePack = serve;
+                changed = true;
+            }
+        }
+
+        SetTooltip("Gives the game the pack's text instead of its own.\n"
+                   + "Takes effect when the client next starts: the game reads its text once\n"
+                   + "at startup and keeps it for the session, so this cannot be switched on mid-game.");
+    }
+
+    /// <summary>What the loaded pack is, who made it, and how much of it is translated.</summary>
+    private static void DrawPackDetail(PackManifest pack, PageStatus pages)
+    {
         var by = pack.Author is { Length: > 0 } author ? $" by {author}" : string.Empty;
         ImGui.TextDisabled($"{pack.LanguageName ?? pack.Language ?? "unknown language"}{by}");
 
@@ -123,7 +205,7 @@ internal sealed class ConfigWindow : Window
         {
             ImGui.TextDisabled(
                 $"{pack.Lines:N0} of {pack.Rows:N0} lines translated ({pack.TranslatedFraction:P1}) "
-                + $"across {pack.Pages:N0} page(s), in the sheets the corpus covers");
+                + $"across {pack.Pages:N0} page(s), in the sheets the pack covers");
         }
 
         ImGui.TextDisabled(
@@ -137,7 +219,7 @@ internal sealed class ConfigWindow : Window
 
         // Not the version check — that one refuses outright and never gets this far. This is the
         // quieter drift: pages that rebuild cleanly against today's patch, carrying translations
-        // delivered against an older one, which may describe text the game has since changed. No
+        // delivered against an older one, which may describe text the game has changed since. No
         // version comparison can see it, because both halves are individually consistent.
         if (pack.OlderCorpusVersions is { Count: > 0 } older)
         {
@@ -155,241 +237,43 @@ internal sealed class ConfigWindow : Window
         }
     }
 
-    public override void Draw()
-    {
-        var snapshot = this.status();
-
-        this.DrawPageStatus();
-        ImGui.Separator();
-
-        ImGui.TextUnformatted($"Entries loaded: {snapshot.EntryCount}");
-        ImGui.TextUnformatted($"NPC names:      {snapshot.NpcNameCount}");
-        // Both handlers, itemised. One number here used to mean TalkHandler alone, so every subtitle,
-        // balloon, battle banner and duty description injected counted as zero — and that is not a
-        // cosmetic undercount: it was read as evidence that an overlay had not injected at all.
-        ImGui.TextUnformatted(
-            $"Lines injected: {snapshot.InjectedCount} dialogue + {snapshot.OverlayInjectedCount} overlay");
-        ImGui.TextUnformatted($"Misses seen:    {snapshot.MissCount}");
-        ImGui.Spacing();
-        ImGui.TextWrapped($"Source: {snapshot.LoadedFrom}");
-
-        // "Entries loaded: 0" before a character exists is expected, not a fault: keys are built by
-        // resolving macros against live game state, so the corpus waits for someone to build against.
-        // Saying nothing here would look identical to a corpus that failed to load.
-        if (snapshot.EntryCount == 0 && !snapshot.UsingSampleCorpus)
-        {
-            ImGui.Spacing();
-            ImGui.TextWrapped(
-                "Nothing loaded yet. The language pack is indexed against the logged-in character, so it "
-                + "loads when you enter the world — not at the title screen.");
-        }
-
-        // Loud on purpose, and worded as "no corpus" rather than "sample corpus". The two Ahldskyf
-        // lines are a smoke test that tells an empty install apart from a broken one; calling them a
-        // corpus here would imply the plugin came with something, which it did not.
-        if (snapshot.UsingSampleCorpus)
-        {
-            ImGui.Spacing();
-            ImGui.PushStyleColor(ImGuiCol.Text, Red);
-            ImGui.TextWrapped(
-                "NO LANGUAGE PACK LOADED — running on the built-in self-test, which covers two lines from "
-                + "Ahldskyf in Limsa Lominsa Lower Decks and nothing else. The rest of the game is "
-                + "untranslated. Use Browse below to load a real language pack.");
-            ImGui.PopStyleColor();
-        }
-
-        ImGui.Separator();
-
-        var changed = false;
-
-        // "Inject text", not "Enabled". It only ever governed injection, but when that was the only
-        // route the distinction did not exist; now that pages are served as files as well, a box
-        // labelled Enabled that leaves half the plugin running is a trap.
-        var enabled = this.config.Enabled;
-        if (ImGui.Checkbox("Inject text into the UI", ref enabled))
-        {
-            this.config.Enabled = enabled;
-            changed = true;
-        }
-
-        SetTooltip("The original route: intercept what the game is about to draw and swap it.\n"
-                   + "Independent of the page redirection above — turning this off does not stop that.");
-
-        var translateNames = this.config.TranslateNpcNames;
-        if (ImGui.Checkbox("Translate speaker names", ref translateNames))
-        {
-            this.config.TranslateNpcNames = translateNames;
-            changed = true;
-        }
-
-        SetTooltip("Most NPC names are proper nouns, so this is off by default.");
-
-        var logMisses = this.config.LogMisses;
-        if (ImGui.Checkbox("Log untranslated lines", ref logMisses))
-        {
-            this.config.LogMisses = logMisses;
-            changed = true;
-        }
-
-        SetTooltip($"Appends the normalized lookup key of each unmatched line to:\n{snapshot.MissLogPath}");
-
-        var probeEvents = this.config.ProbeEvents;
-        if (ImGui.Checkbox("Log event handler per line (debug)", ref probeEvents))
-        {
-            this.config.ProbeEvents = probeEvents;
-            changed = true;
-        }
-
-        SetTooltip("Reports which quest the game thinks is running, and the conversation the lookup\n" +
-                   "is scoped to. Use it when a line stays English and you want to know whether the\n" +
-                   "scoping or the language pack is at fault.");
-
-        ImGui.Separator();
-
-        // The corpus is not shipped with the plugin, so it has to be findable. Blank means the
-        // plugin config directory.
-        var corpusPath = this.config.CorpusPath;
-
-        // Aligned to the frame padding, not drawn at the raw cursor: text placed beside an input box
-        // sits at the top of it otherwise, a couple of pixels above the text inside the box.
-        ImGui.AlignTextToFramePadding();
-        ImGui.TextDisabled("Language pack");
-        ImGui.SameLine();
-
-        // Negative width, so the box gives back a fixed strip to Browse and Clear on its right and
-        // takes whatever is left of the row after the label. Both ends stay put as the window resizes.
-        ImGui.SetNextItemWidth(-140f * ImGuiHelpers.GlobalScale);
-        if (ImGui.InputText("##corpusPath", ref corpusPath, 1024))
-        {
-            this.config.CorpusPath = corpusPath;
-            changed = true;
-        }
-
-        SetTooltip("Absolute path to the language pack JSON.\n" +
-                   "Leave empty to use corpus.json in the plugin config directory:\n" +
-                   snapshot.ConfigDirectory);
-
-        ImGui.SameLine();
-        if (ImGui.Button("Browse..."))
-        {
-            this.BrowseForCorpus();
-        }
-
-        ImGui.SameLine();
-        if (ImGui.Button("Clear"))
-        {
-            this.config.CorpusPath = string.Empty;
-            changed = true;
-        }
-
-        SetTooltip("Fall back to the plugin config directory.");
-
-        this.DrawPagesRow(ref changed);
-
-        // Directly under the row that loads the pack, because it is the answer to what that row just
-        // did. Up beside the entry counts it read as a statistic about the plugin rather than as the
-        // identity of the file in the box above it. Green so a reload is visibly confirmed at a glance:
-        // the file is regenerated in place several times a session and its name never changes, so this
-        // string is the only thing on screen that differs between the old pack and the new one.
-        // Green only when there is a version to show. Painting "not stated" green would give an
-        // unstamped pack the same reassuring colour as a confirmed one, when it is the case where the
-        // question cannot be answered at all.
-        if (snapshot.TranslationVersion is { } version)
-        {
-            ImGui.PushStyleColor(ImGuiCol.Text, new Vector4(0.35f, 0.85f, 0.4f, 1f));
-            ImGui.TextWrapped($"Pack version: {version}");
-            ImGui.PopStyleColor();
-        }
-        else
-        {
-            ImGui.TextDisabled("Pack version: not stated — this pack predates the stamp");
-        }
-
-        if (ImGui.Button("Reload translation file"))
-        {
-            this.OnReloadRequested?.Invoke();
-        }
-
-        if (changed)
-        {
-            this.save(this.config);
-        }
-    }
-
     /// <summary>
-    ///     Opens the file picker, starting in the folder of the currently configured corpus.
+    ///     Collapsed by default, because nothing here is part of using the plugin.
     /// </summary>
     /// <remarks>
-    ///     The callback runs on the UI thread and triggers a reload. For a large corpus that is a
-    ///     visible hitch, but it follows an explicit user action, and picking a file without it
-    ///     appearing to do anything would be worse.
+    ///     The probe hooks a second function on the file read path and writes a line per Excel page
+    ///     to the log. That is a real cost for a real question — has a patch or a settings change
+    ///     eaten the margin this plugin needs to attach before the client's boot reads — and no cost
+    ///     anybody should pay by accident.
     /// </remarks>
-    /// <summary>
-    ///     The folder of rebuilt <c>.exd</c> pages, and the switch that serves it.
-    /// </summary>
-    /// <remarks>
-    ///     <para>
-    ///         A folder rather than a file, and not bundled, for the same reasons as the language
-    ///         pack: thousands of files, tens of megabytes, regenerated on the game's cadence rather
-    ///         than the code's.
-    ///     </para>
-    ///     <para>
-    ///         A checkbox rather than a Serve button, and it says so, because there is nothing this
-    ///         can do now. The game reads its sheets once, seconds into startup, and caches them for
-    ///         the session; the redirection has to be in place before that or it may as well not
-    ///         exist. So this decides what happens at the <em>next</em> start, and a button labelled
-    ///         Serve that changed nothing visible was read — correctly — as a broken button.
-    ///     </para>
-    /// </remarks>
-    private void DrawPagesRow(ref bool changed)
+    private void DrawDiagnostics(ref bool changed)
     {
-        var pagesPath = this.config.PagesPath;
-
-        ImGui.AlignTextToFramePadding();
-        ImGui.TextDisabled("Page folder ");
-        ImGui.SameLine();
-
-        ImGui.SetNextItemWidth(-80f * ImGuiHelpers.GlobalScale);
-        if (ImGui.InputText("##pagesPath", ref pagesPath, 1024))
+        if (!ImGui.CollapsingHeader("Diagnostics"))
         {
-            this.config.PagesPath = pagesPath;
+            return;
+        }
+
+        var probe = this.config.ProbeSqPack;
+        if (ImGui.Checkbox("Log every Excel page the game reads", ref probe))
+        {
+            this.config.ProbeSqPack = probe;
             changed = true;
         }
 
-        SetTooltip("Folder of rebuilt .exd pages, as written by Tools\\ExdRedirect.\n"
-                   + "Must contain gubal-manifest.json.");
-
-        ImGui.SameLine();
-        if (ImGui.Button("Browse...##pages"))
-        {
-            this.BrowseForPages();
-        }
-
-        var serve = this.config.ServePages;
-        using (ImRaii.Disabled(this.config.PagesPath.Length == 0))
-        {
-            if (ImGui.Checkbox("Serve translated pages from the next start", ref serve))
-            {
-                this.config.ServePages = serve;
-                changed = true;
-            }
-        }
-
-        SetTooltip("Hands the game the rebuilt pages instead of the ones in its archives.\n"
-                   + "Takes effect when the client next starts: sheets are read once at startup\n"
-                   + "and kept for the session, so this cannot be switched on mid-game.");
+        SetTooltip("Writes one line per page to /xllog, redirecting nothing.\n"
+                   + "Attaches at load, so it takes effect on the next client start.");
     }
 
-    private void BrowseForPages()
+    private void BrowseForLanguagePack()
     {
-        var startPath = this.config.PagesPath;
+        var startPath = this.config.LanguagePackPath;
         if (string.IsNullOrWhiteSpace(startPath) || !Directory.Exists(startPath))
         {
             startPath = string.Empty;
         }
 
         this.fileDialogs.OpenFolderDialog(
-            "Select the page folder",
+            "Select a language pack folder",
             (confirmed, selectedPath) =>
             {
                 if (!confirmed || string.IsNullOrWhiteSpace(selectedPath))
@@ -397,43 +281,9 @@ internal sealed class ConfigWindow : Window
                     return;
                 }
 
-                this.config.PagesPath = selectedPath;
+                this.config.LanguagePackPath = selectedPath;
                 this.save(this.config);
             },
-            startPath);
-    }
-
-    private void BrowseForCorpus()
-    {
-        var startPath = string.Empty;
-        if (!string.IsNullOrWhiteSpace(this.config.CorpusPath))
-        {
-            try
-            {
-                startPath = Path.GetDirectoryName(this.config.CorpusPath) ?? string.Empty;
-            }
-            catch (ArgumentException)
-            {
-                // Malformed path typed by hand; just open wherever the dialog defaults to.
-            }
-        }
-
-        // The overload that accepts a start path reports results as a list, even with a max of one.
-        this.fileDialogs.OpenFileDialog(
-            "Select language pack",
-            "JSON{.json},All files{.*}",
-            (accepted, selectedPaths) =>
-            {
-                if (!accepted || selectedPaths.Count == 0 || string.IsNullOrWhiteSpace(selectedPaths[0]))
-                {
-                    return;
-                }
-
-                this.config.CorpusPath = selectedPaths[0];
-                this.save(this.config);
-                this.OnReloadRequested?.Invoke();
-            },
-            1,
             startPath);
     }
 
@@ -446,18 +296,6 @@ internal sealed class ConfigWindow : Window
     }
 }
 
-internal readonly record struct StatusSnapshot(
-    int EntryCount,
-    int NpcNameCount,
-    int InjectedCount,
-    int OverlayInjectedCount,
-    int MissCount,
-    string LoadedFrom,
-    string? TranslationVersion,
-    string MissLogPath,
-    string ConfigDirectory,
-    bool UsingSampleCorpus);
-
 /// <param name="Active">The redirection is installed and holding pages.</param>
 /// <param name="PageCount">How many pages it would answer for.</param>
 /// <param name="ServedCount">How many reads it has actually answered — the number that proves it.</param>
@@ -465,4 +303,6 @@ internal readonly record struct StatusSnapshot(
 /// <param name="Manifest">What the loaded pack says about itself. Null when none loaded.</param>
 internal readonly record struct PageStatus(
     bool Active, int PageCount, int ServedCount, string? Error, PackManifest? Manifest);
+
+
 

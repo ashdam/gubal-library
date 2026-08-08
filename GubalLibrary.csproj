@@ -6,7 +6,7 @@
     <Platforms>x64</Platforms>
     <AssemblyName>GubalLibrary</AssemblyName>
     <RootNamespace>GubalLibrary</RootNamespace>
-    <Version>0.1.15.0</Version>
+    <Version>0.2.0.0</Version>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
@@ -16,18 +16,16 @@
   </PropertyGroup>
 
   <!--
-    No real corpus is bundled, by design.
+    Nothing is bundled, by design, and there is no longer even a sample.
 
-    A corpus is hundreds of MB, is a derivative of the game's own text, and changes on a completely
-    different cadence from the code, so it ships neither in the repository nor in the distribution
-    zip. The plugin loads one at runtime from the config directory, or from an explicit path.
+    A language pack is tens of MB across thousands of files, is derived from the game's own data,
+    and is regenerated whenever the game is patched, so it ships neither in the repository nor in
+    the distribution zip. The user points the plugin at a folder.
 
-    The one exception is the sample below: two lines from a single Limsa NPC, enough to prove the
-    plugin is wired up and nothing more. It is the last candidate the loader tries, so any real
-    corpus takes precedence, and the settings window says loudly when it is what got loaded.
+    There used to be a two-line sample here, so that a correct install could be told from a broken
+    one. It went with the injection engine it was for: the file route cannot demonstrate itself on
+    two lines, because it only shows anything after a restart, and the settings window now answers
+    the same question directly by reporting how many reads have actually been served.
   -->
-  <ItemGroup>
-    <None Include="Data\sample-corpus.json" CopyToOutputDirectory="PreserveNewest" />
-  </ItemGroup>
 
 </Project>

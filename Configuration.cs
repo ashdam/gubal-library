@@ -5,50 +5,35 @@ namespace GubalLibrary;
 [Serializable]
 internal sealed class Configuration : IPluginConfiguration
 {
-    public int Version { get; set; } = 1;
+    /// <summary>Bumped to 2 when the page-flavoured names became language-pack ones.</summary>
+    public int Version { get; set; } = 2;
 
     /// <summary>
-    ///     Text injection. When false, no lookups and nothing is swapped into a UI node.
+    ///     Absolute path to the installed language pack. Empty means nothing is served.
     /// </summary>
     /// <remarks>
-    ///     Was documented as the plugin's master switch, and was one while injection was the only way
-    ///     Spanish reached the screen. It is not one any more: translated pages keep being served
-    ///     whatever this says, because they are handed to the game as files rather than swapped into
-    ///     a node. See <see cref="ServePages" />.
+    ///     <para>
+    ///         A folder today, holding the rebuilt <c>.exd</c> pages and the <c>gubal-manifest.json</c>
+    ///         that describes them — which is also exactly what a distributable zip would unpack to,
+    ///         so a future installer changes how the folder gets there and not what is in it.
+    ///     </para>
+    ///     <para>
+    ///         Nothing is bundled with the plugin: a pack is tens of megabytes across thousands of
+    ///         files, it is derived from the game's own data, and it is regenerated whenever the game
+    ///         is patched.
+    ///     </para>
     /// </remarks>
-    public bool Enabled { get; set; } = true;
+    public string LanguagePackPath { get; set; } = string.Empty;
 
     /// <summary>
-    ///     Absolute path to the translation file. Empty means <c>corpus.json</c> in the plugin config
-    ///     directory.
-    /// </summary>
-    /// <remarks>
-    ///     The corpus is deliberately not bundled with the plugin — it is far too large and changes
-    ///     independently of the code. This lets it live wherever it is actually maintained, e.g.
-    ///     alongside the extractor output, without copying it on every regeneration.
-    /// </remarks>
-    public string CorpusPath { get; set; } = string.Empty;
-
-    /// <summary>
-    ///     Absolute path to the folder of rebuilt <c>.exd</c> pages. Empty means the file route is off.
-    /// </summary>
-    /// <remarks>
-    ///     The same reasoning as <see cref="CorpusPath" />, for the same reason: the pages are tens of
-    ///     megabytes across thousands of files, they are derived from the game's own data, and they
-    ///     are regenerated on a different cadence from the code. The folder is what
-    ///     <c>Tools\ExdRedirect</c> writes, manifest included.
-    /// </remarks>
-    public string PagesPath { get; set; } = string.Empty;
-
-    /// <summary>
-    ///     Serve the rebuilt pages in place of the game's own. Off until someone points at a folder.
+    ///     Serve the installed pack in place of the game's own text. Off until one is chosen.
     /// </summary>
     /// <remarks>
     ///     Read once, in the constructor, and never again. The client reads its Excel sheets about two
     ///     seconds after plugins load and keeps them for the session, so this decides what happens at
     ///     the next start rather than now — see <see cref="ExdRedirector" />.
     /// </remarks>
-    public bool ServePages { get; set; }
+    public bool ServeLanguagePack { get; set; }
 
     /// <summary>
     ///     Hook the client's archive reads and log the Excel pages it asks for, redirecting nothing.
@@ -62,31 +47,42 @@ internal sealed class Configuration : IPluginConfiguration
     /// </remarks>
     public bool ProbeSqPack { get; set; }
 
-    /// <summary>Replace the speaker name too. Off by default — most NPC names are proper nouns.</summary>
-    public bool TranslateNpcNames { get; set; }
-
-    /// <summary>Append unmatched keys to misses.jsonl. On by default during development.</summary>
-    public bool LogMisses { get; set; } = true;
-
-    /// <summary>
-    ///     Log the live event-handler state for each new Talk line.
-    /// </summary>
+    /// <summary>Previous name of <see cref="LanguagePackPath" />. Read once, then never written.</summary>
     /// <remarks>
-    ///     Off by default. Answers whether the game's own line identifier is reachable while the Talk
-    ///     window is open — see <see cref="EventProbe" /> for why that is still an open question and
-    ///     what a positive result would buy.
+    ///     Kept solely so an existing install does not silently forget where its pack is. Dropping the
+    ///     property instead would deserialize to empty and present as "no language pack loaded", which
+    ///     is indistinguishable from a broken plugin and would send people looking in the wrong place.
     /// </remarks>
-    public bool ProbeEvents { get; set; }
+    [Obsolete("Migrated into LanguagePackPath by Migrate().")]
+    public string? PagesPath { get; set; }
 
-    /// <summary>
-    ///     Text the addon finder is hunting for. Empty means it is off.
-    /// </summary>
-    /// <remarks>
-    ///     Persisted rather than held in memory because the hunt and the rebuild compete. Dev plugins
-    ///     auto-reload the moment the DLL changes, which clears anything transient — so a needle set
-    ///     before going into a duty was silently lost by whatever unrelated build happened meanwhile,
-    ///     and the run was wasted. Saving it means the search survives, and a search that survives can
-    ///     be left armed for days until the line happens to appear.
-    /// </remarks>
-    public string FindText { get; set; } = string.Empty;
+    /// <inheritdoc cref="PagesPath" />
+    [Obsolete("Migrated into ServeLanguagePack by Migrate().")]
+    public bool? ServePages { get; set; }
+
+    /// <summary>Folds a version 1 configuration into the current names.</summary>
+    /// <returns>Whether anything moved, so the caller can save only when it did.</returns>
+    public bool Migrate()
+    {
+#pragma warning disable CS0618
+        var moved = false;
+
+        if (this.LanguagePackPath.Length == 0 && this.PagesPath is { Length: > 0 } path)
+        {
+            this.LanguagePackPath = path;
+            moved = true;
+        }
+
+        if (this.ServePages is { } serve)
+        {
+            this.ServeLanguagePack = serve;
+            moved = true;
+        }
+
+        this.PagesPath = null;
+        this.ServePages = null;
+        this.Version = 2;
+        return moved;
+#pragma warning restore CS0618
+    }
 }
