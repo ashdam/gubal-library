@@ -153,6 +153,14 @@ internal sealed unsafe class OverlayHandler : IDisposable
         //   …
         //   [192] Speak with Urianger.
         //   [263] Map  [264] Abandon  [265] Retry           the buttons
+        //   [270] Ever since your famous victory…           THE SUMMARY
+        //
+        // Value 12 is the description of the CURRENT STAGE and 270 is the quest's opening text, which
+        // the panel prints under "Summary". They look interchangeable at a quest's first stage and are
+        // not: there the two hold the same sentence and 270 is Null, so a dump taken then says nothing
+        // about it. Only once "The Price of Principles" had advanced did they separate — 12 became "As
+        // expected, the other Scions are deeply concerned…" and 270 kept the opening — and a build
+        // carrying 12 alone drew a Spanish description above an English summary.
         //
         // Only the three the corpus is written for. Everything else on that list is either the game's
         // own chrome, which this project pins to English, or an NPC name, which is TranslateNpcNames'
@@ -161,7 +169,7 @@ internal sealed unsafe class OverlayHandler : IDisposable
         // The array is declared whole rather than trimmed to value 187's count. The count corroborates
         // the layout (it read 1 for the one-objective quest and 5 for the five-objective one) but
         // nothing has to trust it: an unused slot is Null-typed and refused before it is looked up.
-        ["JournalDetail"] = [5, 12, .. Enumerable.Range(FirstObjectiveValue, ObjectiveValueCount)],
+        ["JournalDetail"] = [5, 12, 270, .. Enumerable.Range(FirstObjectiveValue, ObjectiveValueCount)],
     };
 
     /// <summary>
