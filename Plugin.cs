@@ -48,7 +48,10 @@ public sealed class Plugin : IDalamudPlugin
     private readonly OverlayHandler overlays;
     private readonly AddonFinder finder;
 
-    private readonly PenumbraBridge penumbra;
+    private readonly ExdRedirector? redirector;
+    private readonly string? redirectorError;
+
+    private readonly SqPackProbe? probe;
     private readonly WindowSystem windows = new("GubalLibrary");
 
     /// <summary>Cancels a rebuild that has been queued but not yet run when the plugin unloads.</summary>
@@ -68,6 +71,7 @@ public sealed class Plugin : IDalamudPlugin
         IChatGui chat,
         IFramework framework,
         ISeStringEvaluator evaluator,
+        IGameInteropProvider interop,
         IPluginLog log)
     {
         this.pluginInterface = pluginInterface;
@@ -171,22 +175,32 @@ public sealed class Plugin : IDalamudPlugin
         this.finder = new AddonFinder(addonLifecycle, log);
         this.finder.Hunt(this.config.FindText);
 
+        // Attached first thing, before anything else in the constructor, because what it is measuring
+        // is how early this plugin runs. Anything queued ahead of it would be measuring itself.
+        this.probe = this.config.ProbeSqPack ? new SqPackProbe(interop, log) : null;
+
         // The second route to the same translations: hand the game rebuilt Excel pages instead of
         // swapping text in a UI node. It coexists with injection rather than replacing it — a page
         // the corpus has not covered simply stays English and the handlers above still get their
         // chance at it.
-        this.penumbra = new PenumbraBridge(pluginInterface, log);
+        //
+        // Installed here, in the constructor, and nowhere else. This is the whole reason the route
+        // works: the client reads its sheets about two seconds after plugins load and keeps them for
+        // the session, so a redirection put in place any later is invisible for everything already
+        // read. Measured, and it is why the guildhest descriptions stayed English for a session.
         if (this.config.ServePages && this.config.PagesPath.Length > 0)
         {
-            var result = this.penumbra.Register(this.config.PagesPath);
-            if (!result.Success)
+            (this.redirector, this.redirectorError) =
+                ExdRedirector.Create(interop, log, this.config.PagesPath);
+
+            if (this.redirectorError is { Length: > 0 } error)
             {
-                log.Warning("Page redirection not registered: {Error}", result.Error ?? "no reason given");
+                log.Warning("Translated pages are not being served: {Error}", error);
             }
         }
 
         this.configWindow = new ConfigWindow(
-            this.config, this.SaveConfig, this.Snapshot, this.fileDialogs, this.penumbra)
+            this.config, this.SaveConfig, this.Snapshot, this.fileDialogs, this.PageSnapshot)
         {
             OnReloadRequested = this.ReloadTranslations,
         };
@@ -194,7 +208,8 @@ public sealed class Plugin : IDalamudPlugin
 
         this.commands.AddHandler(CommandName, new CommandInfo(this.OnCommand)
         {
-            HelpMessage = "Open settings. Subcommands: on, off, reload, status, dump, probe, find &lt;text&gt;, clearmisses",
+            HelpMessage = "Open settings. Subcommands: on, off, servepages, reload, status, dump, "
+                + "probe, find &lt;text&gt;, clearmisses",
         });
 
         pluginInterface.UiBuilder.Draw += this.DrawUi;
@@ -330,10 +345,8 @@ public sealed class Plugin : IDalamudPlugin
         this.finder.Dispose();
         this.misses.Dispose();
 
-        // Hands the pages back before going away. Penumbra would otherwise keep serving files this
-        // plugin registered after it has unloaded, which on a dev reload means the previous build's
-        // redirections outliving the build that made them.
-        this.penumbra.Dispose();
+        this.redirector?.Dispose();
+        this.probe?.Dispose();
 
         this.windows.RemoveAllWindows();
     }
@@ -398,9 +411,9 @@ public sealed class Plugin : IDalamudPlugin
                 break;
 
             // Named for what it governs, not for the plugin, because it no longer governs the plugin.
-            // There are two routes to Spanish now and this switch is only one of them: pages already
-            // registered with Penumbra keep being served whatever this says. Reading "Disabled" and
-            // then seeing Spanish is a confusing half-second, and the fix is to stop overclaiming.
+            // There are two routes to Spanish now and this switch is only one of them: pages being
+            // served as files keep being served whatever this says. Reading "Disabled" and then
+            // seeing Spanish is a confusing half-second, and the fix is to stop overclaiming.
             case "on":
                 this.config.Enabled = true;
                 this.SaveConfig(this.config);
@@ -410,9 +423,30 @@ public sealed class Plugin : IDalamudPlugin
             case "off":
                 this.config.Enabled = false;
                 this.SaveConfig(this.config);
-                this.chat.Print(this.penumbra.Detect().Registered
-                    ? "[Gubal]Text injection off. Pages are still served through Penumbra."
+                this.chat.Print(this.redirector is not null
+                    ? "[Gubal]Text injection off. Translated pages are still being served as files."
                     : "[Gubal]Text injection off.");
+                break;
+
+            // Exists so that recovering from a bad run does not need a text editor. The route
+            // installs a detour on the function every file in the game goes through, so getting it
+            // wrong is a crashed client — and a crashed client cannot be used to turn it off.
+            case "servepages":
+                this.config.ServePages = !this.config.ServePages;
+                this.SaveConfig(this.config);
+                this.chat.Print(this.config.ServePages
+                    ? "[Gubal]Translated pages ON from the next start. Sheets are read once at startup."
+                    : "[Gubal]Translated pages OFF from the next start.");
+                break;
+
+            // Takes effect on the next load, not now, and that is the whole point: what it measures
+            // is how early the plugin attaches, so attaching it mid-session would measure nothing.
+            case "probesqpack":
+                this.config.ProbeSqPack = !this.config.ProbeSqPack;
+                this.SaveConfig(this.config);
+                this.chat.Print(this.config.ProbeSqPack
+                    ? "[Gubal]SqPack probe ON. Restart the client — it attaches at load and only then."
+                    : "[Gubal]SqPack probe OFF from the next load.");
                 break;
 
             case "reload":
@@ -441,7 +475,8 @@ public sealed class Plugin : IDalamudPlugin
                 break;
 
             default:
-                this.chat.Print("[Gubal]Usage: /gubal [on|off|reload|status|dump|probe|find <text>|clearmisses]");
+                this.chat.Print(
+                    "[Gubal]Usage: /gubal [on|off|servepages|reload|status|dump|probe|find <text>|clearmisses]");
                 break;
         }
     }
@@ -482,8 +517,32 @@ public sealed class Plugin : IDalamudPlugin
             this.chat.Print(
                 $"[Gubal]{this.resolver.FailureCount} translation(s) refused: macros would not evaluate. See /xllog.");
         }
+        var pages = this.PageSnapshot();
+        this.chat.Print(pages switch
+        {
+            { Active: true } => $"[Gubal]Pages: {pages.PageCount:N0} served as files, "
+                + $"{pages.ServedCount:N0} read(s) answered.",
+            { Error: { Length: > 0 } error } => $"[Gubal]Pages: not served — {error}",
+            _ => "[Gubal]Pages: not served.",
+        });
+
         var character = this.playerState.IsLoaded ? this.playerState.CharacterName : "(not loaded)";
         this.chat.Print($"[Gubal]Enabled={this.config.Enabled}, indexed for '{character}'");
+    }
+
+    /// <summary>
+    ///     What the settings window and <c>/gubal status</c> report about the file route.
+    /// </summary>
+    /// <remarks>
+    ///     Both numbers, deliberately. How many pages are registered says the folder was read; how
+    ///     many reads were answered says the game is actually taking them, and only the second one
+    ///     distinguishes a working route from a route that was installed too late to matter.
+    /// </remarks>
+    private PageStatus PageSnapshot()
+    {
+        return this.redirector is { } r
+            ? new PageStatus(true, r.PageCount, r.ServedCount, null)
+            : new PageStatus(false, 0, 0, this.redirectorError);
     }
 
     private StatusSnapshot Snapshot()

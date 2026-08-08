@@ -12,9 +12,9 @@ internal sealed class Configuration : IPluginConfiguration
     /// </summary>
     /// <remarks>
     ///     Was documented as the plugin's master switch, and was one while injection was the only way
-    ///     Spanish reached the screen. It is not one any more: pages registered with Penumbra keep
-    ///     being served whatever this says, because a redirection lives in Penumbra rather than here.
-    ///     See <see cref="ServePages" />.
+    ///     Spanish reached the screen. It is not one any more: translated pages keep being served
+    ///     whatever this says, because they are handed to the game as files rather than swapped into
+    ///     a node. See <see cref="ServePages" />.
     /// </remarks>
     public bool Enabled { get; set; } = true;
 
@@ -40,8 +40,27 @@ internal sealed class Configuration : IPluginConfiguration
     /// </remarks>
     public string PagesPath { get; set; } = string.Empty;
 
-    /// <summary>Register the pages with Penumbra on load. Off until someone points at a folder.</summary>
+    /// <summary>
+    ///     Serve the rebuilt pages in place of the game's own. Off until someone points at a folder.
+    /// </summary>
+    /// <remarks>
+    ///     Read once, in the constructor, and never again. The client reads its Excel sheets about two
+    ///     seconds after plugins load and keeps them for the session, so this decides what happens at
+    ///     the next start rather than now — see <see cref="ExdRedirector" />.
+    /// </remarks>
     public bool ServePages { get; set; }
+
+    /// <summary>
+    ///     Hook the client's archive reads and log the Excel pages it asks for, redirecting nothing.
+    /// </summary>
+    /// <remarks>
+    ///     Diagnostic, off by default. It answered whether this plugin could redirect files itself
+    ///     rather than going through Penumbra — it attaches 2.1 seconds before the client's first
+    ///     Excel read, so it can, and <see cref="ExdRedirector" /> now does. It is kept because that
+    ///     margin is a property of Dalamud's load order rather than of this code, and the cheapest way
+    ///     to find out that a patch or a settings change has eaten it is to look again.
+    /// </remarks>
+    public bool ProbeSqPack { get; set; }
 
     /// <summary>Replace the speaker name too. Off by default — most NPC names are proper nouns.</summary>
     public bool TranslateNpcNames { get; set; }
