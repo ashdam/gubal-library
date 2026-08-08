@@ -47,6 +47,8 @@ public sealed class Plugin : IDalamudPlugin
     private readonly TalkHandler talkHandler;
     private readonly OverlayHandler overlays;
     private readonly AddonFinder finder;
+
+    private readonly PenumbraBridge penumbra;
     private readonly WindowSystem windows = new("GubalLibrary");
 
     /// <summary>Cancels a rebuild that has been queued but not yet run when the plugin unloads.</summary>
@@ -169,7 +171,22 @@ public sealed class Plugin : IDalamudPlugin
         this.finder = new AddonFinder(addonLifecycle, log);
         this.finder.Hunt(this.config.FindText);
 
-        this.configWindow = new ConfigWindow(this.config, this.SaveConfig, this.Snapshot, this.fileDialogs)
+        // The second route to the same translations: hand the game rebuilt Excel pages instead of
+        // swapping text in a UI node. It coexists with injection rather than replacing it — a page
+        // the corpus has not covered simply stays English and the handlers above still get their
+        // chance at it.
+        this.penumbra = new PenumbraBridge(pluginInterface, log);
+        if (this.config.ServePages && this.config.PagesPath.Length > 0)
+        {
+            var result = this.penumbra.Register(this.config.PagesPath);
+            if (!result.Success)
+            {
+                log.Warning("Page redirection not registered: {Error}", result.Error ?? "no reason given");
+            }
+        }
+
+        this.configWindow = new ConfigWindow(
+            this.config, this.SaveConfig, this.Snapshot, this.fileDialogs, this.penumbra)
         {
             OnReloadRequested = this.ReloadTranslations,
         };
@@ -312,6 +329,12 @@ public sealed class Plugin : IDalamudPlugin
         this.overlays.Dispose();
         this.finder.Dispose();
         this.misses.Dispose();
+
+        // Hands the pages back before going away. Penumbra would otherwise keep serving files this
+        // plugin registered after it has unloaded, which on a dev reload means the previous build's
+        // redirections outliving the build that made them.
+        this.penumbra.Dispose();
+
         this.windows.RemoveAllWindows();
     }
 
@@ -374,16 +397,22 @@ public sealed class Plugin : IDalamudPlugin
                 this.OpenConfig();
                 break;
 
+            // Named for what it governs, not for the plugin, because it no longer governs the plugin.
+            // There are two routes to Spanish now and this switch is only one of them: pages already
+            // registered with Penumbra keep being served whatever this says. Reading "Disabled" and
+            // then seeing Spanish is a confusing half-second, and the fix is to stop overclaiming.
             case "on":
                 this.config.Enabled = true;
                 this.SaveConfig(this.config);
-                this.chat.Print("[Gubal]Enabled.");
+                this.chat.Print("[Gubal]Text injection on.");
                 break;
 
             case "off":
                 this.config.Enabled = false;
                 this.SaveConfig(this.config);
-                this.chat.Print("[Gubal]Disabled.");
+                this.chat.Print(this.penumbra.Detect().Registered
+                    ? "[Gubal]Text injection off. Pages are still served through Penumbra."
+                    : "[Gubal]Text injection off.");
                 break;
 
             case "reload":

@@ -7,7 +7,15 @@ internal sealed class Configuration : IPluginConfiguration
 {
     public int Version { get; set; } = 1;
 
-    /// <summary>Master switch. When false, no injection and no lookups happen.</summary>
+    /// <summary>
+    ///     Text injection. When false, no lookups and nothing is swapped into a UI node.
+    /// </summary>
+    /// <remarks>
+    ///     Was documented as the plugin's master switch, and was one while injection was the only way
+    ///     Spanish reached the screen. It is not one any more: pages registered with Penumbra keep
+    ///     being served whatever this says, because a redirection lives in Penumbra rather than here.
+    ///     See <see cref="ServePages" />.
+    /// </remarks>
     public bool Enabled { get; set; } = true;
 
     /// <summary>
@@ -20,6 +28,20 @@ internal sealed class Configuration : IPluginConfiguration
     ///     alongside the extractor output, without copying it on every regeneration.
     /// </remarks>
     public string CorpusPath { get; set; } = string.Empty;
+
+    /// <summary>
+    ///     Absolute path to the folder of rebuilt <c>.exd</c> pages. Empty means the file route is off.
+    /// </summary>
+    /// <remarks>
+    ///     The same reasoning as <see cref="CorpusPath" />, for the same reason: the pages are tens of
+    ///     megabytes across thousands of files, they are derived from the game's own data, and they
+    ///     are regenerated on a different cadence from the code. The folder is what
+    ///     <c>Tools\ExdRedirect</c> writes, manifest included.
+    /// </remarks>
+    public string PagesPath { get; set; } = string.Empty;
+
+    /// <summary>Register the pages with Penumbra on load. Off until someone points at a folder.</summary>
+    public bool ServePages { get; set; }
 
     /// <summary>Replace the speaker name too. Off by default — most NPC names are proper nouns.</summary>
     public bool TranslateNpcNames { get; set; }
