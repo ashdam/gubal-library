@@ -30,9 +30,20 @@ internal sealed class ConfigWindow : Window
     private readonly Func<PageStatus> pageStatus;
     private readonly PackInstaller installer;
 
+    private readonly Action onPackInstalled;
+
     private volatile bool installing;
+    private InstallProgress progress;
     private string? installMessage;
     private bool installFailed;
+
+    /// <summary>Set once a pack has been installed and not yet picked up. Never cleared.</summary>
+    /// <remarks>
+    ///     Only a restart clears it, because only a restart acts on it: the client reads its text
+    ///     once at startup, so between installing and restarting the game is still showing the
+    ///     previous pack and there is nothing the plugin can do about that.
+    /// </remarks>
+    private bool restartPending;
 
     /// <param name="version">The plugin's own version, shown in the title bar.</param>
     /// <remarks>
@@ -45,6 +56,7 @@ internal sealed class ConfigWindow : Window
         FileDialogManager fileDialogs,
         Func<PageStatus> pageStatus,
         PackInstaller installer,
+        Action onPackInstalled,
         string version)
         : base($"Gubal Library ({version})###GubalLibraryConfig")
     {
@@ -53,6 +65,7 @@ internal sealed class ConfigWindow : Window
         this.fileDialogs = fileDialogs;
         this.pageStatus = pageStatus;
         this.installer = installer;
+        this.onPackInstalled = onPackInstalled;
 
         this.SizeConstraints = new WindowSizeConstraints
         {
@@ -67,7 +80,16 @@ internal sealed class ConfigWindow : Window
         var changed = false;
 
         this.DrawHeadline(pages);
-        this.DrawUpdateNotice(pages);
+
+        // Suppressed once something has been installed, because everything it could say is about the
+        // pack that is on its way out. Whether the OLD pack has a newer version published stopped
+        // being anybody's problem the moment a new one was put in its place.
+        if (!this.restartPending)
+        {
+            this.DrawUpdateNotice(pages);
+        }
+
+        this.DrawRestartBanner();
         ImGui.Spacing();
 
         // First, because on a fresh install it is the only thing that can be done and everything
@@ -122,7 +144,11 @@ internal sealed class ConfigWindow : Window
             _ => (
                 Amber,
                 FontAwesomeIcon.ExclamationTriangle,
-                "NO LANGUAGE PACK LOADED. This plugin ships no translations — install one, point at it below, tick the box, and restart the client."),
+                // Three steps, not four. It used to say "tick the box" as well, which is work the
+                // Install button already does — and an instruction that asks for something already
+                // done reads as a step that did not take.
+                "NO LANGUAGE PACK LOADED. This plugin ships no translations — put a link or a folder "
+                + "below, press Install, and restart the client."),
         };
 
         ImGui.PushStyleColor(ImGuiCol.Text, colour);
@@ -213,6 +239,44 @@ internal sealed class ConfigWindow : Window
         }
     }
 
+    /// <summary>
+    ///     The one instruction the user has to act on, drawn so it cannot be skimmed past.
+    /// </summary>
+    /// <remarks>
+    ///     <para>
+    ///         Installing a pack changes nothing until the client restarts, and that is not a wart to
+    ///         be apologised for in small print: the game reads its text once, seconds into startup,
+    ///         and keeps it for the session. Somebody who installs, sees the confirmation and carries
+    ///         on playing will conclude the plugin is broken, and will be right to, because from where
+    ///         they sit nothing happened.
+    ///     </para>
+    ///     <para>
+    ///         So it gets its own banner, at a larger size, above everything except the headline, and
+    ///         it stays there until the restart it is asking for. A line of ordinary text under the
+    ///         install button had already proved too easy to miss.
+    ///     </para>
+    /// </remarks>
+    private void DrawRestartBanner()
+    {
+        if (!this.restartPending)
+        {
+            return;
+        }
+
+        ImGui.Separator();
+        ImGui.SetWindowFontScale(1.25f);
+
+        Icon(FontAwesomeIcon.PowerOff, Amber);
+        ImGui.TextWrapped("RESTART THE CLIENT");
+        ImGui.PopStyleColor();
+
+        ImGui.SetWindowFontScale(1f);
+        ImGui.TextWrapped(
+            "The new language pack is installed but the game will not read it until it starts again — "
+            + "it loads all of its text once, at startup.");
+        ImGui.Separator();
+    }
+
     /// <summary>Draws a coloured icon and leaves the colour pushed for the text that follows.</summary>
     private static void Icon(FontAwesomeIcon icon, Vector4 colour)
     {
@@ -301,7 +365,18 @@ internal sealed class ConfigWindow : Window
 
         if (this.installing)
         {
-            ImGui.TextDisabled("Installing...");
+            // A real bar, and not grey. The first version put "Installing..." in TextDisabled, which
+            // for a fast download nobody saw at all and for a slow one said nothing about whether it
+            // was moving — the two cases a person most needs told apart from a hang.
+            var p = this.progress;
+            ImGui.PushStyleColor(ImGuiCol.Text, Green);
+            ImGui.TextUnformatted(p.Detail.Length > 0 ? $"{p.Label} — {p.Detail}" : $"{p.Label}...");
+            ImGui.PopStyleColor();
+
+            ImGui.ProgressBar(
+                p.Fraction ?? -1f * (float)ImGui.GetTime(),
+                new Vector2(-1, 6f * ImGuiHelpers.GlobalScale),
+                string.Empty);
         }
         else if (this.installMessage is { Length: > 0 } message)
         {
@@ -324,10 +399,16 @@ internal sealed class ConfigWindow : Window
     {
         this.installing = true;
         this.installMessage = null;
+        this.progress = InstallProgress.Working("Starting");
+
+        // Assigned from the worker and read from the draw thread a frame later. A struct field is
+        // written atomically enough for that: the worst case is one frame of a slightly stale number,
+        // which is invisible next to a bar that redraws sixty times a second.
+        var report = new Progress<InstallProgress>(p => this.progress = p);
 
         _ = Task.Run(async () =>
         {
-            var result = await this.installer.InstallAsync(source).ConfigureAwait(false);
+            var result = await this.installer.InstallAsync(source, report).ConfigureAwait(false);
 
             if (result.Success)
             {
@@ -337,9 +418,12 @@ internal sealed class ConfigWindow : Window
 
                 var pack = result.Manifest!;
                 this.installFailed = false;
-                this.installMessage =
-                    $"Installed {pack.DisplayName} ({pack.TranslationVersion ?? "unversioned"}). "
-                    + "RESTART THE CLIENT to see it — the game reads its text once at startup.";
+                this.installMessage = $"Installed {pack.DisplayName} ({pack.TranslationVersion ?? "unversioned"}).";
+                this.restartPending = true;
+
+                // Lets the plugin drop what it learned about the previous pack's update address, and
+                // say so in chat where somebody who has closed this window will still see it.
+                this.onPackInstalled();
             }
             else
             {
@@ -460,6 +544,7 @@ internal sealed class ConfigWindow : Window
 /// <param name="Update">What the background check made of the pack's declared update address.</param>
 internal readonly record struct PageStatus(
     bool Active, int PageCount, int ServedCount, string? Error, PackManifest? Manifest, UpdateStatus Update);
+
 
 
 
