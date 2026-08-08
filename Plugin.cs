@@ -149,6 +149,11 @@ public sealed class Plugin : IDalamudPlugin
             // /gubal find traced "The Price of Principles" to it, node 3. See BodyNodes.
             "Journal",
 
+            // The quest tracker under the minimap: the same title again, plus the current objective.
+            // Also traced rather than guessed — nodes 2 and 6. It is the one addon here that is on
+            // screen permanently, which is why BodyNodes must name its nodes and not sweep them.
+            "_ToDoList",
+
             // The dialogue choice list, and the menu that precedes it. SelectString is not a guess:
             // /gubal find traced Urianger's "What of the primals?" to it, node 2. See BodyNode.
             //
