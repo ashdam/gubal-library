@@ -144,6 +144,11 @@ public sealed class Plugin : IDalamudPlugin
             "MiniTalk",
             "JournalDetail",
 
+            // The quest list down the left of the journal, which draws the same titles JournalDetail
+            // does and drew them in English while the detail panel beside it was Spanish. Not a guess:
+            // /gubal find traced "The Price of Principles" to it, node 3. See BodyNodes.
+            "Journal",
+
             // The dialogue choice list, and the menu that precedes it. SelectString is not a guess:
             // /gubal find traced Urianger's "What of the primals?" to it, node 2. See BodyNode.
             //

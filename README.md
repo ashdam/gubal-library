@@ -99,6 +99,7 @@ Testing build. The in-game text Gubal Library localizes today:
 | Combat callouts | `_BattleTalk` | supported — the node grows to fit the line count |
 | On-screen banners | `_ScreenInfoFront` | registered, reports itself in the log when it fires, not characterised |
 | The journal's quest page, and duty descriptions in the Duty Finder | `JournalDetail` | supported — title, description, objectives and summary |
+| The journal's quest list | `Journal` | supported — the quest titles |
 | Dialogue choice lists | `SelectString` | not handled |
 
 This localizes what characters say, not what the client labels: menus, item names, tooltips and job
@@ -110,9 +111,10 @@ of the current stage, each line of the current objective, and the summary. Behin
 translates the duty description alone: the instance name stays in English on purpose, so that it
 still matches the queue list and everything written about the duty elsewhere.
 
-That page only. The same quest title and objective also appear in the journal's own list on the left,
-in the tracker under the minimap, on the map marker and in the accepted-quest banner, which are
-separate addons and are not handled.
+The quest list on the left of the same window is a separate addon, `Journal`, and it is handled too —
+its titles only. The place headers between them stay in English, as instance names do. The tracker
+under the minimap, the map marker and the accepted-quest banner are further addons again, and are not
+handled.
 
 **Formatting survives injection.** Italics, colour and gender conditionals reach the screen, because
 the injected value is written as SeString bytes rather than flattened to a string — see
