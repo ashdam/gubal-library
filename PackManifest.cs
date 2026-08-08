@@ -95,7 +95,7 @@ internal sealed class PackManifest
         var path = Path.Combine(directory, FileName);
         if (!File.Exists(path))
         {
-            return (null, $"No {FileName} in the page folder. Point this at the folder ExdRedirect wrote.");
+            return (null, $"No {FileName} here, so this is not a language pack. Point at the folder that holds it.");
         }
 
         try
@@ -112,3 +112,4 @@ internal sealed class PackManifest
         }
     }
 }
+

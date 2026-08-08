@@ -153,7 +153,7 @@ internal sealed unsafe class ExdRedirector : IDisposable
     {
         if (string.IsNullOrWhiteSpace(directory) || !Directory.Exists(directory))
         {
-            return (null, $"No page directory at '{directory}'.");
+            return (null, $"No language pack at '{directory}'.");
         }
 
         var (manifest, manifestError) = PackManifest.Read(directory);
@@ -195,14 +195,14 @@ internal sealed unsafe class ExdRedirector : IDisposable
         {
             log.Warning(
                 "{Count} page(s) sit at a path longer than {Max} characters and will not be served. "
-                + "Move the page directory somewhere shorter.",
+                + "Install the language pack somewhere with a shorter path.",
                 tooLong,
                 MaxLocalPathLength);
         }
 
         if (pages.Count == 0)
         {
-            return (null, "The page directory holds no .exd files.");
+            return (null, "That folder holds no .exd files, so it is not a language pack.");
         }
 
         try
@@ -359,3 +359,5 @@ internal sealed unsafe class ExdRedirector : IDisposable
         }
     }
 }
+
+
