@@ -438,6 +438,46 @@ internal sealed unsafe class OverlayHandler : IDisposable
 
     public int InjectedCount { get; private set; }
 
+    /// <summary>
+    ///     Drops the record of lines already looked up and not found, so they are tried again.
+    /// </summary>
+    /// <remarks>
+    ///     <para>
+    ///         Call this whenever the index changes under the handler. <see cref="attempted" /> exists
+    ///         so a miss is not repeated every frame, and that is right for as long as the answer
+    ///         cannot change — but a reload changes it, and without this the guard turns a temporary
+    ///         "not in the corpus" into a permanent one.
+    ///     </para>
+    ///     <para>
+    ///         <b>Found through the quest tracker, which is the addon that made it reachable.</b>
+    ///         <c>_ToDoList</c> is on screen from the moment the plugin loads, so it drew its first
+    ///         frame 500 ms before the corpus finished indexing: both of its lines were looked up
+    ///         against an empty index, missed, and were then never retried. The tracker stayed English
+    ///         for the whole session and <c>/gubal reload</c> did not help, because reloading rebuilds
+    ///         the store and this state lives here. Every addon that appears later simply never met the
+    ///         race.
+    ///     </para>
+    ///     <para>
+    ///         Only the failures. <see cref="nodeInjected" /> and <see cref="valueInjectedKey" /> are
+    ///         what recognise this plugin's own Spanish coming back round, and clearing those would
+    ///         send every line already on screen through the corpus as though it were fresh English —
+    ///         which finds nothing and files our own translations as missing ones.
+    ///     </para>
+    /// </remarks>
+    public void ForgetFailedLookups()
+    {
+        if (this.attempted.Count == 0)
+        {
+            return;
+        }
+
+        this.log.Information(
+            "Forgetting {Count} failed overlay lookup(s) so the new index is given a chance at them.",
+            this.attempted.Count);
+
+        this.attempted.Clear();
+    }
+
     public void Dispose()
     {
         this.lifecycle.UnregisterListener(AddonEvent.PreRefresh, this.addonNames, this.onPreRefresh);
