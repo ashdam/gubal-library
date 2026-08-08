@@ -1,210 +1,103 @@
 # Building a language pack
 
-Gubal Library is a lookup engine with no data in it. This document is the contract: produce a file
-that satisfies it and the plugin will use it, whatever built it and whatever language it targets.
+Gubal Library ships with no text in it. This document is the contract: produce a pack that satisfies
+it and the plugin will serve it, whatever built it and whatever language it targets.
 
-The plugin has no notion of Spanish, or of any particular language. `targetLanguage` is a field in
-the file, logged when the pack loads and otherwise unused. A pack for any locale works the same way,
-and the mechanics below — text-keyed lookup, macro resolution, conversation scoping — are properties
-of how the game delivers text, not of the language you are translating into.
+The plugin has no notion of Spanish, or of any particular language. `language` is a field in the
+manifest, shown in the settings window and otherwise unused.
 
 **No language pack is distributed from this repository.** The text is Square Enix's, and a
 translation of it is a derivative work; the plugin itself reproduces none of it. Where a pack comes
 from is its author's business, not the plugin's.
 
-## The file
+## What a pack is
 
-UTF-8, **no BOM**. Comments and trailing commas are tolerated by the loader, so a hand-edited file is
-fine.
+The game keeps its text in Excel sheets inside its archives — `.exh` headers and `.exd` pages. A
+language pack is **those same pages, rebuilt with your text inside them**, plus a manifest describing
+what they are.
 
-The plugin reads `corpus.json` from its config directory unless an explicit path is set in `/gubal`.
-`es.json` in the same directory is also accepted, as a legacy name.
+```
+whatever-you-called-it/
+  gubal-manifest.json
+  exd/
+    ContentFinderConditionTransient_0_en.exd
+    Quest_65536_en.exd
+    quest/041/AktKba101_04102_0_en.exd
+    custom/000/RegSeaAetheGuid_00051_0_en.exd
+    ...
+```
+
+The plugin walks the folder for `*.exd` and derives each game path from the path relative to the
+root, so the layout must mirror the archive exactly. A zip of that folder's **contents** — not of the
+folder itself — is a distributable pack.
+
+Two consequences worth stating plainly, because neither is obvious:
+
+**The game has no Spanish slot, or Italian, or Polish.** It knows `ja`, `en`, `de`, `fr`. A pack
+therefore overwrites one of those, and `_en` is the usual choice. Rows you have not translated keep
+the original text, so partial coverage costs nothing and needs no fallback logic — but the language
+you replaced is genuinely gone while the pack is on.
+
+**A page is all-or-nothing.** If a rebuilt page is wrong, that whole sheet is wrong. Whatever builds
+your pack should reproduce the game's own bytes exactly when it substitutes nothing, and verify that
+before it substitutes anything.
+
+## The manifest
+
+`gubal-manifest.json` at the root of the pack, UTF-8.
 
 ```json
 {
-  "schemaVersion": 2,
-  "sourceLanguage": "en",
-  "targetLanguage": "es",
-  "gameVersion": "2026.07.16.0001.0000",
-  "translationVersion": "2026.08.07.2228",
-  "npcNames": { "Alphinaud": "Alphinaud" },
-  "entries": [
-    {
-      "gameKey": "quest/047/SubWil901_04779#12",
-      "conversation": "quest/047/SubWil901_04779",
-      "source": "Off you go now, <if(...)>.",
-      "target": "Vete ya, <if(...)>."
-    },
-    {
-      "conversation": "InstanceContentTextData#44505",
-      "scope": "territory/1345",
-      "source": "Dance!",
-      "target": "¡Bailad!"
-    }
-  ]
+  "name": "FFXIV Language Pack (ES)",
+  "language": "es",
+  "languageName": "Español (España)",
+  "author": "ashdam",
+  "updateUrl": "https://example.org/packs/es/latest.json",
+  "translationVersion": "2026.08.08.1756",
+  "gameVersion": "2026.08.05.0000.0000",
+  "pages": 3414,
+  "lines": 95628,
+  "rows": 405771
 }
 ```
 
-| Field | Required | Meaning |
+| Field | Required | What it does |
 |---|---|---|
-| `schemaVersion` | yes | Must be `2`. **Any other value is refused and nothing is loaded** — a schema this build cannot read parses without error and yields zero entries, which on screen is indistinguishable from a broken plugin. |
-| `sourceLanguage`, `targetLanguage` | no | Which languages the entries are in. Written to the load log; `sourceLanguage` is read and otherwise unused. |
-| `gameVersion` | no | The patch the pack was built against. Written to the load log. |
-| `translationVersion` | no | Which generation of the translation this is, stamped by the extractor. Shown in the `/gubal` window and printed on load, which is the only way to tell a stale copy from a current one. |
-| `npcNames` | no | Source → translated speaker names. Only used when **Translate speaker names** is on. |
-| `entries[].source` | yes | The source line, **macros unresolved**. See below. |
-| `entries[].target` | yes | The translation. Entries with either side empty are skipped at load. |
-| `entries[].conversation` | no | Scopes the entry to one conversation, e.g. `quest/047/SubWil901_04779`. |
-| `entries[].scope` | no | A second scope the same entry answers to, e.g. `territory/1345`. See below. |
-| `entries[].gameKey` | no | Provenance only. **Never used for lookup.** |
+| `gameVersion` | **yes** | The patch the pages were built from. **The plugin refuses to serve the pack when this does not match the running client.** |
+| `translationVersion` | yes | Which generation of the translation this is. Compared as text, so any format that sorts correctly works; the tooling here stamps `yyyy.MM.dd.HHmm`. |
+| `name`, `language`, `languageName`, `author` | no | Shown in the settings window. |
+| `updateUrl` | no | Where to fetch a copy of the newest manifest. See below. |
+| `pages`, `lines`, `rows` | no | Shown as a coverage line: `lines` of `rows` translated across `pages` pages. |
 
-`scope` was added without moving `schemaVersion` off 2, and deliberately. The compatibility runs both
-ways: a plugin that predates the field ignores it and behaves exactly as it did, and this build
-reading a pack that has none simply finds no territory scopes. Bumping would have broken every older
-plugin — the loader refuses any version but its own — to announce a field they are free to skip.
+**`gameVersion` is the one that matters and it is a refusal, not a warning.** Rows shift between
+patches. Serving pages built against the previous patch to a client running the next one puts text on
+the wrong rows, and it does it silently — every line is well-formed and simply belongs to something
+else. Losing the translation until somebody rebuilds is enormously preferable, so that is what
+happens.
 
-Of the header fields only `translationVersion` leaves the log: it appears as **Pack version** in the
-`/gubal` window, in `/gubal status`, and in the line printed after a reload — always beside the source
-path, never instead of it. A reload that kept the old pack and one that picked up a freshly built file
-are otherwise indistinguishable, since both name the same file. The rest are in `/xllog`.
+## Updates
 
-**The entry fields do not name their language.** Schema 1 called them `en` and `es`, which put the
-same fact in two places and let them disagree — a file declaring `"targetLanguage": "it"` whose
-entries still said `es`. The header is the single answer now, and an Italian pack is this same file
-with a different header and nothing else changed.
+`updateUrl` points at a copy of the **newest** pack's `gubal-manifest.json`, at an address that does
+not change. The plugin fetches it in the background, compares `translationVersion`, and offers the
+newer one; it never downloads a pack without being asked.
 
-## The one rule
+Because the address travels inside the pack, each installation brings its own — so moving hosting
+between releases carries your existing users along instead of stranding them.
 
-The `Talk` addon does not expose the row id of the line it is showing — only the finished string. So
-the runtime join is **on text**, and `source` must match what the game puts on screen, modulo
-`TextKey.Normalize`, which is applied to both sides:
+There is deliberately **no field saying where the archive is**. The user typed that in to install the
+pack, and a manifest repeating it would be a second copy of a fact that can disagree with the first.
+The contract that implies is the right one anyway: publish successive versions at a stable address,
+because taking an update re-downloads from wherever the pack came from.
 
-- A leading `(-Speaker-)` label is stripped.
-- Asterisks are removed. Dalamud's reader renders emphasis payloads as literal `*`; other readers
-  drop them. Stripping makes the two agree.
-- Every Unicode dash (U+2010–U+2015, U+2212) folds to an ASCII hyphen. `city<-->state` comes back as
-  an en dash from one reader and a plain hyphen from another — one codepoint, total miss.
-- Whitespace runs collapse to a single space, then the string is trimmed.
+**Leaving `updateUrl` out is fine** — a test build, or an author with nowhere to host a manifest.
+The plugin then never touches the network at all. It does say so in the settings window: a pack that
+cannot update itself looks, to the person using it, exactly like one nobody is working on.
 
-Nothing else is tokenized. In particular **there is no `{PLAYER}` token**: resolve macros against the
-game's real state instead (see below) and both sides arrive carrying identical literal text.
+## Building one
 
-## Macros
+`Tools/ExdRedirect` in the [corpus-extractor](https://github.com/ashdam/corpus-extractor) repository
+builds a pack from a corpus of translations. It reads the game's own sheets with Lumina, substitutes
+the strings, rebuilds each page, and verifies byte-for-byte that it reproduces the original before
+substituting anything. Its README documents the corpus format it consumes.
 
-**`source` must carry macros unresolved** — `<if([gnum11<12],Good morning,Good evening)>`, not one
-branch of it. Every entry goes through the game's own evaluator at load, which reproduces exactly
-what the player sees. Flattening beforehand cannot: an extractor that deletes macros produces
-`"Off you go now, ."` where the game says `"Off you go now, Mini."`, and that matches nothing.
-
-There is no separate field for the macro form and no flag saying a line has one. Evaluating a string
-that holds no macros returns the string, so the distinction buys nothing, and no cheap test for it is
-correct anyway — searching for `<` catches an escaped `\<sigh>`, which is literal text.
-
-Three consequences worth knowing:
-
-- **Keys are per character.** Macros resolve against name, gender and Grand Company rank, so the
-  index is rebuilt on login. A pack indexed for one character does not match another.
-- **`gnum11` is the Eorzean hour.** Entries using it are re-keyed as the clock advances; an Eorzean
-  hour is under three real minutes, so a key built once would stop matching almost immediately.
-- **A `source` that will not evaluate drops the entry**, with a count in the load log. It is not
-  indexed under its raw text instead: that is a string the game will never draw, so it could only
-  match by accident, and an accident here means injecting the wrong translation over whatever it
-  collided with. Leaving the game's own text on screen is the correct answer when the plugin cannot
-  work out what the line says.
-
-Translations may carry macro syntax too, and it is resolved at display time — both conditionals like
-`<if(gnum4,cansada,cansado)>` and the game's formatting macros, which is how italics and colour reach
-the screen: the injected value is written as SeString bytes, not as characters. One syntax serves both
-sides, so there is no second format to define.
-
-**A `target` that will not evaluate is not injected either.** The game's own line stays instead;
-putting a visible `<if(gnum4,…)>` on screen is worse than the text it would replace. So is a
-translation that resolves to nothing but whitespace, which would blank the dialogue box. `/gubal
-status` counts every refusal and the log names the first twenty.
-
-Do not put asterisks in `target`. The game draws them literally rather than as emphasis, so `*Orion*`
-appears with the asterisks visible; use the game's own italic macro if you want emphasis. They are
-stripped at load, with a count in the log.
-
-## Duplicate English
-
-Identical English in two different quests is common — in one measured pack, 4,407 of 5,378 repeated
-lines occurred in more than one quest. Set `conversation` and both stay reachable: the plugin keeps a
-conversation-scoped index consulted first, and a text-only index as the fallback. Without
-`conversation` they collapse onto whichever loaded first and the rest are unreachable.
-
-The fallback matters as much as the scoped hit. Ambient chatter has no quest handler, so its
-`conversation` is null at runtime and the text-only index is the only thing that can answer.
-
-### The second scope, and why a conversation is not always enough
-
-A quest names its conversation because the live `QuestEventHandler` hands over its own `ScriptPath`.
-Nothing does that for a duty: a dungeon boss speaks through a content director, so every line it says
-had no scope at all and resolved on text alone.
-
-That is not theoretical. `NpcYell#5450` and `InstanceContentTextData#44505` are both the single word
-`Dance!` — a FATE duellist taunting you, and Malphas ordering his puppets — and they want *¡Baila!*
-and *¡Bailad!* respectively. The FATE line loaded first, so Malphas said the wrong one.
-
-`scope` is what the plugin *can* work out while a line is on screen: the territory the player is
-standing in. A pack should set it on any entry whose line belongs to a duty, and leave it off
-everywhere else.
-
-Both fields are indexed, and no precedence has to be decided, because they cannot compete: at a given
-moment the plugin can produce a conversation or a territory, never both keys for one line. An entry
-carrying both is reachable by whichever the moment allows. So `conversation` stays what it always was
-— for a flat sheet, the row the line came from, which is provenance the pack would otherwise lose —
-and `scope` carries the key that actually resolves.
-
-Two things a pack must not read into this. A territory is a *duty*, not a fight: two bosses in one
-dungeon share it, so it separates duty from open world and nothing finer. And a line used by two
-duties at once — the normal and savage versions of one encounter, in different territories — has no
-single correct value, so leave `scope` off rather than pick one. Falling back to the text index is
-the behaviour that field exists to improve on, never worse than it.
-
-## The pipeline this was built against
-
-Three stages, of which only the last is the plugin's concern:
-
-1. **Extract.** Read the game's own Excel sheets (via Lumina, off the `sqpack` directory) and emit
-   this schema with every `target` empty. Quest sheets, cutscene sheets and the flat ambient sheets
-   (`DefaultTalk`, `NpcYell`, `Balloon`, …) are separate families and worth extracting separately.
-   The game ships professional translations of every line in ja/de/fr, which are the best available
-   reference — French especially, for a Spanish target: same grammatical gender, same formal and
-   informal split.
-2. **Translate.** Entirely offline, by whatever means. This is where a glossary of proper nouns earns
-   its keep; term drift across a pack this size is invisible without one.
-3. **Merge.** Emit the runtime file: `source`/`target` only, translated entries only, compact. The
-   editing pack and the runtime pack are not the same artifact, and shipping the former wastes most
-   of the load.
-
-The extractor and merge tooling are not published. They are specific to one game install and one
-translation workflow, and the schema above is the whole interface — nothing in the plugin depends on
-how the file was produced.
-
-## Load cost
-
-The loader deserializes straight from the file stream rather than reading it into a string first: at
-85 MB, `ReadAllText` alone is a ~170 MB UTF-16 allocation on the large object heap before any of the
-data you actually keep. Every load logs file size, read time, parse time, retained heap and total
-allocation, so a regression here is measurable rather than a matter of opinion.
-
-Both indexes hold the same string references, so scoping roughly doubles the key overhead but not the
-values.
-
-## Debugging a line that will not match
-
-Turn on miss logging (`/gubal dump`, on by default) and read `misses.jsonl` in the plugin config
-directory. Each record holds the normalized key the lookup actually used and, when normalization
-changed something, the raw string as well — so a rule that eats something it should not looks
-different from a genuinely missing entry.
-
-Misses are deduplicated in memory, so a repeated line is written once, and writing stops after 5,000
-distinct keys with a warning in the log. `/gubal clearmisses` deletes the file and resets the dedup
-set.
-
-Paste a recorded key into `corpus.json` as a `source` value and you have an entry guaranteed to match.
-
-If a line never reaches the miss log at all, it is arriving through an addon the plugin does not
-watch. `/gubal find <text>` listens to every addon in the game, by both delivery routes, and
-reports which one carries that string.
+You do not have to use it. Nothing above depends on how the pages were produced.

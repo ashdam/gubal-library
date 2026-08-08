@@ -6,55 +6,44 @@ Final Fantasy XIV speaks four languages. Its players speak dozens.
 
 Every one of those communities has had the same thought at some point: *we could translate this
 ourselves.* What stopped them was never the will, and never the words — it was that there was nowhere
-to put them. Gubal Library is that place. It takes a language pack the community built and puts it on
-screen in the live game: the game's own font, the game's own typewriter reveal, the game's own line
-breaks, formatting intact.
+to put them. Gubal Library is that place. It takes a language pack the community built and gives it
+to the game: the game's own font, the game's own typewriter reveal, the game's own line breaks,
+formatting intact.
 
 Named for the Great Gubal Library, Sharlayan's repository of all written knowledge — which is what a
 language pack is: a library of the game's words in a language it was never given.
 
-A Dalamud plugin that replaces the game's on-screen text with a translation you supply. Gubal Library
-is a multilingual engine — it reads a language pack and injects it directly into the game. Any
-language works: the pack declares its own target language, and nothing in the plugin knows or cares
-which one it is.
+A Dalamud plugin that hands the game pre-translated copies of its own text files. The game keeps its
+text in Excel sheets inside its archives; this points its reads at rebuilt copies on your disk and
+gets out of the way. Any language works: the pack declares its own, and nothing in the plugin knows
+or cares which one it is. **Your game install is never modified** — the archives are untouched and a
+game patch overwrites nothing.
 
 **This project does not distribute language packs.** Users either find a pack the community has
 published for their language or build their own — which is why [CORPUS.md](CORPUS.md) documents the
 format in full rather than sketching it.
 
 **So it ships empty**, and the documentation says so first, before anything else. Installing it
-changes nothing until a language pack is loaded.
-
-There is a self-test bundled — two lines from one NPC — but that is a smoke test, not content. 
+changes nothing until a language pack is installed.
 
 - **Want to build a language pack for your language?** → [CORPUS.md](CORPUS.md)
 
 ## Examples
 
-The live game with a Spanish language pack loaded. None of it is a mock-up or an overlay. It is the game's own dialogue box, the game's own font and the
-game's own line breaking, with the text replaced underneath.
-
-One per surface the plugin supports.
-
-**NPC dialogue — the `Talk` window**
+The live game with a Spanish language pack installed. None of it is a mock-up or an overlay: the game
+read those words out of a file and drew them itself.
 
 ![Spanish NPC dialogue in the Talk window](images/example1.png)
 
-**Cutscene narration — `TalkSubtitle`**
-
 ![Spanish cutscene narration over the scene](images/example4.png)
 
-**Speech balloons — `_MiniTalk`**
-
 ![A Spanish speech balloon above an NPC](images/example3.png)
-
-**Combat callouts — `_BattleTalk`**
 
 ![A Spanish combat callout during a boss fight](images/example2.png)
 
 ## Install
 
-A testing build, so expect rough edges. It needs XIVLauncher/Dalamud, and it makes no network calls.
+A testing build, so expect rough edges. It needs XIVLauncher/Dalamud.
 
 1. **Add the repository.** `/xlsettings` → **Experimental** → paste the URL into an empty
    **Custom Plugin Repositories** box, press **+**, tick *Enabled*, then **Save and Close**:
@@ -65,81 +54,62 @@ A testing build, so expect rough edges. It needs XIVLauncher/Dalamud, and it mak
 
 2. **Install the plugin.** `/xlplugins` → search for **Gubal Library** → **Install**.
 
-3. **Check it installed.** Talk to **Ahldskyf**, on the pier by the Orion in Limsa Lominsa Lower
-   Decks. His two lines should read *"Hello World from Gubal Library!"* — that is the bundled
-   self-test, and it exists to tell "installed" apart from "installed and broken". `/gubal` shows a
-   red warning for as long as it is all that is loaded; `/gubal status` says how many entries loaded.
+3. **Install a language pack.** The step that actually matters — everything in the game stays as it
+   was until you do. `/gubal` → put a link, a `.zip` or an already-unpacked folder in *Language pack*
+   → **Install**. Nothing is downloaded until you press it.
 
-4. **Load a language pack.** The step that actually matters — everything else in the game stays as it
-   was until you do. Keep the file wherever you like: `/gubal` → **Browse...** under *Language pack* →
-   pick it. It loads immediately, with no renaming, no restart and no `reload`; the entry count
-   updates and the red warning goes. If you would rather not set a path, name it `corpus.json` in
-   `%AppData%\XIVLauncher\pluginConfigs\GubalLibrary` and run `/gubal reload`. Still 0 entries means
-   the file loaded but nothing in it was usable — check it against [CORPUS.md](CORPUS.md).
+4. **Restart the client.** Not optional, and not a rough edge: the game reads its text once, a couple
+   of seconds into startup, and keeps it for the whole session. A pack switched on mid-game changes
+   nothing until the next start.
+
+The settings window then names the pack, its version and its author, and reports **how many reads it
+has actually answered**. That last number is the one to look at: a pack that is loaded but never read
+looks identical to a working one on every other indicator.
 
 **Reporting a problem.** Open an [issue](https://github.com/ashdam/gubal-library/issues) with what you
 expected and what you got (a screenshot beats a description) and the output of `/gubal status`. If the
-game closed, add the most recent `crash-<date>.tspack` from `%AppData%\XIVLauncher\`. If a line stayed
-in the original language, add `misses.jsonl` from the plugin config directory — it records the exact
-key the lookup used, and that is usually a fault in the language pack rather than the plugin, so take
-it to whoever maintains the pack first.
+game closed, add the most recent `crash-<date>.tspack` from `%AppData%\XIVLauncher\`.
+
+If a line is simply not translated, that is the pack rather than the plugin — take it to whoever
+maintains it.
 
 **Uninstalling.** `/xlplugins` → **Gubal Library** → **Uninstall**. To drop the repository too,
 `/xlsettings` → **Experimental** → the bin icon on that URL's row.
 
-## What's supported in-game
+## What gets translated
 
-Testing build. The in-game text Gubal Library localizes today:
+Whatever the pack covers, and there is no list of supported windows — which is the point of doing it
+this way. Dialogue, quest journal, cutscene subtitles, speech balloons, menus, item names, tooltips
+and log messages all come out of the game's Excel sheets, so all of them are reached. Italics, colour
+and gender agreement survive, and the engine does its own layout.
 
-| Where the text appears | Addon | State |
-|---|---|---|
-| NPC dialogue, quest text, cutscene speech | `Talk` | supported |
-| Cutscene narration | `TalkSubtitle` | supported |
-| Speech balloons above NPCs | `_MiniTalk` | supported — the balloon resizes to the translation |
-| Combat callouts | `_BattleTalk` | supported — the node grows to fit the line count |
-| On-screen banners | `_ScreenInfoFront` | registered, reports itself in the log when it fires, not characterised |
-| The journal's quest page, and duty descriptions in the Duty Finder | `JournalDetail` | supported — title, description, objectives and summary |
-| The journal's quest list | `Journal` | supported — the quest titles |
-| Dialogue choice lists | `SelectString` | not handled |
+Two things do not work this way, and both are inherent:
 
-This localizes what characters say, not what the client labels: menus, item names, tooltips and job
-UI are untouched.
+**The game has no slot for most languages.** It knows Japanese, English, German and French, so a pack
+replaces one of them — usually English. The language it replaced is gone while the pack is on.
 
-`JournalDetail` is the one entry above that is not dialogue, and it is one panel doing two jobs. On
-the journal's quest page it translates everything the player reads — the quest title, the description
-of the current stage, each line of the current objective, and the summary. Behind the Duty Finder it
-translates the duty description alone: the instance name stays in English on purpose, so that it
-still matches the queue list and everything written about the duty elsewhere.
+**Pages are built for one patch.** When the game updates, the pack must be rebuilt. Until it is, the
+plugin refuses to serve it and says so, because serving the previous patch's text would put it on the
+wrong rows silently.
 
-The quest list on the left of the same window is a separate addon, `Journal`, and it is handled too —
-its titles only. The place headers between them stay in English, as instance names do. The tracker
-under the minimap, the map marker and the accepted-quest banner are further addons again, and are not
-handled.
+## On the network
 
-**Formatting survives injection.** Italics, colour and gender conditionals reach the screen, because
-the injected value is written as SeString bytes rather than flattened to a string — see
-`SeStringWriter` and `MacroResolver`. A translation whose macros will not evaluate is not injected at
-all: the game's own line is better than a visible `<if(gnum4,…)>`.
+**Nothing is ever sent anywhere.** No telemetry, no analytics, nothing about you or your character,
+and nothing is translated at runtime.
+
+The only outgoing requests are to the pack address *you* typed in: downloading it when you press
+Install, and afterwards a small check of whether a newer one has been published, if the pack says
+where to look. Point the plugin at a local zip or a folder and it never touches the network at all.
 
 ## Commands
 
 | Command | Effect |
 |---|---|
 | `/gubal` | Open the settings window |
-| `/gubal on` / `off` | Master switch |
-| `/gubal reload` | Re-read the language pack without restarting the game |
-| `/gubal status` | Entries and NPC names indexed, source file, lines injected, distinct misses, translations refused because their macros would not evaluate, and which character the index was built for |
-| `/gubal dump` | Toggle miss logging to `misses.jsonl` |
-| `/gubal probe` | Log the event handler and resolved conversation per line |
-| `/gubal find <text>` | Listen to every addon and report which one carries that string |
-| `/gubal find` | With no text: stop listening and clear the stored needle |
-| `/gubal clearmisses` | Delete `misses.jsonl` and reset the dedup set |
+| `/gubal status` | The installed pack, its version, coverage, and how many reads have been answered this session |
+| `/gubal usepack` | Turn the pack on or off from the next start — a way back when the settings window is not reachable |
+| `/gubal probesqpack` | Diagnostic: log every Excel page the game reads, redirecting nothing |
 
-Every command answers in chat; `probe`, `find` and the load failures write to `/xllog`.
-
-`find` and `probe` are diagnostics. `find` registers on **every addon in the game**; leave it off
-unless you are chasing something. Note that its needle is persisted in the config, so a hunt left on
-is re-armed on the next start — `/gubal find` with no text is how you turn it off.
-
-The index is built per character on login and rebuilt when a different one logs in, which is why
-`status` names the character it was built for.
+`probesqpack` attaches when the plugin loads and only then, so it takes effect at the next client
+start. It exists to check that the plugin still attaches before the game's first read, which is the
+one property this whole approach depends on.
