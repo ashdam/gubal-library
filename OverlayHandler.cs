@@ -62,6 +62,23 @@ internal sealed unsafe class OverlayHandler : IDisposable
     {
         ["_BattleTalk"] = 6,
         ["_MiniTalk"] = 3,
+
+        // The dialogue choice list — "What will you ask?" over "How fares the realm?", "What of the
+        // primals?". Measured with /gubal find on Urianger at the Waking Sands, 8 August 2026:
+        //
+        //   [find] *** 'SelectString' NODE 2 (written direct, no value): What of the primals?
+        //   [find] *** 'SelectString' NODE 2 (written direct, no value): What will you ask?
+        //
+        // THE PROMPT AND EVERY OPTION SHARE NODE ID 2, which is the whole reason this entry is safe.
+        // Each row is a separate component instance of one layout, exactly as a speech balloon is, so
+        // the id identifies "a line of this list" rather than one particular line. Narrowing to it
+        // skips the window's chrome and keeps every row.
+        //
+        // It also means the id CANNOT tell the prompt from an option, and nothing here needs it to:
+        // both are text the player reads and both are in the corpus. What does matter is that the
+        // per-node bookkeeping is keyed by POINTER — see nodeInjected and attempted, which already are,
+        // and which is the only reason five rows sharing one id do not overwrite each other's state.
+        ["SelectString"] = 2,
     };
 
     /// <summary>
