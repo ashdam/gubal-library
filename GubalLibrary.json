@@ -7,5 +7,18 @@
   "Tags": [ "translation", "localization", "localisation", "dialogue", "community" ],
   "CategoryTags": [ "utility" ],
   "LoadPriority": 0,
+
+  "//LoadRequiredState": [
+    "2 means 'no requirement', which is the EARLIEST of Dalamud's three load stages, not the",
+    "latest — 0 is 'when drawing facilities are available' and is the default. Left at the default,",
+    "this plugin loaded in the last batch, five seconds after the game had already begun reading",
+    "its Excel sheets, so any page redirection it registered arrived too late to matter. Measured:",
+    "LoadPluginsSync(AnytimeSync) ended 15:05:56.407, 'Boot load started' 15:05:56.408, and this",
+    "plugin's first line 15:06:01.756.",
+    "Dalamud's 'Wait for plugins before game loads' setting only holds the boot for the Anytime",
+    "batch, which is why the setting alone did not fix it. Both are needed."
+  ],
+  "LoadRequiredState": 2,
+  "LoadSync": true,
   "AcceptsFeedback": false
 }
