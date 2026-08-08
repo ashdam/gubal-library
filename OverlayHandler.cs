@@ -24,9 +24,10 @@ namespace GubalLibrary;
 ///         reasoning the other away has cost a debugging round twice now.
 ///     </para>
 ///     <para>
-///         <c>JournalDetail</c>, the duty description panel behind the Duty Finder, is the one
-///         addon that takes the values route alone. That is a measured exception rather than a
-///         relaxation of the rule above — see <see cref="ValueOnly" />.
+///         <c>JournalDetail</c> — the journal's quest page, and the duty description behind the Duty
+///         Finder — is the one addon that takes the values route alone. That is a measured exception
+///         rather than a relaxation of the rule above; see <see cref="ValueOnly" />. It is also the
+///         one addon that is not a single line at all, which <see cref="BodyValues" /> covers.
 ///     </para>
 ///     <para>
 ///         Registered against several candidate names at once because Dalamud matches the game's own
@@ -81,18 +82,54 @@ internal sealed unsafe class OverlayHandler : IDisposable
         ["SelectString"] = 2,
     };
 
+    /// <summary>Where an addon with no entry in <see cref="BodyValues" /> keeps its text.</summary>
+    private static readonly int[] FirstValue = [0];
+
+    /// <summary>First value of <c>JournalDetail</c>'s objective array.</summary>
+    private const int FirstObjectiveValue = 188;
+
     /// <summary>
-    ///     Which value carries the text, for addons where it is not index 0.
+    ///     How many objective slots that array has.
     /// </summary>
     /// <remarks>
-    ///     Index 0 held for <c>Talk</c> and <c>TalkSubtitle</c>, which made it look like a convention.
-    ///     It is not: <c>_ScreenInfoFront</c>, the banner that narrates variant dungeons, puts its line
-    ///     at index 3 of ten. Found by <c>/gubal find</c> rather than by reading, because nothing in
-    ///     the struct definitions says so — the addon is not in FFXIVClientStructs at all.
+    ///     Read off the layout rather than chosen: a second array of the same length starts at value
+    ///     236, one entry per objective, which puts the end of the first at 235. Unused slots are
+    ///     <c>Null</c>-typed, never empty strings, so declaring the whole array translates exactly the
+    ///     objectives a quest actually has — see <see cref="TranslateValue" />, where a value holding
+    ///     no string is refused before anything is looked up.
     /// </remarks>
-    private static readonly Dictionary<string, int> BodyValue = new(StringComparer.Ordinal)
+    private const int ObjectiveValueCount = 236 - FirstObjectiveValue;
+
+    /// <summary>
+    ///     Which value<em>s</em> carry player-facing text, for addons where they are not just index 0.
+    /// </summary>
+    /// <remarks>
+    ///     <para>
+    ///         Index 0 held for <c>Talk</c> and <c>TalkSubtitle</c>, which made it look like a
+    ///         convention. It is not: <c>_ScreenInfoFront</c>, the banner that narrates variant
+    ///         dungeons, puts its line at index 3 of ten. Found by <c>/gubal find</c> rather than by
+    ///         reading, because nothing in the struct definitions says so — the addon is not in
+    ///         FFXIVClientStructs at all.
+    ///     </para>
+    ///     <para>
+    ///         <b>A set per addon rather than one index, because a panel is not an overlay.</b> An
+    ///         overlay draws one line; <c>JournalDetail</c> draws a quest's title, its description and
+    ///         its current objective at once, from three separate values. Declaring only the
+    ///         description translated the description and left the other two in English — with nothing
+    ///         in <c>misses.jsonl</c> to say so, because a value this map does not name is never looked
+    ///         up at all.
+    ///     </para>
+    ///     <para>
+    ///         Named indices, not "translate every string value" as <see cref="ListValues" /> does.
+    ///         <c>JournalDetail</c> carries 330 values, and among them are the instance names this
+    ///         project pins to English — see <see cref="ValueOnly" />, where translating them through
+    ///         the node sweep is recorded as a defect. A list's options are all of one kind and a
+    ///         panel's values are not.
+    ///     </para>
+    /// </remarks>
+    private static readonly Dictionary<string, int[]> BodyValues = new(StringComparer.Ordinal)
     {
-        ["_ScreenInfoFront"] = 3,
+        ["_ScreenInfoFront"] = [3],
 
         // The duty description in the Duty Finder. Found with /gubal find on a guildhest: selecting
         // one logs the same line arriving at 'ContentsFinder' value 1475 of 1830, at 'JournalDetail'
@@ -101,7 +138,30 @@ internal sealed unsafe class OverlayHandler : IDisposable
         //
         // JournalDetail, not ContentsFinder: the finder carries the string but draws it nowhere, and
         // its .uld agrees — its largest text node is 414x21, a single line.
-        ["JournalDetail"] = 12,
+        //
+        // The same panel is the quest page of the journal, and there value 12 is only the middle of
+        // three things the player reads. Measured from two /gubal probe dumps of the panel, 8 August
+        // 2026 — "Forging Northwards" with one objective and "The Price of Principles" with five:
+        //
+        //   [2]   Lv. 50                                    the level chip
+        //   [5]   The Price of Principles                   THE TITLE
+        //   [12]  Ever since your famous victory over…      the description
+        //   [13]  Minfilia                                  the quest giver's name
+        //   [136] Completion Bonus                          a UI label
+        //   [187] UInt 5                                    how many objectives follow
+        //   [188] Speak with Y'shtola.                      THE OBJECTIVES, one per value
+        //   …
+        //   [192] Speak with Urianger.
+        //   [263] Map  [264] Abandon  [265] Retry           the buttons
+        //
+        // Only the three the corpus is written for. Everything else on that list is either the game's
+        // own chrome, which this project pins to English, or an NPC name, which is TranslateNpcNames'
+        // decision and not this map's — and declaring one would put every quest giver in the miss log.
+        //
+        // The array is declared whole rather than trimmed to value 187's count. The count corroborates
+        // the layout (it read 1 for the one-objective quest and 5 for the five-objective one) but
+        // nothing has to trust it: an unused slot is Null-typed and refused before it is looked up.
+        ["JournalDetail"] = [5, 12, .. Enumerable.Range(FirstObjectiveValue, ObjectiveValueCount)],
     };
 
     /// <summary>
@@ -128,6 +188,11 @@ internal sealed unsafe class OverlayHandler : IDisposable
     ///         recorded our own Spanish coming back through node 8 as a missing translation, and put
     ///         the instance names from node 38 — Flicking Sticks and Taking Names, Solemn Trinity —
     ///         through the corpus, which is exactly the text this project pins to English.
+    ///     </para>
+    ///     <para>
+    ///         Skipping the sweep costs this panel nothing, and that is worth stating rather than
+    ///         assuming: the title and the objectives are drawn from values too, so the whole page is
+    ///         reachable through the one route. See <see cref="BodyValues" /> for which values.
     ///     </para>
     /// </remarks>
     private static readonly HashSet<string> ValueOnly = new(StringComparer.Ordinal)
@@ -353,7 +418,7 @@ internal sealed unsafe class OverlayHandler : IDisposable
         var scope = EventContext.ActiveScope(this.clientState.TerritoryType, this.log);
 
         // A list carries every option in one array and no index map can name them; everything else
-        // carries exactly one line, at a known index. See ListValues.
+        // carries its text at known indices. See ListValues.
         if (ListValues.Contains(name))
         {
             for (var i = 0; i < count; i++)
@@ -364,10 +429,15 @@ internal sealed unsafe class OverlayHandler : IDisposable
             return;
         }
 
-        var index = BodyValue.GetValueOrDefault(name, 0);
-        if (index < count)
+        foreach (var index in BodyValues.GetValueOrDefault(name, FirstValue))
         {
-            this.TranslateValue(values, index, name, scope);
+            // Per index, not once for the array: the value count varies with what the addon is
+            // showing, so a panel drawing fewer values than usual must still translate the ones it
+            // does draw rather than skipping the lot.
+            if (index < count)
+            {
+                this.TranslateValue(values, index, name, scope);
+            }
         }
     }
 

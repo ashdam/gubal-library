@@ -98,15 +98,20 @@ Testing build. The in-game text Gubal Library localizes today:
 | Speech balloons above NPCs | `_MiniTalk` | supported — the balloon resizes to the translation |
 | Combat callouts | `_BattleTalk` | supported — the node grows to fit the line count |
 | On-screen banners | `_ScreenInfoFront` | registered, reports itself in the log when it fires, not characterised |
-| Duty descriptions in the Duty Finder | `JournalDetail` | supported — the description only |
+| The journal's quest page, and duty descriptions in the Duty Finder | `JournalDetail` | supported — title, description and objectives |
 | Dialogue choice lists | `SelectString` | not handled |
 
 This localizes what characters say, not what the client labels: menus, item names, tooltips and job
 UI are untouched.
 
-The duty description is the one entry above that is not dialogue. It covers the description text
-alone: the instance name stays in English on purpose, so that it still matches the queue list and
-everything written about the duty elsewhere, and the objectives are not shown in that window at all.
+`JournalDetail` is the one entry above that is not dialogue, and it is one panel doing two jobs. On
+the journal's quest page it translates the three things the player reads — the quest title, the
+description and each line of the current objective. Behind the Duty Finder it translates the duty
+description alone: the instance name stays in English on purpose, so that it still matches the queue
+list and everything written about the duty elsewhere.
+
+The quest title is translated in that window only. The same title also appears in the quest list, on
+the map marker and in the accepted-quest banner, which are separate addons and are not handled.
 
 **Formatting survives injection.** Italics, colour and gender conditionals reach the screen, because
 the injected value is written as SeString bytes rather than flattened to a string — see
