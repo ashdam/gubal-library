@@ -87,6 +87,7 @@ public sealed class Plugin : IDalamudPlugin
             this.fileDialogs,
             this.PageSnapshot,
             this.installer,
+            this.OnPackInstalled,
             pluginInterface.Manifest.AssemblyVersion.ToString());
 
         this.windows.AddWindow(this.configWindow);
@@ -207,6 +208,33 @@ public sealed class Plugin : IDalamudPlugin
         return this.redirector is { } r
             ? new PageStatus(true, r.PageCount, r.ServedCount, null, r.Manifest, this.update)
             : new PageStatus(false, 0, 0, this.redirectorError, null, this.update);
+    }
+
+    /// <summary>
+    ///     Called when a pack has just been installed, which invalidates what was known about updates.
+    /// </summary>
+    /// <remarks>
+    ///     <para>
+    ///         The update check runs once, at load, against the pack that was being served. Once a
+    ///         different pack is on disk that answer describes something that is on its way out —
+    ///         including, in the case that prompted this, a red "no connection" complaint about the
+    ///         previous pack's update address, still on screen after a successful install from a
+    ///         perfectly good one.
+    ///     </para>
+    ///     <para>
+    ///         Cleared rather than recomputed. The newly installed pack is not being served yet and
+    ///         will not be until the client restarts, so the honest thing to report about it is
+    ///         nothing at all; the check runs again on the next load, against what is actually live.
+    ///     </para>
+    /// </remarks>
+    private void OnPackInstalled()
+    {
+        this.update = default;
+
+        // In chat as well as in the window, because the window is where the person just was and chat
+        // is where they will be. The instruction is worthless if it is only visible in the place they
+        // are about to close.
+        this.chat.Print("[Gubal]Language pack installed. RESTART THE CLIENT — the game reads its text once at startup.");
     }
 
     /// <summary>

@@ -79,7 +79,7 @@ internal sealed class PackInstaller
     ///     leave behind — a pack that is half of one generation and half of another — are precisely
     ///     the ones nothing downstream can detect.
     /// </remarks>
-    public async Task<InstallResult> InstallAsync(string source)
+    public async Task<InstallResult> InstallAsync(string source, IProgress<InstallProgress>? progress = null)
     {
         source = source.Trim();
 
@@ -102,10 +102,10 @@ internal sealed class PackInstaller
 
             if (IsRemote(source))
             {
-                var downloaded = await this.DownloadAsync(source).ConfigureAwait(false);
+                var downloaded = await this.DownloadAsync(source, progress).ConfigureAwait(false);
                 try
                 {
-                    ZipFile.ExtractToDirectory(downloaded, staging);
+                    Extract(downloaded, staging, progress);
                 }
                 finally
                 {
@@ -116,19 +116,75 @@ internal sealed class PackInstaller
             }
             else if (File.Exists(source))
             {
-                ZipFile.ExtractToDirectory(source, staging);
+                Extract(source, staging, progress);
             }
             else
             {
                 return InstallResult.Failed($"No archive at '{source}'.");
             }
 
+            progress?.Report(InstallProgress.Working("Checking the pack"));
             return this.Commit(staging, source);
         }
         catch (Exception e)
         {
             this.log.Error(e, "Installing the language pack from '{Source}' failed.", source);
             return InstallResult.Failed(e.Message);
+        }
+    }
+
+    /// <summary>
+    ///     Unpacks an archive entry by entry so the caller can say how far along it is.
+    /// </summary>
+    /// <remarks>
+    ///     <para>
+    ///         <c>ZipFile.ExtractToDirectory</c> would be one line, and was, but it is opaque: a pack
+    ///         is thousands of files and on a slow disk the wait is long enough that silence reads as
+    ///         a hang.
+    ///     </para>
+    ///     <para>
+    ///         Doing it by hand means doing the safety check by hand too. An archive can name an entry
+    ///         like <c>..\..\something.dll</c>, and an extractor that simply joins paths will happily
+    ///         write outside the directory it was given. Every destination is resolved and required to
+    ///         sit under the target root before anything is written.
+    ///     </para>
+    /// </remarks>
+    private static void Extract(string archivePath, string destination, IProgress<InstallProgress>? progress)
+    {
+        using var archive = ZipFile.OpenRead(archivePath);
+
+        var root = Path.GetFullPath(destination) + Path.DirectorySeparatorChar;
+        Directory.CreateDirectory(destination);
+
+        var total = archive.Entries.Count;
+        var done = 0;
+
+        foreach (var entry in archive.Entries)
+        {
+            done++;
+
+            // A directory entry, which has no content and only needs to exist.
+            if (entry.Name.Length == 0)
+            {
+                continue;
+            }
+
+            var target = Path.GetFullPath(Path.Combine(destination, entry.FullName));
+            if (!target.StartsWith(root, StringComparison.OrdinalIgnoreCase))
+            {
+                throw new InvalidDataException(
+                    $"The archive tries to write outside the install folder ('{entry.FullName}'). Refusing it.");
+            }
+
+            Directory.CreateDirectory(Path.GetDirectoryName(target)!);
+            entry.ExtractToFile(target, overwrite: true);
+
+            // Every few hundred files: often enough to move, rarely enough not to spend the install
+            // marshalling progress reports.
+            if (done % 200 == 0 || done == total)
+            {
+                progress?.Report(InstallProgress.Working("Unpacking", done, total));
+            }
         }
     }
 
@@ -206,7 +262,7 @@ internal sealed class PackInstaller
         return InstallResult.Succeeded(installed, manifest, unpacked: true);
     }
 
-    private async Task<string> DownloadAsync(string url)
+    private async Task<string> DownloadAsync(string url, IProgress<InstallProgress>? progress)
     {
         using var client = new HttpClient { Timeout = DownloadTimeout };
 
@@ -214,18 +270,71 @@ internal sealed class PackInstaller
         DeleteFileIfPresent(target);
 
         this.log.Information("Downloading a language pack from {Url}.", url);
+        progress?.Report(InstallProgress.Working("Connecting"));
 
         using var response = await client.GetAsync(url, HttpCompletionOption.ResponseHeadersRead)
             .ConfigureAwait(false);
         response.EnsureSuccessStatusCode();
 
+        // Null when the server does not say, which is legal and happens with chunked responses. The
+        // bar then has no fraction to show and the byte count carries the reassurance on its own.
+        var total = response.Content.Headers.ContentLength;
+
         await using (var http = await response.Content.ReadAsStreamAsync().ConfigureAwait(false))
         await using (var file = File.Create(target))
         {
-            await http.CopyToAsync(file).ConfigureAwait(false);
+            // Copied by hand rather than with CopyToAsync, only so that the bytes can be counted.
+            var buffer = new byte[81920];
+            long received = 0;
+            int read;
+
+            while ((read = await http.ReadAsync(buffer).ConfigureAwait(false)) > 0)
+            {
+                await file.WriteAsync(buffer.AsMemory(0, read)).ConfigureAwait(false);
+                received += read;
+                progress?.Report(InstallProgress.Downloading(received, total));
+            }
         }
 
+        RequireArchive(target, url);
         return target;
+    }
+
+    /// <summary>
+    ///     Refuses anything that is not a zip, before the unpacker gets to describe it in its own words.
+    /// </summary>
+    /// <remarks>
+    ///     <para>
+    ///         This is the likeliest mistake anybody makes with this feature, by a wide margin: a
+    ///         file-sharing link is a <em>page</em>, not a file. WeTransfer, Google Drive and Dropbox
+    ///         share URLs all answer with HTML — sometimes a consent screen, sometimes a login, often
+    ///         a 404 to anything without a browser session — and none of them hand over the archive.
+    ///     </para>
+    ///     <para>
+    ///         Left to itself the unpacker says "End of Central Directory record could not be found",
+    ///         which is precisely true and tells the reader nothing they can act on. Two bytes of
+    ///         checking buys a sentence that names the actual problem.
+    ///     </para>
+    /// </remarks>
+    private static void RequireArchive(string file, string url)
+    {
+        Span<byte> magic = stackalloc byte[2];
+
+        using (var stream = File.OpenRead(file))
+        {
+            if (stream.Read(magic) == magic.Length && magic[0] == (byte)'P' && magic[1] == (byte)'K')
+            {
+                return;
+            }
+        }
+
+        var size = new FileInfo(file).Length;
+        DeleteFileIfPresent(file);
+
+        throw new InvalidDataException(
+            $"{url} did not return a zip file ({size:N0} bytes of something else — most likely a web "
+            + "page). Share links from WeTransfer, Google Drive and Dropbox give you a page rather "
+            + "than the file; you need an address that downloads the archive directly.");
     }
 
     /// <summary>
@@ -300,6 +409,30 @@ internal sealed class PackInstaller
         {
             File.Delete(file);
         }
+    }
+}
+
+/// <summary>How far along an install is, for the window to draw.</summary>
+/// <param name="Label">What is happening, in the user's terms.</param>
+/// <param name="Fraction">0 to 1, or null when the total is not known and no bar can be honest.</param>
+/// <param name="Detail">The numbers behind the bar, or empty.</param>
+internal readonly record struct InstallProgress(string Label, float? Fraction, string Detail)
+{
+    public static InstallProgress Working(string label) => new(label, null, string.Empty);
+
+    public static InstallProgress Working(string label, int done, int total) =>
+        new(label, total > 0 ? (float)done / total : null, $"{done:N0} / {total:N0} files");
+
+    /// <remarks>
+    ///     Reported in megabytes rather than bytes because the number is for a person, and a
+    ///     nine-digit byte count moving too fast to read reassures nobody.
+    /// </remarks>
+    public static InstallProgress Downloading(long received, long? total)
+    {
+        var got = received / 1024d / 1024d;
+        return total is > 0
+            ? new("Downloading", (float)((double)received / total.Value), $"{got:N1} / {total.Value / 1024d / 1024d:N1} MB")
+            : new("Downloading", null, $"{got:N1} MB");
     }
 }
 
