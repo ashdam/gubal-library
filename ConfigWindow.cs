@@ -14,24 +14,21 @@ internal sealed class ConfigWindow : Window
     private readonly FileDialogManager fileDialogs;
     private readonly Action<Configuration> save;
     private readonly Func<StatusSnapshot> status;
-    private readonly PenumbraBridge penumbra;
-
-    private string? pageMessage;
-    private bool pageMessageIsError;
+    private readonly Func<PageStatus> pageStatus;
 
     public ConfigWindow(
         Configuration config,
         Action<Configuration> save,
         Func<StatusSnapshot> status,
         FileDialogManager fileDialogs,
-        PenumbraBridge penumbra)
+        Func<PageStatus> pageStatus)
         : base("Gubal Library###GubalLibraryConfig")
     {
         this.config = config;
         this.save = save;
         this.status = status;
         this.fileDialogs = fileDialogs;
-        this.penumbra = penumbra;
+        this.pageStatus = pageStatus;
 
         this.SizeConstraints = new WindowSizeConstraints
         {
@@ -43,34 +40,48 @@ internal sealed class ConfigWindow : Window
     public Action? OnReloadRequested { get; set; }
 
     /// <summary>
-    ///     The first thing in the window: whether the dependency this route needs is actually there.
+    ///     The first thing in the window: whether translated pages are actually reaching the game.
     /// </summary>
     /// <remarks>
-    ///     Penumbra is what performs the redirection; this plugin only asks it to. Without it the
-    ///     pages are inert, and every symptom of that looks exactly like an untranslated game. So the
-    ///     answer goes at the top and is recomputed every frame — the user can install or disable
-    ///     Penumbra without touching this plugin, and a status line that lies is worse than none.
+    ///     <para>
+    ///         Recomputed every frame rather than cached, because the interesting part of it changes
+    ///         while the window is open. It reports two different things on purpose: how many pages
+    ///         are registered, and how many reads have been <em>answered</em> from them. Those are not
+    ///         the same number and confusing them cost a whole session — a route that is installed but
+    ///         has served nothing looks, from every other indicator, exactly like one that is working.
+    ///     </para>
+    ///     <para>
+    ///         What used to be here was a Penumbra status line. It went with the dependency: the
+    ///         redirection now happens inside this plugin, so there is nothing left to check for.
+    ///     </para>
     /// </remarks>
-    private void DrawPenumbraStatus()
+    private void DrawPageStatus()
     {
-        var penumbraStatus = this.penumbra.Detect();
+        var pages = this.pageStatus();
 
-        var (colour, icon, text) = penumbraStatus switch
+        var (colour, icon, text) = pages switch
         {
-            { Installed: false } => (
-                new Vector4(1f, 0.35f, 0.35f, 1f),
-                FontAwesomeIcon.ExclamationTriangle,
-                "Penumbra is not installed. Translated pages cannot be served without it."),
-
-            { Loaded: false } => (
-                new Vector4(1f, 0.75f, 0.2f, 1f),
-                FontAwesomeIcon.ExclamationTriangle,
-                $"Penumbra {penumbraStatus.Version} is installed but not loaded."),
-
-            _ => (
+            { Active: true, ServedCount: > 0 } => (
                 new Vector4(0.4f, 0.9f, 0.4f, 1f),
                 FontAwesomeIcon.Check,
-                $"Penumbra ({penumbraStatus.Version})"),
+                $"Serving {pages.PageCount:N0} translated page(s) — {pages.ServedCount:N0} read(s) answered."),
+
+            // Registered and never hit. Amber rather than green: at the title screen it is simply too
+            // early, but a few minutes into a session it means the redirection is not being reached.
+            { Active: true } => (
+                new Vector4(1f, 0.75f, 0.2f, 1f),
+                FontAwesomeIcon.Check,
+                $"{pages.PageCount:N0} translated page(s) registered, none read yet."),
+
+            { Error: { Length: > 0 } error } => (
+                new Vector4(1f, 0.35f, 0.35f, 1f),
+                FontAwesomeIcon.ExclamationTriangle,
+                error),
+
+            _ => (
+                new Vector4(1f, 0.75f, 0.2f, 1f),
+                FontAwesomeIcon.ExclamationTriangle,
+                "Translated pages are off. Point at a page folder below and restart the client."),
         };
 
         ImGui.PushStyleColor(ImGuiCol.Text, colour);
@@ -82,20 +93,13 @@ internal sealed class ConfigWindow : Window
         ImGui.SameLine();
         ImGui.TextWrapped(text);
         ImGui.PopStyleColor();
-
-        if (penumbraStatus.Installed && penumbraStatus.Loaded)
-        {
-            ImGui.TextUnformatted(penumbraStatus.Registered
-                ? "Pages: served through Penumbra."
-                : "Pages: not registered.");
-        }
     }
 
     public override void Draw()
     {
         var snapshot = this.status();
 
-        this.DrawPenumbraStatus();
+        this.DrawPageStatus();
         ImGui.Separator();
 
         ImGui.TextUnformatted($"Entries loaded: {snapshot.EntryCount}");
@@ -139,8 +143,8 @@ internal sealed class ConfigWindow : Window
         var changed = false;
 
         // "Inject text", not "Enabled". It only ever governed injection, but when that was the only
-        // route the distinction did not exist; now that pages can be served through Penumbra as well,
-        // a box labelled Enabled that leaves half the plugin running is a trap.
+        // route the distinction did not exist; now that pages are served as files as well, a box
+        // labelled Enabled that leaves half the plugin running is a trap.
         var enabled = this.config.Enabled;
         if (ImGui.Checkbox("Inject text into the UI", ref enabled))
         {
@@ -261,14 +265,21 @@ internal sealed class ConfigWindow : Window
     ///     appearing to do anything would be worse.
     /// </remarks>
     /// <summary>
-    ///     The folder of rebuilt <c>.exd</c> pages, and the button that hands them to Penumbra.
+    ///     The folder of rebuilt <c>.exd</c> pages, and the switch that serves it.
     /// </summary>
     /// <remarks>
-    ///     A folder rather than a file, and not bundled, for the same reasons as the language pack:
-    ///     thousands of files, tens of megabytes, regenerated on the game's cadence rather than the
-    ///     code's. Registration is explicit rather than automatic on browse, because it is the point
-    ///     at which the manifest is checked against the running game and the user needs to see that
-    ///     answer rather than have it happen silently.
+    ///     <para>
+    ///         A folder rather than a file, and not bundled, for the same reasons as the language
+    ///         pack: thousands of files, tens of megabytes, regenerated on the game's cadence rather
+    ///         than the code's.
+    ///     </para>
+    ///     <para>
+    ///         A checkbox rather than a Serve button, and it says so, because there is nothing this
+    ///         can do now. The game reads its sheets once, seconds into startup, and caches them for
+    ///         the session; the redirection has to be in place before that or it may as well not
+    ///         exist. So this decides what happens at the <em>next</em> start, and a button labelled
+    ///         Serve that changed nothing visible was read — correctly — as a broken button.
+    ///     </para>
     /// </remarks>
     private void DrawPagesRow(ref bool changed)
     {
@@ -278,7 +289,7 @@ internal sealed class ConfigWindow : Window
         ImGui.TextDisabled("Page folder ");
         ImGui.SameLine();
 
-        ImGui.SetNextItemWidth(-140f * ImGuiHelpers.GlobalScale);
+        ImGui.SetNextItemWidth(-80f * ImGuiHelpers.GlobalScale);
         if (ImGui.InputText("##pagesPath", ref pagesPath, 1024))
         {
             this.config.PagesPath = pagesPath;
@@ -294,47 +305,19 @@ internal sealed class ConfigWindow : Window
             this.BrowseForPages();
         }
 
-        ImGui.SameLine();
-
-        var status = this.penumbra.Detect();
-        if (status.Registered)
+        var serve = this.config.ServePages;
+        using (ImRaii.Disabled(this.config.PagesPath.Length == 0))
         {
-            if (ImGui.Button("Unserve"))
+            if (ImGui.Checkbox("Serve translated pages from the next start", ref serve))
             {
-                this.penumbra.Unregister();
-                this.config.ServePages = false;
-                this.pageMessage = "Pages handed back to the game.";
-                this.pageMessageIsError = false;
+                this.config.ServePages = serve;
                 changed = true;
             }
         }
-        else
-        {
-            using (ImRaii.Disabled(!status.Installed || !status.Loaded))
-            {
-                if (ImGui.Button("Serve"))
-                {
-                    var result = this.penumbra.Register(this.config.PagesPath);
-                    this.pageMessageIsError = !result.Success;
-                    this.pageMessage = result.Success
-                        ? $"Serving {result.PageCount:N0} page(s) built for game {result.GameVersion}. "
-                          + "Restart the client to see them: sheets are cached at startup."
-                        : result.Error;
 
-                    this.config.ServePages = result.Success;
-                    changed = true;
-                }
-            }
-        }
-
-        if (this.pageMessage is { Length: > 0 } message)
-        {
-            ImGui.PushStyleColor(
-                ImGuiCol.Text,
-                this.pageMessageIsError ? new Vector4(1f, 0.35f, 0.35f, 1f) : new Vector4(0.4f, 0.9f, 0.4f, 1f));
-            ImGui.TextWrapped(message);
-            ImGui.PopStyleColor();
-        }
+        SetTooltip("Hands the game the rebuilt pages instead of the ones in its archives.\n"
+                   + "Takes effect when the client next starts: sheets are read once at startup\n"
+                   + "and kept for the session, so this cannot be switched on mid-game.");
     }
 
     private void BrowseForPages()
@@ -414,3 +397,9 @@ internal readonly record struct StatusSnapshot(
     string MissLogPath,
     string ConfigDirectory,
     bool UsingSampleCorpus);
+
+/// <param name="Active">The redirection is installed and holding pages.</param>
+/// <param name="PageCount">How many pages it would answer for.</param>
+/// <param name="ServedCount">How many reads it has actually answered — the number that proves it.</param>
+/// <param name="Error">Why it is not installed, when it is not. Null when it is, or when nobody asked.</param>
+internal readonly record struct PageStatus(bool Active, int PageCount, int ServedCount, string? Error);
