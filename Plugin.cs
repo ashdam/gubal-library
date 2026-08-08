@@ -200,7 +200,12 @@ public sealed class Plugin : IDalamudPlugin
         }
 
         this.configWindow = new ConfigWindow(
-            this.config, this.SaveConfig, this.Snapshot, this.fileDialogs, this.PageSnapshot)
+            this.config,
+            this.SaveConfig,
+            this.Snapshot,
+            this.fileDialogs,
+            this.PageSnapshot,
+            pluginInterface.Manifest.AssemblyVersion.ToString())
         {
             OnReloadRequested = this.ReloadTranslations,
         };
@@ -541,8 +546,8 @@ public sealed class Plugin : IDalamudPlugin
     private PageStatus PageSnapshot()
     {
         return this.redirector is { } r
-            ? new PageStatus(true, r.PageCount, r.ServedCount, null)
-            : new PageStatus(false, 0, 0, this.redirectorError);
+            ? new PageStatus(true, r.PageCount, r.ServedCount, null, r.Manifest)
+            : new PageStatus(false, 0, 0, this.redirectorError, null);
     }
 
     private StatusSnapshot Snapshot()

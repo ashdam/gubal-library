@@ -1,5 +1,4 @@
 using System.Text;
-using System.Text.Json;
 using Dalamud.Hooking;
 using Dalamud.Plugin.Services;
 using FFXIVClientStructs.FFXIV.Client.System.File;
@@ -96,10 +95,12 @@ internal sealed unsafe class ExdRedirector : IDisposable
     private int served;
     private int reported;
 
-    private ExdRedirector(IGameInteropProvider interop, IPluginLog log, Dictionary<string, string> pages)
+    private ExdRedirector(
+        IGameInteropProvider interop, IPluginLog log, Dictionary<string, string> pages, PackManifest manifest)
     {
         this.log = log;
         this.pages = pages;
+        this.Manifest = manifest;
 
         this.hook = interop.HookFromAddress<FileThread.Delegates.DoFileJob>(
             FileThread.Addresses.DoFileJob.Value,
@@ -108,10 +109,15 @@ internal sealed unsafe class ExdRedirector : IDisposable
         this.hook.Enable();
 
         log.Information(
-            "Serving {Count} rebuilt page(s) from disk; hook at 0x{Address:X}.",
+            "Serving {Count} rebuilt page(s) of '{Pack}' ({Version}) from disk; hook at 0x{Address:X}.",
             pages.Count,
+            manifest.DisplayName,
+            manifest.TranslationVersion ?? "no translationVersion — pack predates the stamp",
             FileThread.Addresses.DoFileJob.Value);
     }
+
+    /// <summary>What the loaded pack says about itself.</summary>
+    public PackManifest Manifest { get; }
 
     /// <summary>How many redirections are in place.</summary>
     public int PageCount => this.pages.Count;
@@ -150,24 +156,13 @@ internal sealed unsafe class ExdRedirector : IDisposable
             return (null, $"No page directory at '{directory}'.");
         }
 
-        var manifestPath = Path.Combine(directory, "gubal-manifest.json");
-        if (!File.Exists(manifestPath))
+        var (manifest, manifestError) = PackManifest.Read(directory);
+        if (manifest is null)
         {
-            return (null, "No gubal-manifest.json in the page directory. Point this at the folder ExdRedirect wrote.");
+            return (null, manifestError);
         }
 
-        string? builtFor;
-        try
-        {
-            using var stream = File.OpenRead(manifestPath);
-            builtFor = JsonDocument.Parse(stream).RootElement
-                .TryGetProperty("gameVersion", out var v) ? v.GetString() : null;
-        }
-        catch (Exception e)
-        {
-            return (null, $"gubal-manifest.json could not be read: {e.Message}");
-        }
-
+        var builtFor = manifest.GameVersion;
         var running = RunningGameVersion();
         if (builtFor is null || running is null)
         {
@@ -212,7 +207,7 @@ internal sealed unsafe class ExdRedirector : IDisposable
 
         try
         {
-            return (new ExdRedirector(interop, log, pages), null);
+            return (new ExdRedirector(interop, log, pages, manifest), null);
         }
         catch (Exception e)
         {

@@ -10,19 +10,31 @@ namespace GubalLibrary;
 
 internal sealed class ConfigWindow : Window
 {
+    private static readonly Vector4 Green = new(0.4f, 0.9f, 0.4f, 1f);
+    private static readonly Vector4 Amber = new(1f, 0.75f, 0.2f, 1f);
+    private static readonly Vector4 Red = new(1f, 0.35f, 0.35f, 1f);
+
     private readonly Configuration config;
     private readonly FileDialogManager fileDialogs;
     private readonly Action<Configuration> save;
     private readonly Func<StatusSnapshot> status;
     private readonly Func<PageStatus> pageStatus;
 
+    /// <param name="version">
+    ///     The plugin's own version, shown in the title bar.
+    /// </param>
+    /// <remarks>
+    ///     The window id is pinned with <c>###</c> so the title can carry the version without ImGui
+    ///     treating each build as a different window and forgetting its size and position.
+    /// </remarks>
     public ConfigWindow(
         Configuration config,
         Action<Configuration> save,
         Func<StatusSnapshot> status,
         FileDialogManager fileDialogs,
-        Func<PageStatus> pageStatus)
-        : base("Gubal Library###GubalLibraryConfig")
+        Func<PageStatus> pageStatus,
+        string version)
+        : base($"Gubal Library ({version})###GubalLibraryConfig")
     {
         this.config = config;
         this.save = save;
@@ -58,30 +70,31 @@ internal sealed class ConfigWindow : Window
     private void DrawPageStatus()
     {
         var pages = this.pageStatus();
+        var pack = pages.Manifest;
 
         var (colour, icon, text) = pages switch
         {
             { Active: true, ServedCount: > 0 } => (
-                new Vector4(0.4f, 0.9f, 0.4f, 1f),
+                Green,
                 FontAwesomeIcon.Check,
-                $"Serving {pages.PageCount:N0} translated page(s) — {pages.ServedCount:N0} read(s) answered."),
+                $"{pack!.DisplayName} ({pack.TranslationVersion ?? "unversioned"})"),
 
-            // Registered and never hit. Amber rather than green: at the title screen it is simply too
+            // Loaded and never hit. Amber rather than green: at the title screen it is simply too
             // early, but a few minutes into a session it means the redirection is not being reached.
             { Active: true } => (
-                new Vector4(1f, 0.75f, 0.2f, 1f),
+                Amber,
                 FontAwesomeIcon.Check,
-                $"{pages.PageCount:N0} translated page(s) registered, none read yet."),
+                $"{pack!.DisplayName} ({pack.TranslationVersion ?? "unversioned"}) — loaded, nothing read yet."),
 
             { Error: { Length: > 0 } error } => (
-                new Vector4(1f, 0.35f, 0.35f, 1f),
+                Red,
                 FontAwesomeIcon.ExclamationTriangle,
                 error),
 
             _ => (
-                new Vector4(1f, 0.75f, 0.2f, 1f),
+                Amber,
                 FontAwesomeIcon.ExclamationTriangle,
-                "Translated pages are off. Point at a page folder below and restart the client."),
+                "NO LANGUAGE PACK LOADED. Point at a page folder below and restart the client."),
         };
 
         ImGui.PushStyleColor(ImGuiCol.Text, colour);
@@ -93,6 +106,53 @@ internal sealed class ConfigWindow : Window
         ImGui.SameLine();
         ImGui.TextWrapped(text);
         ImGui.PopStyleColor();
+
+        if (pack is null)
+        {
+            return;
+        }
+
+        var by = pack.Author is { Length: > 0 } author ? $" by {author}" : string.Empty;
+        ImGui.TextDisabled($"{pack.LanguageName ?? pack.Language ?? "unknown language"}{by}");
+
+        // Reported as a fraction with its denominator named, not as a bare percentage. The
+        // denominator counts only sheets the corpus has opened at all, so a sheet nobody has started
+        // on is missing from both sides and the ratio flatters the pack — "of the game" would be a
+        // materially different and much smaller number.
+        if (pack.Rows > 0)
+        {
+            ImGui.TextDisabled(
+                $"{pack.Lines:N0} of {pack.Rows:N0} lines translated ({pack.TranslatedFraction:P1}) "
+                + $"across {pack.Pages:N0} page(s), in the sheets the corpus covers");
+        }
+
+        ImGui.TextDisabled(
+            $"Built for game {pack.GameVersion ?? "unknown"}"
+            + (pack.CorpusCommit is { Length: > 0 } commit ? $", corpus {commit}" : string.Empty));
+
+        if (pages.Active)
+        {
+            ImGui.TextDisabled($"{pages.ServedCount:N0} read(s) answered from disk this session");
+        }
+
+        // Not the version check — that one refuses outright and never gets this far. This is the
+        // quieter drift: pages that rebuild cleanly against today's patch, carrying translations
+        // delivered against an older one, which may describe text the game has since changed. No
+        // version comparison can see it, because both halves are individually consistent.
+        if (pack.OlderCorpusVersions is { Count: > 0 } older)
+        {
+            ImGui.PushStyleColor(ImGuiCol.Text, Amber);
+            using (ImRaii.PushFont(UiBuilder.IconFont, true))
+            {
+                ImGui.TextUnformatted(FontAwesomeIcon.ExclamationTriangle.ToIconString());
+            }
+
+            ImGui.SameLine();
+            ImGui.TextWrapped(
+                $"Some translations were delivered against {string.Join(", ", older)} rather than "
+                + $"{pack.GameVersion}. They may describe text the game has changed since.");
+            ImGui.PopStyleColor();
+        }
     }
 
     public override void Draw()
@@ -130,7 +190,7 @@ internal sealed class ConfigWindow : Window
         if (snapshot.UsingSampleCorpus)
         {
             ImGui.Spacing();
-            ImGui.PushStyleColor(ImGuiCol.Text, new Vector4(1f, 0.35f, 0.35f, 1f));
+            ImGui.PushStyleColor(ImGuiCol.Text, Red);
             ImGui.TextWrapped(
                 "NO LANGUAGE PACK LOADED — running on the built-in self-test, which covers two lines from "
                 + "Ahldskyf in Limsa Lominsa Lower Decks and nothing else. The rest of the game is "
@@ -402,4 +462,7 @@ internal readonly record struct StatusSnapshot(
 /// <param name="PageCount">How many pages it would answer for.</param>
 /// <param name="ServedCount">How many reads it has actually answered — the number that proves it.</param>
 /// <param name="Error">Why it is not installed, when it is not. Null when it is, or when nobody asked.</param>
-internal readonly record struct PageStatus(bool Active, int PageCount, int ServedCount, string? Error);
+/// <param name="Manifest">What the loaded pack says about itself. Null when none loaded.</param>
+internal readonly record struct PageStatus(
+    bool Active, int PageCount, int ServedCount, string? Error, PackManifest? Manifest);
+
