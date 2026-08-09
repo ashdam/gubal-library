@@ -1,4 +1,6 @@
 using Dalamud.Game.Command;
+using Dalamud.Game.Text.SeStringHandling;
+using Dalamud.Game.Text.SeStringHandling.Payloads;
 using Dalamud.Interface.ImGuiFileDialog;
 using Dalamud.Interface.Windowing;
 using Dalamud.Plugin;
@@ -28,7 +30,12 @@ public sealed class Plugin : IDalamudPlugin
 {
     private const string CommandName = "/gubal";
 
+    /// <summary>Identifies this plugin's one chat link. Scoped to the plugin, so any value will do.</summary>
+    private const uint OpenConfigLinkId = 1;
+
     private readonly IChatGui chat;
+    private readonly IClientState clientState;
+    private readonly IFramework framework;
     private readonly ICommandManager commands;
     private readonly FileDialogManager fileDialogs = new();
     private readonly Configuration config;
@@ -42,19 +49,44 @@ public sealed class Plugin : IDalamudPlugin
     private readonly SqPackProbe? probe;
     private readonly WindowSystem windows = new("GubalLibrary");
 
+    /// <summary>Makes the words "open the settings" in the chat announcement clickable.</summary>
+    private readonly DalamudLinkPayload openConfigLink;
+
     /// <summary>What the background check made of the pack's declared update address.</summary>
     private UpdateStatus update;
+
+    /// <summary>True while a check is in flight, so a second one is not started on top of it.</summary>
+    /// <remarks>
+    ///     Every caller that sets it — the constructor, the button, the command — runs on the game's
+    ///     own thread, so the read and the set cannot interleave with each other. Only the worker
+    ///     clears it, from a background thread, which is what <c>volatile</c> is here for.
+    /// </remarks>
+    private volatile bool checking;
+
+    /// <summary>
+    ///     The version already said out loud, so it is said once rather than once per login.
+    /// </summary>
+    /// <remarks>
+    ///     Keyed on the version rather than on a bare "announced" flag, because switching character is
+    ///     a logout and a login: a flag cleared per session would repeat the same line every time
+    ///     somebody changed alt, and one kept per session would swallow a newer version found later.
+    /// </remarks>
+    private volatile string? announcedVersion;
 
     public Plugin(
         IDalamudPluginInterface pluginInterface,
         ICommandManager commands,
         IChatGui chat,
+        IClientState clientState,
+        IFramework framework,
         IGameInteropProvider interop,
         IPluginLog log)
     {
         this.pluginInterface = pluginInterface;
         this.commands = commands;
         this.chat = chat;
+        this.clientState = clientState;
+        this.framework = framework;
 
         this.config = pluginInterface.GetPluginConfig() as Configuration ?? new Configuration();
 
@@ -88,18 +120,23 @@ public sealed class Plugin : IDalamudPlugin
             this.PageSnapshot,
             this.installer,
             this.OnPackInstalled,
+            () => this.BeginUpdateCheck(verbose: false),
             pluginInterface.Manifest.AssemblyVersion.ToString());
 
         this.windows.AddWindow(this.configWindow);
 
-        // On a background task, and never awaited. It reaches the network, so putting it anywhere on
-        // the path the constructor takes would spend the startup margin the whole design rests on —
-        // and it would do it for a two-kilobyte answer nobody is waiting for.
-        _ = Task.Run(this.CheckForUpdateAsync);
+        this.openConfigLink = chat.AddChatLinkHandler(OpenConfigLinkId, (_, _) => this.OpenConfig());
+
+        // Announced when the check finishes, or at the next login if that is later. The two orderings
+        // are both ordinary: loaded at boot the answer arrives at the title screen, where chat goes
+        // nowhere, and hot-reloaded mid-session it arrives with somebody already in the world.
+        this.clientState.Login += this.OnLogin;
+
+        this.BeginUpdateCheck(verbose: false);
 
         this.commands.AddHandler(CommandName, new CommandInfo(this.OnCommand)
         {
-            HelpMessage = "Open settings. Subcommands: status, usepack, probesqpack",
+            HelpMessage = "Open settings. Subcommands: status, check, usepack, probesqpack",
         });
 
         pluginInterface.UiBuilder.Draw += this.DrawUi;
@@ -126,6 +163,9 @@ public sealed class Plugin : IDalamudPlugin
         this.pluginInterface.UiBuilder.OpenConfigUi -= this.OpenConfig;
         this.pluginInterface.UiBuilder.OpenMainUi -= this.OpenConfig;
 
+        this.clientState.Login -= this.OnLogin;
+        this.chat.RemoveChatLinkHandler();
+
         this.commands.RemoveHandler(CommandName);
         this.fileDialogs.Reset();
 
@@ -145,6 +185,19 @@ public sealed class Plugin : IDalamudPlugin
 
             case "status":
                 this.PrintStatus();
+                break;
+
+            // Verbose, unlike the check at load: somebody who asked is owed an answer even when the
+            // answer is "nothing to do", and a command that prints nothing reads as a command that
+            // did nothing.
+            case "check":
+                // The one at load can still be running when somebody types this, and that check is
+                // quiet — so saying nothing here would leave the command looking ignored.
+                this.chat.Print(this.BeginUpdateCheck(verbose: true)
+                    ? "[Gubal]Asking whether a newer language pack is published..."
+                    // Deliberately not "the answer follows": the check already running is the quiet
+                    // one from load, which says nothing unless it finds something.
+                    : "[Gubal]A check is already running — /gubal shows what it comes back with.");
                 break;
 
             // Exists so that recovering from a bad run does not need a text editor. The route
@@ -169,7 +222,7 @@ public sealed class Plugin : IDalamudPlugin
                 break;
 
             default:
-                this.chat.Print("[Gubal]Usage: /gubal [status|usepack|probesqpack]");
+                this.chat.Print("[Gubal]Usage: /gubal [status|check|usepack|probesqpack]");
                 break;
         }
     }
@@ -238,22 +291,171 @@ public sealed class Plugin : IDalamudPlugin
     }
 
     /// <summary>
-    ///     Asks once, in the background, whether the publisher has a newer generation.
+    ///     Asks, in the background, whether the publisher has a newer generation.
     /// </summary>
     /// <remarks>
-    ///     Nothing is downloaded and nothing is changed; it sets a field the window reads. Updating a
-    ///     pack means replacing thousands of files and then restarting the client, which is not
-    ///     something to do to somebody who was about to play — so this offers, and the person decides.
+    ///     <para>
+    ///         Nothing is downloaded and nothing is changed; it sets a field the window reads and may
+    ///         print one line of chat. Updating a pack means replacing thousands of files and then
+    ///         restarting the client, which is not something to do to somebody who was about to play —
+    ///         so this offers, and the person decides.
+    ///     </para>
+    ///     <para>
+    ///         Never awaited by its callers, and that is the point. It reaches the network, so putting
+    ///         it anywhere on the path the constructor takes would spend the startup margin the whole
+    ///         design rests on — for a two-kilobyte answer nobody is waiting for.
+    ///     </para>
     /// </remarks>
-    private async Task CheckForUpdateAsync()
+    /// <param name="verbose">Report every outcome in chat, not only a newer version.</param>
+    /// <returns>False when one was already running, so nothing new was started.</returns>
+    private bool BeginUpdateCheck(bool verbose)
     {
-        // Read from the pack rather than from this plugin's configuration, deliberately. The address
-        // to poll travels inside whatever is installed, so installing a newer pack replaces it — and
-        // a publisher who moves hosts takes their existing users with them. Caching it here would
-        // undo exactly that.
-        var installed = this.redirector?.Manifest ?? this.InstalledManifest();
+        if (this.checking)
+        {
+            return false;
+        }
 
-        this.update = await this.installer.CheckForUpdateAsync(installed).ConfigureAwait(false);
+        this.checking = true;
+
+        // Back to Checking, which is the enum's default and the only honest thing to say while the
+        // question is open. Without it the window would keep asserting the previous answer under a
+        // button the user just pressed to replace it.
+        this.update = default;
+
+        _ = Task.Run(() => this.CheckForUpdateAsync(verbose));
+        return true;
+    }
+
+    private async Task CheckForUpdateAsync(bool verbose)
+    {
+        try
+        {
+            // Read from the pack rather than from this plugin's configuration, deliberately. The
+            // address to poll travels inside whatever is installed, so installing a newer pack
+            // replaces it — and a publisher who moves hosts takes their existing users with them.
+            // Caching it here would undo exactly that.
+            var installed = this.redirector?.Manifest ?? this.InstalledManifest();
+
+            this.update = await this.installer.CheckForUpdateAsync(installed).ConfigureAwait(false);
+        }
+        finally
+        {
+            this.checking = false;
+        }
+
+        this.Announce(verbose);
+    }
+
+    /// <summary>
+    ///     Says in chat what the check found, if there is anybody there to read it.
+    /// </summary>
+    /// <remarks>
+    ///     <para>
+    ///         <b>Only a newer version is announced unprompted.</b> An address that does not answer,
+    ///         or a pack that declares none, are worth knowing and are said in the settings window and
+    ///         in the log — but they are not worth a red line in the chat of somebody who has just sat
+    ///         down to play, and neither is anything they can act on there.
+    ///     </para>
+    ///     <para>
+    ///         Called from two places for the same reason a check has two possible orderings: the
+    ///         answer can arrive before the player does. Whichever happens second finds the other
+    ///         already done, and <see cref="announcedVersion" /> keeps that from printing twice.
+    ///     </para>
+    /// </remarks>
+    private void Announce(bool verbose)
+    {
+        var status = this.update;
+
+        if (status is { State: UpdateState.Available, Published: { TranslationVersion: { Length: > 0 } version } published })
+        {
+            // Nothing printed at the title screen: chat does not exist there, and the line would be
+            // spent on nobody. The Login handler comes back to this the moment it does exist.
+            if (!verbose && (version == this.announcedVersion || !this.clientState.IsLoggedIn))
+            {
+                return;
+            }
+
+            this.announcedVersion = version;
+            this.Print(() => this.chat.Print(BuildUpdateAnnouncement(published, this.openConfigLink)));
+            return;
+        }
+
+        if (!verbose)
+        {
+            return;
+        }
+
+        // The installer answers NotDeclared for both "no pack" and "a pack that names no address",
+        // which are the same silence from its side and two different sentences from the user's.
+        var line = status.State switch
+        {
+            UpdateState.UpToDate => "[Gubal]The installed language pack is the latest one published.",
+            UpdateState.NotDeclared when (this.redirector?.Manifest ?? this.InstalledManifest()) is null =>
+                "[Gubal]No language pack is installed, so there is nothing to check.",
+            UpdateState.NotDeclared =>
+                "[Gubal]This language pack declares no update address, so it cannot say whether a newer one exists.",
+            UpdateState.Unreachable => "[Gubal]Could not reach the language pack's update address. See /xllog for why.",
+            _ => null,
+        };
+
+        if (line is not null)
+        {
+            this.Print(() => this.chat.Print(line));
+        }
+    }
+
+    /// <summary>Announces whatever the check found, now that there is a chat window to print into.</summary>
+    private void OnLogin()
+    {
+        this.Announce(verbose: false);
+    }
+
+    /// <summary>
+    ///     One line of chat, built here and printed where the game expects to be spoken to.
+    /// </summary>
+    /// <remarks>
+    ///     The clickable part is what somebody is going to try to click anyway: the alternative is a
+    ///     line that names <c>/gubal</c> and asks them to type it. Both are in there, since a chat log
+    ///     scrolled past a link still has to be actionable.
+    /// </remarks>
+    private static SeString BuildUpdateAnnouncement(PackManifest published, DalamudLinkPayload link)
+    {
+        var game = published.GameVersion is { Length: > 0 } built ? $", built for game {built}" : string.Empty;
+
+        return new SeStringBuilder()
+            .AddText($"[Gubal]A newer {published.DisplayName} is published: {published.TranslationVersion}{game}. ")
+            .Add(link)
+            .AddUiForeground(539)
+            .AddText("Open the settings")
+            .AddUiForegroundOff()
+            .Add(RawPayload.LinkTerminator)
+            .AddText(" or type /gubal to install it. The client has to restart afterwards.")
+            .Build();
+    }
+
+    /// <summary>Prints from the game's own thread, wherever the caller happens to be.</summary>
+    /// <remarks>
+    ///     Both callers reach here off a background task most of the time — a check finishing — and on
+    ///     the framework thread the rest of it. Chat has tolerated being written to from elsewhere,
+    ///     which is a poor reason to keep doing it.
+    /// </remarks>
+    private void Print(Action print)
+    {
+        // A check outlives the plugin whenever somebody reloads it while one is in flight, which on a
+        // dev build is most of them. There is nobody left to tell by then, and the queue that would
+        // carry the message is being torn down.
+        if (this.framework.IsFrameworkUnloading)
+        {
+            return;
+        }
+
+        if (this.framework.IsInFrameworkUpdateThread)
+        {
+            print();
+            return;
+        }
+
+        _ = this.framework.RunOnFrameworkThread(print);
     }
 
     /// <summary>The manifest of the configured pack when it is not being served.</summary>
