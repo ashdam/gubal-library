@@ -23,6 +23,7 @@ internal sealed class ConfigWindow : Window
     private static readonly Vector4 Green = new(0.4f, 0.9f, 0.4f, 1f);
     private static readonly Vector4 Amber = new(1f, 0.75f, 0.2f, 1f);
     private static readonly Vector4 Red = new(1f, 0.35f, 0.35f, 1f);
+    private static readonly Vector4 Grey = new(0.6f, 0.6f, 0.6f, 1f);
 
     private readonly Configuration config;
     private readonly FileDialogManager fileDialogs;
@@ -31,6 +32,14 @@ internal sealed class ConfigWindow : Window
     private readonly PackInstaller installer;
 
     private readonly Action onPackInstalled;
+
+    /// <summary>Asks the plugin to put the update question again. Answered a second or so later.</summary>
+    /// <remarks>
+    ///     The plugin's job rather than this window's, because the manifest to ask about depends on
+    ///     what is being served and what is merely installed — which is a fact the window has no
+    ///     business learning to compute a second time.
+    /// </remarks>
+    private readonly Action checkForUpdate;
 
     private volatile bool installing;
     private InstallProgress progress;
@@ -57,6 +66,7 @@ internal sealed class ConfigWindow : Window
         Func<PageStatus> pageStatus,
         PackInstaller installer,
         Action onPackInstalled,
+        Action checkForUpdate,
         string version)
         : base($"Gubal Library ({version})###GubalLibraryConfig")
     {
@@ -66,6 +76,7 @@ internal sealed class ConfigWindow : Window
         this.pageStatus = pageStatus;
         this.installer = installer;
         this.onPackInstalled = onPackInstalled;
+        this.checkForUpdate = checkForUpdate;
 
         this.SizeConstraints = new WindowSizeConstraints
         {
@@ -180,6 +191,12 @@ internal sealed class ConfigWindow : Window
     ///         ever see unless they go looking, and that is worth knowing before they wonder for
     ///         months why a line they reported is still wrong.
     ///     </para>
+    ///     <para>
+    ///         <b>Every state draws something, including the two that once drew nothing.</b> That was
+    ///         fine while the check ran by itself and unseen; with a button beside it, a press that
+    ///         leaves the window exactly as it was is indistinguishable from a button that does not
+    ///         work — and "up to date" is the answer somebody opening this window came for.
+    ///     </para>
     /// </remarks>
     private void DrawUpdateNotice(PageStatus pages)
     {
@@ -191,8 +208,18 @@ internal sealed class ConfigWindow : Window
             return;
         }
 
+        var checking = pages.Update.State == UpdateState.Checking;
+
         switch (pages.Update.State)
         {
+            // The enum's default, and so also what is shown for the seconds between asking and being
+            // answered — at load, and again every time the button below is pressed.
+            case UpdateState.Checking:
+                Icon(FontAwesomeIcon.Hourglass, Grey);
+                ImGui.TextWrapped("Checking whether a newer language pack is published...");
+                ImGui.PopStyleColor();
+                break;
+
             case UpdateState.Available when pages.Update.Published is { } update:
                 Icon(FontAwesomeIcon.ArrowUp, Amber);
                 ImGui.TextWrapped(
@@ -211,12 +238,20 @@ internal sealed class ConfigWindow : Window
                     }
                 }
 
+                ImGui.SameLine();
+                break;
+
+            // Green and quiet. It says nothing the player has to act on, and its whole job is to be
+            // the visible difference between a check that came back clean and one that never ran.
+            case UpdateState.UpToDate:
+                Icon(FontAwesomeIcon.Check, Green);
+                ImGui.TextWrapped(
+                    $"Up to date: {pages.Manifest.TranslationVersion ?? "unversioned"} is the latest published.");
+                ImGui.PopStyleColor();
                 break;
 
             // Both halves of "this pack will not improve on its own" get said, because from where the
-            // player sits the consequence is the same and only the wording should differ. Never
-            // reached while the pack is merely being checked: that state is the enum's default for
-            // exactly this reason.
+            // player sits the consequence is the same and only the wording should differ.
             // Red, and short. It is a failure of something that was promised, and the reason it
             // failed belongs in the log rather than on screen: the exception text runs to a line and
             // a half of Winsock, which buries the one sentence that tells the reader what to do.
@@ -235,8 +270,23 @@ internal sealed class ConfigWindow : Window
                 ImGui.TextWrapped(
                     "This language pack has no update URL, so it will never update itself.");
                 ImGui.PopStyleColor();
-                break;
+
+                // No button: there is no address to ask, so the only honest thing a Check here could
+                // do is come straight back with the sentence above.
+                return;
         }
+
+        using (ImRaii.Disabled(checking))
+        {
+            if (ImGui.Button("Check for updates##pack"))
+            {
+                this.checkForUpdate();
+            }
+        }
+
+        SetTooltip("Asks the address inside the installed pack whether a newer one is published.\n"
+                   + "A couple of kilobytes; nothing is downloaded or changed by asking.\n"
+                   + "This also runs by itself each time the plugin loads.");
     }
 
     /// <summary>

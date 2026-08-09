@@ -66,6 +66,11 @@ The settings window then names the pack, its version and its author, and reports
 has actually answered**. That last number is the one to look at: a pack that is loaded but never read
 looks identical to a working one on every other indicator.
 
+**Staying current.** The plugin asks the address inside your pack whether a newer one is published —
+a couple of kilobytes, once, each time it loads — and says so in chat when you log in. Nothing is
+downloaded unless you press **Update**. The settings window has a **Check for updates** button, and
+`/gubal check` does the same from chat, for when a pack is published while you are already playing.
+
 **Reporting a problem.** Open an [issue](https://github.com/ashdam/gubal-library/issues) with what you
 expected and what you got (a screenshot beats a description) and the output of `/gubal status`. If the
 game closed, add the most recent `crash-<date>.tspack` from `%AppData%\XIVLauncher\`.
@@ -107,6 +112,7 @@ where to look. Point the plugin at a local zip or a folder and it never touches 
 |---|---|
 | `/gubal` | Open the settings window |
 | `/gubal status` | The installed pack, its version, coverage, and how many reads have been answered this session |
+| `/gubal check` | Ask now whether a newer language pack is published, and say either way |
 | `/gubal usepack` | Turn the pack on or off from the next start — a way back when the settings window is not reachable |
 | `/gubal probesqpack` | Diagnostic: log every Excel page the game reads, redirecting nothing |
 
