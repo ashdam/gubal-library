@@ -5,9 +5,9 @@ obj/
 *.user
 *.suo
 
-# The translated corpus never lives in this repository. It is a derivative of the game's own text, it
-# is hundreds of MB, and it changes on a completely different cadence from the code. The plugin loads
-# it at runtime from the plugin config directory instead -- see CORPUS.md.
+# A language pack never lives in this repository. It is a derivative of the game's own text, it is
+# hundreds of MB, and it changes on a completely different cadence from the code. The plugin loads it
+# at runtime from the plugin config directory instead -- see LANGUAGE-PACK.md.
 # Data/* rather than Data/, so the negation below is reachable: git does not descend into an ignored
 # directory, and !Data/sample-corpus.json under a bare `Data/` would never be considered.
 Data/*

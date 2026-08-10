@@ -64,7 +64,7 @@ before it substitutes anything.
 | Field | Required | What it does |
 |---|---|---|
 | `gameVersion` | **yes** | The patch the pages were built from. **The plugin refuses to serve the pack when this does not match the running client.** |
-| `translationVersion` | yes | Which generation of the translation this is. Compared as text, so any format that sorts correctly works; the tooling here stamps `yyyy.MM.dd.HHmm`. |
+| `translationVersion` | yes | Which generation of the translation this is. Compared as text, so any format that sorts correctly works; a stamp like `yyyy.MM.dd.HHmm` does. |
 | `name`, `language`, `languageName`, `author` | no | Shown in the settings window. |
 | `updateUrl` | no | Where to fetch a copy of the newest manifest. See below. |
 | `pages`, `lines`, `rows` | no | Shown as a coverage line: `lines` of `rows` translated across `pages` pages. |
@@ -95,9 +95,13 @@ cannot update itself looks, to the person using it, exactly like one nobody is w
 
 ## Building one
 
-`Tools/ExdRedirect` in the [corpus-extractor](https://github.com/ashdam/corpus-extractor) repository
-builds a pack from a corpus of translations. It reads the game's own sheets with Lumina, substitutes
-the strings, rebuilds each page, and verifies byte-for-byte that it reproduces the original before
-substituting anything. Its README documents the corpus format it consumes.
+This repository ships no builder, and nothing above depends on how the pages were produced. Any
+program that writes valid `.exd` pages and a manifest beside them produces a pack the plugin will
+serve.
 
-You do not have to use it. Nothing above depends on how the pages were produced.
+Lumina, the game-data library
+Dalamud itself uses and exposes to every plugin, reads the same `.exh` headers and `.exd` pages a pack
+is made of; [Dalamud's developer documentation](https://dalamud.dev) is where to start.
+
+Whatever you build, reproduce the
+game's own bytes exactly when substituting nothing, and check that before substituting anything.

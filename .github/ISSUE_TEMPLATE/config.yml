@@ -6,10 +6,10 @@ contact_links:
       Gubal Library distributes no translations. Installing it changes nothing until you load a pack
       somebody else built, or build your own. That is by design and is not a bug.
   - name: Building a language pack — the file format
-    url: https://github.com/ashdam/gubal-library/blob/main/CORPUS.md
+    url: https://github.com/ashdam/gubal-library/blob/main/LANGUAGE-PACK.md
     about: >-
       "It loaded but 0 entries" and "my own pack does not match anything" are almost always format
-      questions. CORPUS.md documents the format in full.
+      questions. LANGUAGE-PACK.md documents the format in full.
   - name: A line stayed in the original language
     url: https://github.com/ashdam/gubal-library/issues/new?template=untranslated_line.yml
     about: >-
