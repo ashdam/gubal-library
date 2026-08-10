@@ -20,13 +20,13 @@ or cares which one it is. **Your game install is never modified** — the archiv
 game patch overwrites nothing.
 
 **This project does not distribute language packs.** Users either find a pack the community has
-published for their language or build their own — which is why [CORPUS.md](CORPUS.md) documents the
-format in full rather than sketching it.
+published for their language or build their own — which is why
+[LANGUAGE-PACK.md](LANGUAGE-PACK.md) documents the format in full rather than sketching it.
 
 **So it ships empty**, and the documentation says so first, before anything else. Installing it
 changes nothing until a language pack is installed.
 
-- **Want to build a language pack for your language?** → [CORPUS.md](CORPUS.md)
+- **Want to build a language pack for your language?** → [LANGUAGE-PACK.md](LANGUAGE-PACK.md)
 
 ## Examples
 
