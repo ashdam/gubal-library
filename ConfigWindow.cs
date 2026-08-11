@@ -43,10 +43,9 @@ internal sealed class ConfigWindow : Window
 
     /// <summary>Turns the startup update on or off, and Dalamud's boot wait with it.</summary>
     /// <remarks>
-    ///     Not a plain field write like every other setting in this window, because this one is two
-    ///     settings and only one of them belongs to this plugin. What to do about the other is the
-    ///     plugin's decision, and the bookkeeping that goes with it — who turned it on — is not
-    ///     something a window should be holding.
+    ///     Not a plain field write like every other setting in this window, because ticking it also
+    ///     asks Dalamud to hold the game's boot, and that setting is neither this window's nor this
+    ///     plugin's. Unticking asks for nothing back.
     /// </remarks>
     private readonly Action<bool> setAutoUpdate;
 

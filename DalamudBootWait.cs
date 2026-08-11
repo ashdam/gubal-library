@@ -68,23 +68,30 @@ internal static class DalamudBootWait
 
     /// <summary>Turns it on, and reports whether that took.</summary>
     /// <remarks>
-    ///     <c>QueueSave</c> rather than <c>ForceSave</c>: Dalamud's own settings window queues, and
-    ///     writing the file from a plugin's frame is a courtesy nobody asked for.
+    ///     <para>
+    ///         <b>On only.</b> Nothing here turns it off again: it is Dalamud's setting and a global
+    ///         one, so a plugin may reasonably ask for it and may not decide, later and on its own,
+    ///         that somebody has stopped wanting it.
+    ///     </para>
+    ///     <para>
+    ///         <c>QueueSave</c> rather than <c>ForceSave</c>: Dalamud's own settings window queues,
+    ///         and writing the file from a plugin's frame is a courtesy nobody asked for.
+    ///     </para>
     /// </remarks>
-    public static bool TrySet(IDalamudPluginInterface pluginInterface, bool value)
+    public static bool TryTurnOn()
     {
         if (!Configuration(out var config, out var property))
         {
             return false;
         }
 
-        property.SetValue(config, value);
+        property.SetValue(config, true);
         config.GetType().GetMethod("QueueSave", BindingFlags.Public | BindingFlags.Instance)?
             .Invoke(config, null);
 
         // Read back rather than assumed. A property that silently ignores what it is given is exactly
         // the kind of change this whole file is written to survive.
-        return property.GetValue(config) is bool set && set == value;
+        return property.GetValue(config) is true;
     }
 
     /// <summary>Resolves Dalamud's live configuration object and the one property wanted from it.</summary>
