@@ -69,6 +69,16 @@ a couple of kilobytes, once, each time it loads — and says so in chat when you
 downloaded unless you press **Update**. The settings window has a **Check for updates** button, and
 `/gubal check` does the same from chat, for when a pack is published while you are already playing.
 
+**Fetching it by itself.** Tick *Fetch a newer pack while the game starts* and you never press
+anything: the check, the download and the install all happen during startup, **before** the game
+reads its text, so the newer translation is live in that same session and there is nothing to
+restart. It holds the game's start while it downloads, which is why ticking it also turns on
+Dalamud's *wait for plugins before game loads* — without that the client would read its text
+mid-download and the session would come out untranslated, so the plugin checks and declines rather
+than risking it. Off by default, and only offered for a pack installed from a link, since a pack
+taken from a file has no address to ask. Untick it and Dalamud's setting goes back as it was, unless
+you had already chosen it yourself.
+
 **Reporting a problem.** Open an [issue](https://github.com/ashdam/gubal-library/issues) with what you
 expected and what you got (a screenshot beats a description) and the output of `/gubal status`. If the
 game closed, add the most recent `crash-<date>.tspack` from `%AppData%\XIVLauncher\`.
@@ -93,7 +103,8 @@ replaces one of them — usually English. The language it replaced is gone while
 
 **Pages are built for one patch.** When the game updates, the pack must be rebuilt. Until it is, the
 plugin refuses to serve it and says so, because serving the previous patch's text would put it on the
-wrong rows silently.
+wrong rows silently. This is the day the startup fetch above earns its keep: if the pack has already
+been rebuilt, the client takes it while it boots and the patch costs you nothing.
 
 ## On the network
 
@@ -102,7 +113,9 @@ and nothing is translated at runtime.
 
 The only outgoing requests are to the pack address *you* typed in: downloading it when you press
 Install, and afterwards a small check of whether a newer one has been published, if the pack says
-where to look. Point the plugin at a local zip or a folder and it never touches the network at all.
+where to look. That address is also the only one a download can ever come from — including the
+startup fetch, which is off until you turn it on and goes nowhere you did not name. Point the plugin
+at a local zip or a folder and it never touches the network at all.
 
 ## Commands
 
@@ -112,6 +125,7 @@ where to look. Point the plugin at a local zip or a folder and it never touches 
 | `/gubal status` | The installed pack, its version, coverage, and how many reads have been answered this session |
 | `/gubal check` | Ask now whether a newer language pack is published, and say either way |
 | `/gubal usepack` | Turn the pack on or off from the next start — a way back when the settings window is not reachable |
+| `/gubal autoupdate` | Turn the startup fetch on or off, along with Dalamud's wait for plugins |
 | `/gubal probesqpack` | Diagnostic: log every Excel page the game reads, redirecting nothing |
 
 `probesqpack` attaches when the plugin loads and only then, so it takes effect at the next client

@@ -340,7 +340,7 @@ internal sealed unsafe class ExdRedirector : IDisposable
     ///     The same plain-text file <c>Fingerprint.GameVersion</c> reads in CorpusExtractor and
     ///     <c>Manifest</c> stamps from, so both sides of the comparison come from one source.
     /// </remarks>
-    private static string? RunningGameVersion()
+    internal static string? RunningGameVersion()
     {
         try
         {

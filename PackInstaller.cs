@@ -10,11 +10,18 @@ namespace GubalLibrary;
 /// <remarks>
 ///     <para>
 ///         <b>Installing is a separate act from serving, and that separation is load-bearing.</b> The
-///         redirection has to be in place before the client's first Excel read, which is about two
-///         seconds after plugins load, and this plugin holds the game's boot while it starts. Fetching
-///         twenty megabytes and unpacking three thousand files there would spend that margin and a
-///         great deal more, turning a working design into a frozen loading screen. So nothing here
-///         ever runs during startup: the user presses a button, waits, and restarts.
+///         redirection has to be in place before the client's first Excel read, which is about a
+///         second after this plugin loads. Ordinarily nothing here runs during startup at all: the
+///         user presses a button, waits, and restarts.
+///     </para>
+///     <para>
+///         <b>The exception is deliberate and narrow.</b> With <c>AutoUpdatePack</c> on, the plugin
+///         runs an install <em>during</em> its own construction, so the new pages are in place before
+///         that first read and the session needs no restart. It works only because Dalamud can be
+///         asked to hold the game's boot until plugins have loaded, which is a setting the player
+///         owns; the plugin checks it and declines rather than gambling. Everything reachable from
+///         there takes a <see cref="CancellationToken" /> for that reason — a stalled download during
+///         startup is somebody's game not starting.
 ///     </para>
 ///     <para>
 ///         <b>A pack is published as a pair.</b> <c>whatever.zip</c> holds the pages and their
@@ -43,6 +50,9 @@ internal sealed class PackInstaller
     ///     install leave the previous pack exactly as it was.
     /// </remarks>
     private const string StagingFolder = "pack.staging";
+
+    /// <summary>The archive on its way to <see cref="StagingFolder" />, and the largest thing written here.</summary>
+    private const string DownloadFile = "pack.download.zip";
 
     /// <summary>Generous, because a language pack is tens of megabytes on somebody's home line.</summary>
     private static readonly TimeSpan DownloadTimeout = TimeSpan.FromMinutes(10);
@@ -74,12 +84,21 @@ internal sealed class PackInstaller
     ///     Resolves a source to a folder the redirector can serve, unpacking it if it is an archive.
     /// </summary>
     /// <remarks>
-    ///     Deliberately not cancellable and deliberately not incremental. An install is a few seconds
-    ///     of work that a person asked for and is watching, and the states that a resumable one could
-    ///     leave behind — a pack that is half of one generation and half of another — are precisely
-    ///     the ones nothing downstream can detect.
+    ///     <para>
+    ///         Deliberately not incremental. The states a resumable install could leave behind — a
+    ///         pack that is half of one generation and half of another — are precisely the ones
+    ///         nothing downstream can detect.
+    ///     </para>
+    ///     <para>
+    ///         Cancellable, but only up to <see cref="Commit" />. That is the safe half by
+    ///         construction: everything before it happens in the staging folder, so abandoning it
+    ///         leaves the installed pack untouched, and after it there is nothing left to abandon.
+    ///         Nobody cancels by hand — the token is how the startup path puts a ceiling on a download
+    ///         that would otherwise hold the game's boot for as long as the network felt like.
+    ///     </para>
     /// </remarks>
-    public async Task<InstallResult> InstallAsync(string source, IProgress<InstallProgress>? progress = null)
+    public async Task<InstallResult> InstallAsync(
+        string source, IProgress<InstallProgress>? progress = null, CancellationToken cancel = default)
     {
         source = source.Trim();
 
@@ -102,10 +121,10 @@ internal sealed class PackInstaller
 
             if (IsRemote(source))
             {
-                var downloaded = await this.DownloadAsync(source, progress).ConfigureAwait(false);
+                var downloaded = await this.DownloadAsync(source, progress, cancel).ConfigureAwait(false);
                 try
                 {
-                    Extract(downloaded, staging, progress);
+                    Extract(downloaded, staging, progress, cancel);
                 }
                 finally
                 {
@@ -116,7 +135,7 @@ internal sealed class PackInstaller
             }
             else if (File.Exists(source))
             {
-                Extract(source, staging, progress);
+                Extract(source, staging, progress, cancel);
             }
             else
             {
@@ -125,6 +144,16 @@ internal sealed class PackInstaller
 
             progress?.Report(InstallProgress.Working("Checking the pack"));
             return this.Commit(staging, source);
+        }
+        catch (OperationCanceledException)
+        {
+            // Reported as an outcome rather than thrown on. The caller that set the ceiling knows
+            // what it was; every other caller only needs to know that the previous pack is still
+            // there, which the staging folder guarantees and this sweeps up after.
+            DeleteIfPresent(Path.Combine(this.configDirectory, StagingFolder));
+            DeleteFileIfPresent(Path.Combine(this.configDirectory, DownloadFile));
+            this.log.Warning("Installing the language pack from '{Source}' was abandoned.", source);
+            return InstallResult.Failed("The install was abandoned before anything was replaced.");
         }
         catch (Exception e)
         {
@@ -149,7 +178,8 @@ internal sealed class PackInstaller
     ///         sit under the target root before anything is written.
     ///     </para>
     /// </remarks>
-    private static void Extract(string archivePath, string destination, IProgress<InstallProgress>? progress)
+    private static void Extract(
+        string archivePath, string destination, IProgress<InstallProgress>? progress, CancellationToken cancel)
     {
         using var archive = ZipFile.OpenRead(archivePath);
 
@@ -161,6 +191,10 @@ internal sealed class PackInstaller
 
         foreach (var entry in archive.Entries)
         {
+            // Between entries, never inside one. A half-written .exd is a page the redirector would
+            // serve as if it were whole, and the staging folder only protects what it replaces.
+            cancel.ThrowIfCancellationRequested();
+
             done++;
 
             // A directory entry, which has no content and only needs to exist.
@@ -262,17 +296,18 @@ internal sealed class PackInstaller
         return InstallResult.Succeeded(installed, manifest, unpacked: true);
     }
 
-    private async Task<string> DownloadAsync(string url, IProgress<InstallProgress>? progress)
+    private async Task<string> DownloadAsync(
+        string url, IProgress<InstallProgress>? progress, CancellationToken cancel)
     {
         using var client = new HttpClient { Timeout = DownloadTimeout };
 
-        var target = Path.Combine(this.configDirectory, "pack.download.zip");
+        var target = Path.Combine(this.configDirectory, DownloadFile);
         DeleteFileIfPresent(target);
 
         this.log.Information("Downloading a language pack from {Url}.", url);
         progress?.Report(InstallProgress.Working("Connecting"));
 
-        using var response = await client.GetAsync(url, HttpCompletionOption.ResponseHeadersRead)
+        using var response = await client.GetAsync(url, HttpCompletionOption.ResponseHeadersRead, cancel)
             .ConfigureAwait(false);
         response.EnsureSuccessStatusCode();
 
@@ -288,9 +323,9 @@ internal sealed class PackInstaller
             long received = 0;
             int read;
 
-            while ((read = await http.ReadAsync(buffer).ConfigureAwait(false)) > 0)
+            while ((read = await http.ReadAsync(buffer, cancel).ConfigureAwait(false)) > 0)
             {
-                await file.WriteAsync(buffer.AsMemory(0, read)).ConfigureAwait(false);
+                await file.WriteAsync(buffer.AsMemory(0, read), cancel).ConfigureAwait(false);
                 received += read;
                 progress?.Report(InstallProgress.Downloading(received, total));
             }
@@ -353,7 +388,7 @@ internal sealed class PackInstaller
     ///         consequence of being wrong here is that somebody carries on using a pack that works.
     ///     </para>
     /// </remarks>
-    public async Task<UpdateStatus> CheckForUpdateAsync(PackManifest? installed)
+    public async Task<UpdateStatus> CheckForUpdateAsync(PackManifest? installed, CancellationToken cancel = default)
     {
         // Silence, and no complaint. A pack that declares no address has promised nothing, which is a
         // legitimate way to publish one — a test build, or an author with nowhere to host a manifest.
@@ -370,10 +405,10 @@ internal sealed class PackInstaller
         try
         {
             using var client = new HttpClient { Timeout = ManifestTimeout };
-            await using var stream = await client.GetStreamAsync(updateUrl).ConfigureAwait(false);
+            await using var stream = await client.GetStreamAsync(updateUrl, cancel).ConfigureAwait(false);
 
             var published = await System.Text.Json.JsonSerializer
-                .DeserializeAsync<PackManifest>(stream).ConfigureAwait(false);
+                .DeserializeAsync<PackManifest>(stream, cancellationToken: cancel).ConfigureAwait(false);
 
             if (published?.TranslationVersion is not { Length: > 0 } latest)
             {
