@@ -65,17 +65,6 @@ internal sealed class Configuration : IPluginConfiguration
     public bool AutoUpdatePack { get; set; }
 
     /// <summary>
-    ///     True when ticking <see cref="AutoUpdatePack" /> is what turned Dalamud's wait setting on.
-    /// </summary>
-    /// <remarks>
-    ///     Only so that unticking can put it back. That setting is Dalamud's and global, and a plugin
-    ///     that switches it on for its own convenience and leaves it on has changed how every other
-    ///     plugin loads on its way out. Remembering who set it is what tells "restore it" apart from
-    ///     "leave alone — they wanted it before we did".
-    /// </remarks>
-    public bool TurnedOnDalamudWait { get; set; }
-
-    /// <summary>
     ///     Hook the client's archive reads and log the Excel pages it asks for, redirecting nothing.
     /// </summary>
     /// <remarks>

@@ -76,8 +76,8 @@ restart. It holds the game's start while it downloads, which is why ticking it a
 Dalamud's *wait for plugins before game loads* — without that the client would read its text
 mid-download and the session would come out untranslated, so the plugin checks and declines rather
 than risking it. Off by default, and only offered for a pack installed from a link, since a pack
-taken from a file has no address to ask. Untick it and Dalamud's setting goes back as it was, unless
-you had already chosen it yourself.
+taken from a file has no address to ask. Unticking it leaves Dalamud's setting where it is — that one
+is yours, and it lives in `/xlsettings`.
 
 **Reporting a problem.** Open an [issue](https://github.com/ashdam/gubal-library/issues) with what you
 expected and what you got (a screenshot beats a description) and the output of `/gubal status`. If the

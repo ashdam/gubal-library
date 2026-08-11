@@ -487,25 +487,20 @@ public sealed class Plugin : IDalamudPlugin
     ///         rather than describing it and leaving somebody to find it in another window.
     ///     </para>
     ///     <para>
-    ///         Unticking undoes that only if this is what did it. The setting is Dalamud's and global,
-    ///         and someone who had already chosen it for their own reasons should not lose it because
-    ///         they changed their mind about this plugin.
+    ///         <b>One direction only.</b> Unticking leaves Dalamud exactly as it stands, because by
+    ///         then there is no way to know what it means to whoever is looking at it: the setting is
+    ///         global, it governs how every plugin loads, and it may have been wanted for its own
+    ///         sake long before this box existed. Turning it off is the user's to do, in the window
+    ///         that owns it.
     ///     </para>
     /// </remarks>
     private void SetAutoUpdate(bool value)
     {
         this.config.AutoUpdatePack = value;
 
-        if (value)
+        if (value && DalamudBootWait.IsOn(this.pluginInterface) is not true)
         {
-            this.config.TurnedOnDalamudWait =
-                DalamudBootWait.IsOn(this.pluginInterface) is not true
-                && DalamudBootWait.TrySet(this.pluginInterface, true);
-        }
-        else if (this.config.TurnedOnDalamudWait)
-        {
-            DalamudBootWait.TrySet(this.pluginInterface, false);
-            this.config.TurnedOnDalamudWait = false;
+            DalamudBootWait.TryTurnOn();
         }
 
         this.SaveConfig(this.config);
