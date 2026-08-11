@@ -39,8 +39,6 @@ read those words out of a file and drew them itself.
 
 ![A Spanish speech balloon above an NPC](images/example3.png)
 
-![A Spanish combat callout during a boss fight](images/example2.png)
-
 ## Install
 
 A testing build, so expect rough edges. It needs XIVLauncher/Dalamud.
