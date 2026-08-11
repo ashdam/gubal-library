@@ -1,6 +1,7 @@
 using Dalamud.Game.Command;
 using Dalamud.Game.Text.SeStringHandling;
 using Dalamud.Game.Text.SeStringHandling.Payloads;
+using Dalamud.Interface;
 using Dalamud.Interface.ImGuiFileDialog;
 using Dalamud.Interface.Windowing;
 using Dalamud.Plugin;
@@ -33,6 +34,17 @@ public sealed class Plugin : IDalamudPlugin
     /// <summary>Identifies this plugin's one chat link. Scoped to the plugin, so any value will do.</summary>
     private const uint OpenConfigLinkId = 1;
 
+    /// <summary>
+    ///     How long the whole startup update may hold the game's boot before it is abandoned.
+    /// </summary>
+    /// <remarks>
+    ///     A ceiling, not an expectation: twenty megabytes takes seconds on anything modern, and what
+    ///     this bounds is the case where the host accepts the connection and then says nothing.
+    ///     Without it, the plugin's own ten-minute download timeout would be how long somebody's game
+    ///     sits at a black screen, and they would have no way to tell that from a hang.
+    /// </remarks>
+    private static readonly TimeSpan BootUpdateBudget = TimeSpan.FromMinutes(2);
+
     private readonly IChatGui chat;
     private readonly IClientState clientState;
     private readonly IFramework framework;
@@ -54,6 +66,17 @@ public sealed class Plugin : IDalamudPlugin
 
     /// <summary>What the background check made of the pack's declared update address.</summary>
     private UpdateStatus update;
+
+    /// <summary>The version taken during startup, or null when nothing was.</summary>
+    /// <remarks>
+    ///     Worth a line of chat precisely because there is nothing to do about it: the pack changed
+    ///     under somebody between two sessions, and a translation that silently improves is
+    ///     indistinguishable from one that silently broke unless it is said.
+    /// </remarks>
+    private readonly string? bootUpdate;
+
+    /// <summary>Whether that line has been said, so a character change does not repeat it.</summary>
+    private bool bootUpdateAnnounced;
 
     /// <summary>True while a check is in flight, so a second one is not started on top of it.</summary>
     /// <remarks>
@@ -96,6 +119,12 @@ public sealed class Plugin : IDalamudPlugin
         // runs. Anything queued ahead of it would be measuring itself.
         this.probe = this.config.ProbeSqPack ? new SqPackProbe(interop, log) : null;
 
+        this.installer = new PackInstaller(log, pluginInterface.GetPluginConfigDirectory());
+
+        // Before the redirector, and blocking, which is the entire point of it being here: what is
+        // fetched has to be on disk before the pages are enumerated, or it is a generation too late.
+        this.bootUpdate = this.UpdateBeforeTheGameReads(log);
+
         // Installed here, in the constructor, and nowhere else. This is the whole reason the route
         // works: the client reads its sheets about two seconds after plugins load and keeps them for
         // the session, so a redirection put in place any later is invisible for everything already
@@ -111,8 +140,6 @@ public sealed class Plugin : IDalamudPlugin
             }
         }
 
-        this.installer = new PackInstaller(log, pluginInterface.GetPluginConfigDirectory());
-
         this.configWindow = new ConfigWindow(
             this.config,
             this.SaveConfig,
@@ -121,6 +148,9 @@ public sealed class Plugin : IDalamudPlugin
             this.installer,
             this.OnPackInstalled,
             () => this.BeginUpdateCheck(verbose: false),
+            this.SetAutoUpdate,
+            () => DalamudBootWait.IsOn(this.pluginInterface),
+            () => pluginInterface.OpenDalamudSettingsTo(SettingsOpenKind.General),
             pluginInterface.Manifest.AssemblyVersion.ToString());
 
         this.windows.AddWindow(this.configWindow);
@@ -136,7 +166,7 @@ public sealed class Plugin : IDalamudPlugin
 
         this.commands.AddHandler(CommandName, new CommandInfo(this.OnCommand)
         {
-            HelpMessage = "Open settings. Subcommands: status, check, usepack, probesqpack",
+            HelpMessage = "Open settings. Subcommands: status, check, usepack, autoupdate, probesqpack",
         });
 
         pluginInterface.UiBuilder.Draw += this.DrawUi;
@@ -211,6 +241,23 @@ public sealed class Plugin : IDalamudPlugin
                     : "[Gubal]Language pack OFF from the next start.");
                 break;
 
+            case "autoupdate":
+                this.SetAutoUpdate(!this.config.AutoUpdatePack);
+
+                if (!this.config.AutoUpdatePack)
+                {
+                    this.chat.Print("[Gubal]Startup updates OFF. Newer packs are offered, not taken.");
+                    break;
+                }
+
+                // Said even when it worked, because it is a change to a setting that is not this
+                // plugin's and that governs how every plugin loads.
+                this.chat.Print(DalamudBootWait.IsOn(this.pluginInterface) is true
+                    ? "[Gubal]Startup updates ON. Dalamud will hold the game's start while a newer pack is fetched."
+                    : "[Gubal]Startup updates ON, but Dalamud is not waiting for plugins before the game loads "
+                      + "and could not be set to. Turn it on in Dalamud's settings or this does nothing.");
+                break;
+
             // Takes effect on the next load, not now, and that is the whole point: what it measures
             // is how early the plugin attaches, so attaching it mid-session would measure nothing.
             case "probesqpack":
@@ -222,7 +269,7 @@ public sealed class Plugin : IDalamudPlugin
                 break;
 
             default:
-                this.chat.Print("[Gubal]Usage: /gubal [status|check|usepack|probesqpack]");
+                this.chat.Print("[Gubal]Usage: /gubal [status|check|usepack|autoupdate|probesqpack]");
                 break;
         }
     }
@@ -326,6 +373,144 @@ public sealed class Plugin : IDalamudPlugin
         return true;
     }
 
+    /// <summary>
+    ///     Takes a newer pack during startup, while the game is still waiting for its plugins.
+    /// </summary>
+    /// <remarks>
+    ///     <para>
+    ///         <b>Blocking, deliberately, and the only thing in this plugin that is.</b> Everywhere
+    ///         else an install is offered and the user restarts afterwards, because the client reads
+    ///         its text once, seconds into startup, and keeps it. Here that ordering is the feature:
+    ///         finish before the read and the new translation is live in this session rather than the
+    ///         next, and nobody has to be told to restart anything.
+    ///     </para>
+    ///     <para>
+    ///         <b>It only works because Dalamud can be asked to hold the boot for its plugins</b>, and
+    ///         that is the player's setting, not this plugin's. With it off the client reads while the
+    ///         download is still running and the session loses its translation altogether — strictly
+    ///         worse than the restart this is trying to save — so the answer has to be checked rather
+    ///         than hoped for, and "cannot tell" counts as no.
+    ///     </para>
+    ///     <para>
+    ///         Every other precondition is local and cheap, and each of them is a way this could
+    ///         otherwise do damage unasked: a pack the user pointed at rather than one installed here
+    ///         is their folder to manage, and a source that is not a URL would re-unpack the same
+    ///         bytes on every boot for the rest of time, since the version on disk would never move.
+    ///     </para>
+    /// </remarks>
+    /// <returns>The version now installed, or null when nothing was taken.</returns>
+    private string? UpdateBeforeTheGameReads(IPluginLog log)
+    {
+        if (!this.config.AutoUpdatePack
+            || !this.config.ServeLanguagePack
+            || !PackInstaller.IsRemote(this.config.PackSource)
+            || !string.Equals(
+                this.config.LanguagePackPath, this.installer.InstalledPath, StringComparison.OrdinalIgnoreCase))
+        {
+            return null;
+        }
+
+        if (DalamudBootWait.IsOn(this.pluginInterface) is not true)
+        {
+            log.Warning(
+                "Not updating the language pack during startup: Dalamud is not waiting for plugins "
+                + "before the game loads, so the client would read its text while the download was "
+                + "still running. Turn that on in Dalamud's settings, or update from the window.");
+            return null;
+        }
+
+        try
+        {
+            using var budget = new CancellationTokenSource(BootUpdateBudget);
+            return Task.Run(() => this.TakeUpdateAsync(log, budget.Token)).GetAwaiter().GetResult();
+        }
+        catch (Exception e)
+        {
+            // Nothing below is expected to throw — an abandoned install reports itself as a failure
+            // rather than an exception. This is here because the one thing that must not happen at
+            // this point is a plugin that fails to construct and takes the whole language with it.
+            log.Error(e, "Updating the language pack during startup failed.");
+            return null;
+        }
+    }
+
+    private async Task<string?> TakeUpdateAsync(IPluginLog log, CancellationToken cancel)
+    {
+        var installed = PackManifest.Read(this.config.LanguagePackPath).Manifest;
+
+        if (await this.installer.CheckForUpdateAsync(installed, cancel).ConfigureAwait(false)
+            is not { State: UpdateState.Available, Published: { } published })
+        {
+            return null;
+        }
+
+        // Refused rather than taken. A pack built for a patch this client is not running will be
+        // turned away by the redirector a moment from now, so installing it would trade a
+        // translation that works for none at all — and it happens for a perfectly ordinary reason,
+        // a publisher preparing the next patch's pack before the player has taken the patch.
+        var version = published.TranslationVersion ?? "unversioned";
+        var running = ExdRedirector.RunningGameVersion();
+
+        if (published.GameVersion is { Length: > 0 } builtFor && builtFor != running)
+        {
+            log.Warning(
+                "Not taking language pack {Version}: it is built for game {BuiltFor} and this client "
+                + "runs {Running}. The installed pack is left alone.",
+                version,
+                builtFor,
+                running ?? "an unknown version");
+            return null;
+        }
+
+        log.Information("Taking language pack {Version} before the game reads its text.", version);
+
+        var result = await this.installer.InstallAsync(this.config.PackSource, null, cancel).ConfigureAwait(false);
+
+        if (!result.Success)
+        {
+            log.Warning(
+                "The startup update did not happen: {Error} The installed pack is untouched.",
+                result.Error ?? "no reason given.");
+            return null;
+        }
+
+        return result.Manifest?.TranslationVersion ?? "unversioned";
+    }
+
+    /// <summary>
+    ///     Turns the startup update on or off, and Dalamud's boot wait along with it.
+    /// </summary>
+    /// <remarks>
+    ///     <para>
+    ///         The two are one decision from where the user sits — a box that says the game will wait
+    ///         and then does not wait is a broken box — so ticking this sets the Dalamud side too,
+    ///         rather than describing it and leaving somebody to find it in another window.
+    ///     </para>
+    ///     <para>
+    ///         Unticking undoes that only if this is what did it. The setting is Dalamud's and global,
+    ///         and someone who had already chosen it for their own reasons should not lose it because
+    ///         they changed their mind about this plugin.
+    ///     </para>
+    /// </remarks>
+    private void SetAutoUpdate(bool value)
+    {
+        this.config.AutoUpdatePack = value;
+
+        if (value)
+        {
+            this.config.TurnedOnDalamudWait =
+                DalamudBootWait.IsOn(this.pluginInterface) is not true
+                && DalamudBootWait.TrySet(this.pluginInterface, true);
+        }
+        else if (this.config.TurnedOnDalamudWait)
+        {
+            DalamudBootWait.TrySet(this.pluginInterface, false);
+            this.config.TurnedOnDalamudWait = false;
+        }
+
+        this.SaveConfig(this.config);
+    }
+
     private async Task CheckForUpdateAsync(bool verbose)
     {
         try
@@ -407,6 +592,12 @@ public sealed class Plugin : IDalamudPlugin
     /// <summary>Announces whatever the check found, now that there is a chat window to print into.</summary>
     private void OnLogin()
     {
+        if (this.bootUpdate is { Length: > 0 } version && !this.bootUpdateAnnounced)
+        {
+            this.bootUpdateAnnounced = true;
+            this.chat.Print($"[Gubal]Language pack updated to {version} before this session started.");
+        }
+
         this.Announce(verbose: false);
     }
 

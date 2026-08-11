@@ -79,7 +79,18 @@ happens.
 
 `updateUrl` points at a copy of the **newest** pack's `gubal-manifest.json`, at an address that does
 not change. The plugin fetches it in the background, compares `translationVersion`, and offers the
-newer one; it never downloads a pack without being asked.
+newer one; it never downloads a pack unless the user asked for that, either by pressing **Update** or
+by turning on the startup fetch.
+
+**That fetch only reaches packs published at a URL.** It reinstalls from wherever the user typed the
+source in, so a pack distributed as a file somebody downloads by hand can be checked but never taken
+automatically. If you want your readers to get corrections without doing anything, publish the
+archive at a stable address and point them at that rather than at a file.
+
+**Stamp `gameVersion` honestly, and it will be respected.** A published pack built for a patch the
+player is not running is refused at startup rather than installed, since replacing a working pack
+with one the plugin will not serve costs them the translation. Publishing next patch's pack early is
+therefore safe.
 
 Because the address travels inside the pack, each installation brings its own — so moving hosting
 between releases carries your existing users along instead of stranding them.

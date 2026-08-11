@@ -47,6 +47,35 @@ internal sealed class Configuration : IPluginConfiguration
     public bool ServeLanguagePack { get; set; }
 
     /// <summary>
+    ///     Fetch a newer pack during startup, before the game reads its text.
+    /// </summary>
+    /// <remarks>
+    ///     <para>
+    ///         Off by default, and it has to be: it spends somebody's bandwidth and holds their game's
+    ///         start without them having asked on the day it happens. Every other download this plugin
+    ///         makes is a button press.
+    ///     </para>
+    ///     <para>
+    ///         Only honoured when Dalamud is set to wait for plugins before the game loads. Without
+    ///         that the client reads its sheets while the download is still running, which costs the
+    ///         session its translation rather than saving it a restart — see
+    ///         <see cref="DalamudBootWait" />.
+    ///     </para>
+    /// </remarks>
+    public bool AutoUpdatePack { get; set; }
+
+    /// <summary>
+    ///     True when ticking <see cref="AutoUpdatePack" /> is what turned Dalamud's wait setting on.
+    /// </summary>
+    /// <remarks>
+    ///     Only so that unticking can put it back. That setting is Dalamud's and global, and a plugin
+    ///     that switches it on for its own convenience and leaves it on has changed how every other
+    ///     plugin loads on its way out. Remembering who set it is what tells "restore it" apart from
+    ///     "leave alone — they wanted it before we did".
+    /// </remarks>
+    public bool TurnedOnDalamudWait { get; set; }
+
+    /// <summary>
     ///     Hook the client's archive reads and log the Excel pages it asks for, redirecting nothing.
     /// </summary>
     /// <remarks>

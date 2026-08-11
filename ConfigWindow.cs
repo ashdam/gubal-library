@@ -41,6 +41,20 @@ internal sealed class ConfigWindow : Window
     /// </remarks>
     private readonly Action checkForUpdate;
 
+    /// <summary>Turns the startup update on or off, and Dalamud's boot wait with it.</summary>
+    /// <remarks>
+    ///     Not a plain field write like every other setting in this window, because this one is two
+    ///     settings and only one of them belongs to this plugin. What to do about the other is the
+    ///     plugin's decision, and the bookkeeping that goes with it — who turned it on — is not
+    ///     something a window should be holding.
+    /// </remarks>
+    private readonly Action<bool> setAutoUpdate;
+
+    /// <summary>Whether Dalamud holds the game's start for its plugins. Null when it cannot be told.</summary>
+    private readonly Func<bool?> dalamudWaits;
+
+    private readonly Action openDalamudSettings;
+
     private volatile bool installing;
     private InstallProgress progress;
     private string? installMessage;
@@ -67,6 +81,9 @@ internal sealed class ConfigWindow : Window
         PackInstaller installer,
         Action onPackInstalled,
         Action checkForUpdate,
+        Action<bool> setAutoUpdate,
+        Func<bool?> dalamudWaits,
+        Action openDalamudSettings,
         string version)
         : base($"Gubal Library ({version})###GubalLibraryConfig")
     {
@@ -77,6 +94,9 @@ internal sealed class ConfigWindow : Window
         this.installer = installer;
         this.onPackInstalled = onPackInstalled;
         this.checkForUpdate = checkForUpdate;
+        this.setAutoUpdate = setAutoUpdate;
+        this.dalamudWaits = dalamudWaits;
+        this.openDalamudSettings = openDalamudSettings;
 
         this.SizeConstraints = new WindowSizeConstraints
         {
@@ -413,6 +433,8 @@ internal sealed class ConfigWindow : Window
                    + "Takes effect when the client next starts: the game reads its text once\n"
                    + "at startup and keeps it for the session, so this cannot be switched on mid-game.");
 
+        this.DrawAutoUpdateRow();
+
         if (this.installing)
         {
             // A real bar, and not grey. The first version put "Installing..." in TextDisabled, which
@@ -434,6 +456,98 @@ internal sealed class ConfigWindow : Window
             ImGui.TextWrapped(message);
             ImGui.PopStyleColor();
         }
+    }
+
+    /// <summary>
+    ///     The switch that makes an update arrive by itself, and the conditions it depends on.
+    /// </summary>
+    /// <remarks>
+    ///     <para>
+    ///         Beside "use this language pack" rather than beside the update notice above, because it
+    ///         is the same kind of thing: a standing decision about the pack, not a reaction to what a
+    ///         check happened to find. It also has to stay on screen while a restart is pending, and
+    ///         everything in that notice is deliberately hidden then.
+    ///     </para>
+    ///     <para>
+    ///         <b>Both reasons it can be unavailable are written out rather than left to a tooltip.</b>
+    ///         A greyed box with no explanation is the same as a broken one, and the two cases have
+    ///         different answers: a pack installed from a file has no address to fetch a newer one
+    ///         from, while Dalamud not waiting for its plugins is a setting away from working — so
+    ///         that one gets a button rather than a sentence.
+    ///     </para>
+    /// </remarks>
+    private void DrawAutoUpdateRow()
+    {
+        // The same three preconditions the startup path checks, and for the same reasons: a folder
+        // the user pointed at is theirs to manage, and a local file would be re-unpacked on every
+        // boot for ever, since the version on disk would never move.
+        var available = this.config.LanguagePackPath.Length > 0
+                        && PackInstaller.IsRemote(this.config.PackSource)
+                        && string.Equals(
+                            this.config.LanguagePackPath,
+                            this.installer.InstalledPath,
+                            StringComparison.OrdinalIgnoreCase);
+
+        var auto = this.config.AutoUpdatePack;
+        using (ImRaii.Disabled(!available))
+        {
+            if (ImGui.Checkbox("Fetch a newer pack while the game starts", ref auto))
+            {
+                // Saves itself: it writes Dalamud's configuration as well as this one.
+                this.setAutoUpdate(auto);
+            }
+        }
+
+        SetTooltip("Checks at every start, and if a newer pack is published, downloads and installs it\n"
+                   + "before the game reads its text — so the new translation is live in that session\n"
+                   + "and nothing has to be restarted.\n\n"
+                   + "The game's start is held while it downloads. Ticking this also turns on Dalamud's\n"
+                   + "\"wait for plugins\", which is what makes holding it possible.");
+
+        ImGui.Indent();
+
+        if (!available)
+        {
+            ImGui.TextDisabled(
+                "Available for a pack installed from a link. A pack taken from a file or used where it "
+                + "lies has no address to ask.");
+        }
+        else if (auto)
+        {
+            this.DrawBootWaitState();
+        }
+
+        ImGui.Unindent();
+    }
+
+    /// <summary>Says whether Dalamud will actually hold the game's start, since everything rests on it.</summary>
+    /// <remarks>
+    ///     Ticking the box sets it, so this is normally a line of reassurance. It earns its place in
+    ///     the two cases where it is not: the user turned it off again afterwards, or this build of
+    ///     Dalamud keeps the setting somewhere this plugin can no longer reach — in which case the
+    ///     honest thing is to say so and point at the window that can.
+    /// </remarks>
+    private void DrawBootWaitState()
+    {
+        if (this.dalamudWaits() is true)
+        {
+            ImGui.TextDisabled("Dalamud will hold the game's start until the update has finished.");
+            return;
+        }
+
+        ImGui.PushStyleColor(ImGuiCol.Text, Amber);
+        ImGui.TextWrapped(
+            "Dalamud is not set to wait for plugins before the game loads, so nothing will be fetched "
+            + "at startup: the game would read its text while the download was still running. Updates "
+            + "are offered above instead.");
+        ImGui.PopStyleColor();
+
+        if (ImGui.Button("Open Dalamud settings##bootWait"))
+        {
+            this.openDalamudSettings();
+        }
+
+        SetTooltip("It is on the General tab, called \"Wait for plugins before game loads\".");
     }
 
     /// <summary>
