@@ -76,4 +76,41 @@ internal sealed class Configuration : IPluginConfiguration
     /// </remarks>
     public bool ProbeSqPack { get; set; }
 
+    /// <summary>
+    ///     The parts of the translation the user has switched off. Empty means all of it is served.
+    /// </summary>
+    /// <remarks>
+    ///     <para>
+    ///         <b>What is stored is what is OFF.</b> An absent or empty set therefore means "serve
+    ///         everything", which is what every existing install and every fresh one already does —
+    ///         no migration, and no way for an upgrade to quietly stop serving something. It also
+    ///         settles the other direction: a sheet that appears in a later pack, or a part this table
+    ///         learns to name in a later build, arrives translated rather than silently withheld.
+    ///     </para>
+    ///     <para>
+    ///         <b>Keyed by sheet, not by the checkbox it was ticked on.</b> The groups and parts in
+    ///         <see cref="PackParts" /> are this plugin's presentation of the game's sheets and may be
+    ///         re-cut in a later version; the sheet names are facts about the game and will not move.
+    ///         Saving the presentation would orphan somebody's choices the first time a part was split
+    ///         in two.
+    ///     </para>
+    ///     <para>
+    ///         Keys naming sheets the installed pack does not hold are kept rather than pruned. They
+    ///         cost nothing, and somebody who switches back to a pack that has them again gets the
+    ///         answer they gave last time instead of a silent reset.
+    ///     </para>
+    ///     <para>
+    ///         <b>Keys are lower case, and nothing here relies on a comparer.</b> A set built with
+    ///         <see cref="StringComparer.OrdinalIgnoreCase" /> does not necessarily come back with one
+    ///         after a round trip through the configuration file, and a comparison that is
+    ///         case-insensitive until somebody restarts is worse than one that never was. Both sources
+    ///         of a key — <see cref="PackParts.SheetOf" /> and the table it is matched against — are
+    ///         lower case already, so ordinary equality is enough.
+    ///     </para>
+    ///     <para>
+    ///         Read in the constructor, like <see cref="ServeLanguagePack" />, so this decides what is
+    ///         served at the next start rather than now — see <see cref="ExdRedirector" />.
+    ///     </para>
+    /// </remarks>
+    public HashSet<string> DisabledSheets { get; set; } = [];
 }

@@ -2,9 +2,11 @@ using System.Numerics;
 using Dalamud.Bindings.ImGui;
 using Dalamud.Interface;
 using Dalamud.Interface.ImGuiFileDialog;
+using Dalamud.Interface.Textures.TextureWraps;
 using Dalamud.Interface.Utility;
 using Dalamud.Interface.Utility.Raii;
 using Dalamud.Interface.Windowing;
+using Dalamud.Plugin.Services;
 
 namespace GubalLibrary;
 
@@ -25,11 +27,38 @@ internal sealed class ConfigWindow : Window
     private static readonly Vector4 Red = new(1f, 0.35f, 0.35f, 1f);
     private static readonly Vector4 Grey = new(0.6f, 0.6f, 0.6f, 1f);
 
+    /// <summary>The information markers. One colour, because they all mean the same thing.</summary>
+    private static readonly Vector4 Blue = new(0.45f, 0.72f, 1f, 1f);
+
+    /// <summary>
+    ///     How wide a tooltip picture is drawn, before the interface scale is applied.
+    /// </summary>
+    /// <remarks>
+    ///     The width the screenshots are cut to, so at 100% they are drawn pixel for pixel. The text
+    ///     above them wraps at the same width: a narrow column of words over a wide picture reads as
+    ///     two things that landed in the same box by accident.
+    /// </remarks>
+    private const float PictureWidth = 560f;
+
     private readonly Configuration config;
     private readonly FileDialogManager fileDialogs;
     private readonly Action<Configuration> save;
     private readonly Func<PageStatus> pageStatus;
     private readonly PackInstaller installer;
+
+    /// <summary>What the installed pack holds, whether or not it is being served.</summary>
+    /// <remarks>
+    ///     A delegate rather than a value, because the pack can be replaced while this window is open.
+    ///     The plugin caches behind it; this is called every frame and must never enumerate.
+    /// </remarks>
+    private readonly Func<PackContents> contents;
+
+    /// <summary>Loads the before-and-after pictures shipped inside this assembly.</summary>
+    /// <remarks>
+    ///     Dalamud keeps the decoded texture behind this, so asking for the same resource on every
+    ///     frame is the intended use and not a leak. Nothing is cached here.
+    /// </remarks>
+    private readonly ITextureProvider textures;
 
     private readonly Action onPackInstalled;
 
@@ -59,13 +88,22 @@ internal sealed class ConfigWindow : Window
     private string? installMessage;
     private bool installFailed;
 
-    /// <summary>Set once a pack has been installed and not yet picked up. Never cleared.</summary>
+    /// <summary>
+    ///     Why a restart is owed, or null when none is. Never cleared once set.
+    /// </summary>
     /// <remarks>
-    ///     Only a restart clears it, because only a restart acts on it: the client reads its text
-    ///     once at startup, so between installing and restarting the game is still showing the
-    ///     previous pack and there is nothing the plugin can do about that.
+    ///     <para>
+    ///         Only a restart clears it, because only a restart acts on it: the client reads its text
+    ///         once at startup, so between changing something and restarting the game is still showing
+    ///         what it read and there is nothing the plugin can do about that.
+    ///     </para>
+    ///     <para>
+    ///         A reason rather than a flag, because two different things now owe one and the sentence
+    ///         under the banner has to say which. "The new language pack is installed" in front of
+    ///         somebody who only unticked a checkbox describes something that did not happen.
+    ///     </para>
     /// </remarks>
-    private bool restartPending;
+    private string? restartReason;
 
     /// <param name="version">The plugin's own version, shown in the title bar.</param>
     /// <remarks>
@@ -77,6 +115,8 @@ internal sealed class ConfigWindow : Window
         Action<Configuration> save,
         FileDialogManager fileDialogs,
         Func<PageStatus> pageStatus,
+        Func<PackContents> contents,
+        ITextureProvider textures,
         PackInstaller installer,
         Action onPackInstalled,
         Action checkForUpdate,
@@ -90,6 +130,8 @@ internal sealed class ConfigWindow : Window
         this.save = save;
         this.fileDialogs = fileDialogs;
         this.pageStatus = pageStatus;
+        this.contents = contents;
+        this.textures = textures;
         this.installer = installer;
         this.onPackInstalled = onPackInstalled;
         this.checkForUpdate = checkForUpdate;
@@ -99,28 +141,70 @@ internal sealed class ConfigWindow : Window
 
         this.SizeConstraints = new WindowSizeConstraints
         {
-            MinimumSize = new Vector2(460, 220),
+            // Wide enough for the longest part name in the Translated parts tab, indented under its
+            // group. The old minimum predates that tab and clipped the labels it is made of, which
+            // for a list whose whole job is to be readable is the one thing it cannot do.
+            MinimumSize = new Vector2(560, 220),
             MaximumSize = new Vector2(900, 800),
         };
     }
 
+    /// <summary>
+    ///     The status line and the restart banner, then the tabs.
+    /// </summary>
+    /// <remarks>
+    ///     Those two stay above the tab bar because neither is about a tab: one answers "is another
+    ///     language actually reaching the game" and the other "do I have to restart", and both remain
+    ///     true whichever tab happens to be open. Hiding the restart banner behind the tab somebody is
+    ///     not looking at would undo the whole reason it is a banner.
+    /// </remarks>
     public override void Draw()
     {
         var pages = this.pageStatus();
         var changed = false;
 
         this.DrawHeadline(pages);
+        this.DrawRestartBanner();
+        ImGui.Spacing();
 
+        using (var bar = ImRaii.TabBar("##gubalTabs"))
+        {
+            if (bar)
+            {
+                using (var tab = ImRaii.TabItem("Language pack"))
+                {
+                    if (tab)
+                    {
+                        this.DrawSetupTab(pages, ref changed);
+                    }
+                }
+
+                using (var tab = ImRaii.TabItem("Translated parts"))
+                {
+                    if (tab)
+                    {
+                        this.DrawPartsTab(ref changed);
+                    }
+                }
+            }
+        }
+
+        if (changed)
+        {
+            this.save(this.config);
+        }
+    }
+
+    /// <summary>Where the pack comes from and how it keeps itself current. All of the old window.</summary>
+    private void DrawSetupTab(PageStatus pages, ref bool changed)
+    {
         // Suppressed once something has been installed, because everything it could say is about the
         // pack that is on its way out. Whether the OLD pack has a newer version published stopped
         // being anybody's problem the moment a new one was put in its place.
-        if (!this.restartPending)
+        if (this.restartReason is null)
         {
             this.DrawUpdateNotice(pages);
         }
-
-        this.DrawRestartBanner();
-        ImGui.Spacing();
 
         // First, because on a fresh install it is the only thing that can be done and everything
         // else on screen is a consequence of it.
@@ -134,11 +218,364 @@ internal sealed class ConfigWindow : Window
 
         ImGui.Separator();
         this.DrawDiagnostics(ref changed);
+    }
 
-        if (changed)
+    /// <summary>
+    ///     Which parts of the translation are served, and what switching one off means.
+    /// </summary>
+    /// <remarks>
+    ///     <para>
+    ///         <b>Nothing in this list carries a number.</b> The obvious one to show is how many pages
+    ///         each part holds, and it is worse than useless: the quest text is three thousand tiny
+    ///         files and the whole interface is one, so the honest-looking figures say the interface is
+    ///         a rounding error when it is thirteen thousand lines of it. Counting sheets says the same
+    ///         thing less clearly. Until a pack can state how much text a part actually holds, the only
+    ///         count on screen is of the checkboxes themselves, which is a fact about this window and
+    ///         cannot be misread as a fact about the game.
+    ///     </para>
+    ///     <para>
+    ///         Drawn from the installed pack rather than from the table, so a part the pack does not
+    ///         hold is never offered — and, the other way round, text this build has no name for is
+    ///         still listed rather than quietly served with no way to refuse it.
+    ///     </para>
+    /// </remarks>
+    private void DrawPartsTab(ref bool changed)
+    {
+        var pack = this.contents();
+
+        if (pack.Layout.Count == 0)
         {
-            this.save(this.config);
+            ImGui.TextWrapped(
+                "Nothing to list yet. Install a language pack on the other tab and its parts appear here.");
+            return;
         }
+
+        // Body text, not a tooltip. Every setting in this plugin waits for the next start, and small
+        // print saying so has already been proved too easy to miss once.
+        ImGui.TextDisabled("Changes here take effect when the client next starts.");
+        ImGui.Spacing();
+
+        var total = pack.PartCount;
+        var off = pack.PartsOff(this.config.DisabledSheets).Count;
+
+        ImGui.AlignTextToFramePadding();
+        ImGui.TextUnformatted($"{total - off} of {total} on");
+
+        // One button, doing the only bulk thing worth offering. There is deliberately no "turn
+        // everything off": that is the "use this language pack" switch on the other tab, and a second
+        // control for the same fact is a control that can disagree with the first.
+        const string reset = "Turn everything on";
+        var width = ImGui.CalcTextSize(reset).X + (ImGui.GetStyle().FramePadding.X * 2);
+        ImGui.SameLine(0f, 0f);
+        ImGui.SetCursorPosX(ImGui.GetCursorPosX() + ImGui.GetContentRegionAvail().X - width);
+
+        using (ImRaii.Disabled(off == 0))
+        {
+            if (ImGui.Button(reset))
+            {
+                this.config.DisabledSheets.Clear();
+                this.NoteParted();
+                changed = true;
+            }
+        }
+
+        ImGui.Separator();
+
+        using var scroll = ImRaii.Child("##parts");
+        if (!scroll)
+        {
+            return;
+        }
+
+        foreach (var group in pack.Layout)
+        {
+            this.DrawPartGroup(group, ref changed);
+        }
+    }
+
+    /// <summary>
+    ///     A heading with a checkbox that speaks for everything under it.
+    /// </summary>
+    /// <remarks>
+    ///     <para>
+    ///         <b>ImGui has no three-state checkbox, so this one answers a single question</b> — is
+    ///         <em>all</em> of this group on? — and when the answer is no, an amber count says how much
+    ///         of it is. An empty box beside a group that is half served would otherwise be a plain
+    ///         lie about what is below it. Clicking a partial group turns all of it on; clicking a
+    ///         full one turns all of it off.
+    ///     </para>
+    ///     <para>
+    ///         A group holding one part is drawn as that part. An expander whose contents are exactly
+    ///         what its heading already said is a click that buys nothing.
+    ///     </para>
+    /// </remarks>
+    private void DrawPartGroup(GroupView group, ref bool changed)
+    {
+        if (group.Parts.Length == 1)
+        {
+            var only = group.Parts[0];
+
+            // Labelled with the part's own name and not the group's, which is the same words for a
+            // group that only ever held one and the honest ones for a group this pack has cut down to
+            // one. Calling a lone "title screen" checkbox "Menus and interface" would promise the rest
+            // of the group, and unticking it would then look like it had failed.
+            this.DrawPart(only, only.Part.Name, group.Warning, group.Image, ref changed);
+            return;
+        }
+
+        var off = group.Parts.Count(p => p.Sheets.Any(this.config.DisabledSheets.Contains));
+        var all = off == 0;
+
+        if (ImGui.Checkbox($"##group_{group.Name}", ref all))
+        {
+            this.SetSheets(group.Parts.SelectMany(p => p.Sheets), all);
+            changed = true;
+        }
+
+        ImGui.SameLine();
+
+        using var node = ImRaii.TreeNode(group.Name);
+
+        // On the heading itself as well as on the marker beside it. Hovering the words is what
+        // people do; hanging everything off a small icon left two groups with no explanation at
+        // all — and, because the picture rides along with the tooltip, no picture either.
+        var explain = ExplainGroup(group);
+        this.Tip(explain, group.Image);
+
+        if (off > 0)
+        {
+            ImGui.SameLine();
+            ImGui.TextColored(Amber, $"· {group.Parts.Length - off} of {group.Parts.Length} on");
+        }
+
+        // Every group gets one. A row with no marker at all reads as a row with nothing to say,
+        // which was wrong for four of the six.
+        this.Marker(explain, group.Image);
+
+        if (!node)
+        {
+            return;
+        }
+
+        foreach (var part in group.Parts)
+        {
+            // The picture belongs to the group, so it is shown on the group's marker and not
+            // repeated on every row underneath it.
+            this.DrawPart(part, part.Part.Name, part.Part.Warning, null, ref changed);
+        }
+    }
+
+    /// <summary>One checkbox, named for what the player sees rather than for the file behind it.</summary>
+    /// <remarks>
+    ///     The sheet names go in the tooltip and nowhere else. They are the right answer to "which of
+    ///     these is misbehaving" and the wrong answer to "what am I switching off", and only the
+    ///     second question is being asked at the moment somebody reads the label.
+    /// </remarks>
+    private void DrawPart(PartView view, string label, string? warning, string? image, ref bool changed)
+    {
+        // Ticked only when none of it is off. A part can cover more than one sheet, and a saved
+        // choice from a build that split them differently can leave half of one switched off; a tick
+        // beside that would promise a translation the user is not getting. Clicking turns all of it
+        // back on, which is also how the mixed state gets tidied away.
+        var on = !view.Sheets.Any(this.config.DisabledSheets.Contains);
+
+        if (ImGui.Checkbox($"{label}##part_{string.Join('_', view.Sheets)}", ref on))
+        {
+            this.SetSheets(view.Sheets, on);
+            changed = true;
+        }
+
+        var explain = Explain(view, warning);
+        this.Tip(explain, image);
+        this.Marker(explain, image);
+    }
+
+    /// <summary>
+    ///     Where this is on screen, then anything worth thinking about before switching it off.
+    /// </summary>
+    /// <remarks>
+    ///     <para>
+    ///         <b>Where it is comes first, because that is the only question being asked.</b> Somebody
+    ///         reading this is deciding whether they want a thing translated, and to decide that they
+    ///         have to recognise the thing.
+    ///     </para>
+    ///     <para>
+    ///         It used to lead with a sentence explaining that a part switched off is served from the
+    ///         game's own files rather than blanked. That is how the plugin works and not what it
+    ///         does: from where the player sits nothing else was ever going to happen, so it filled
+    ///         the first line of every tooltip with an answer to a question nobody had.
+    ///     </para>
+    ///     <para>
+    ///         The sheet names went the same way. They are the right answer to "which file is
+    ///         wrong", asked by whoever builds a pack, and noise to everybody else — and this window
+    ///         is not where that person is standing. <c>/gubal parts</c> is.
+    ///     </para>
+    /// </remarks>
+    /// <param name="groupWarning">The group's caveat, when a group has collapsed into this one part.</param>
+    private static string Explain(PartView view, string? groupWarning)
+    {
+        var text = view.Part.Description;
+
+        if (view.Part.Warning is { Length: > 0 } own)
+        {
+            text += "\n\n" + own;
+        }
+
+        if (groupWarning is { Length: > 0 } group)
+        {
+            text += "\n\n" + group;
+        }
+
+        return text;
+    }
+
+    /// <summary>An amber "!" that carries the same words as the control beside it.</summary>
+    /// <remarks>
+    ///     Repeating the tooltip rather than splitting it: the marker is what draws the eye, so it has
+    ///     to be the thing that answers when hovered. A marker that only says "there is something to
+    ///     know here" spends a click and tells nobody anything.
+    /// </remarks>
+    private void Marker(string tooltip, string? image)
+    {
+        ImGui.SameLine();
+        ImGui.PushStyleColor(ImGuiCol.Text, Blue);
+        using (ImRaii.PushFont(UiBuilder.IconFont, true))
+        {
+            ImGui.TextUnformatted(FontAwesomeIcon.InfoCircle.ToIconString());
+        }
+
+        ImGui.PopStyleColor();
+        this.Tip(tooltip, image);
+    }
+
+    /// <summary>What a group's tooltip says: its caveat if it has one, then what is inside it.</summary>
+    /// <remarks>
+    ///     Naming the parts matters more than it looks. "Duty descriptions" is not a phrase anybody
+    ///     has met before; "Duty Finder descriptions, Guildhest briefings, Gold Saucer" is three
+    ///     things they have seen on screen.
+    /// </remarks>
+    private static string ExplainGroup(GroupView group)
+    {
+        var text = group.Description;
+
+        if (group.Warning is { Length: > 0 } warning)
+        {
+            text += "\n\n" + warning;
+        }
+
+        return text + "\n\nIn this group: " + string.Join(", ", group.Parts.Select(p => p.Part.Name)) + ".";
+    }
+
+    /// <summary>
+    ///     A tooltip that can carry a picture of what the setting does.
+    /// </summary>
+    /// <remarks>
+    ///     <para>
+    ///         The picture is a pair of screenshots, the same window with the part switched off and
+    ///         switched on. It answers the question the words cannot: what "the interface" or "the
+    ///         combat log" is, for somebody who has never had to name those separately.
+    ///     </para>
+    ///     <para>
+    ///         <b>Absence is normal.</b> A group without one, or a build where the resource failed to
+    ///         load, draws the text and nothing else. These are photographs of one language pack in
+    ///         one patch of the game; there will always be groups nobody has taken a pair for.
+    ///     </para>
+    /// </remarks>
+    private void Tip(string text, string? image)
+    {
+        if (!ImGui.IsItemHovered())
+        {
+            return;
+        }
+
+        ImGui.BeginTooltip();
+        ImGui.PushTextWrapPos(PictureWidth * ImGuiHelpers.GlobalScale);
+        ImGui.TextUnformatted(text);
+        ImGui.PopTextWrapPos();
+
+        if (image is { Length: > 0 })
+        {
+            this.DrawComparison(image);
+        }
+
+        ImGui.EndTooltip();
+    }
+
+    /// <summary>
+    ///     The same window with the part switched off and switched on, one above the other.
+    /// </summary>
+    /// <remarks>
+    ///     <para>
+    ///         <b>Two pictures and two captions, rather than one picture with the captions inside
+    ///         it.</b> The words belong to the interface: rewording them, recolouring them or one day
+    ///         translating them should not mean finding the script that cut the screenshots and
+    ///         producing the whole set again.
+    ///     </para>
+    ///     <para>
+    ///         Either half may be missing and the other is still worth drawing — a pair is taken by
+    ///         hand, and the two halves of one are taken on different days.
+    ///     </para>
+    /// </remarks>
+    private void DrawComparison(string name)
+    {
+        this.Half("Switched off", Amber, $"{name}-off");
+        this.Half("Switched on", Green, $"{name}-on");
+    }
+
+    private void Half(string caption, Vector4 colour, string resource)
+    {
+        if (this.Picture(resource) is not { } wrap)
+        {
+            return;
+        }
+
+        ImGui.Spacing();
+        ImGui.TextColored(colour, caption);
+
+        var width = PictureWidth * ImGuiHelpers.GlobalScale;
+        ImGui.Image(wrap.Handle, new Vector2(width, wrap.Height * (width / wrap.Width)));
+    }
+
+    /// <summary>The picture for a group, or null while it loads or if it is not there.</summary>
+    private IDalamudTextureWrap? Picture(string name)
+    {
+        var resource = $"GubalLibrary.images.tooltips.{name}.png";
+        return this.textures.GetFromManifestResource(typeof(Plugin).Assembly, resource)
+            .TryGetWrap(out var wrap, out _)
+            ? wrap
+            : null;
+    }
+
+    /// <summary>Switches a run of sheets on or off together, and notes that a restart is owed.</summary>
+    private void SetSheets(IEnumerable<string> sheets, bool on)
+    {
+        foreach (var sheet in sheets)
+        {
+            if (on)
+            {
+                this.config.DisabledSheets.Remove(sheet);
+            }
+            else
+            {
+                this.config.DisabledSheets.Add(sheet);
+            }
+        }
+
+        this.NoteParted();
+    }
+
+    /// <summary>
+    ///     Raises the restart banner for a change of parts, without talking over an install.
+    /// </summary>
+    /// <remarks>
+    ///     An install already owes a restart and says something more urgent about it, so it keeps the
+    ///     banner it set. Both end in the same instruction; only the sentence above it differs.
+    /// </remarks>
+    private void NoteParted()
+    {
+        this.restartReason ??=
+            "You changed which parts are translated. The game reads all of its text once, at "
+            + "startup, so this takes effect the next time it starts.";
     }
 
     /// <summary>
@@ -327,7 +764,7 @@ internal sealed class ConfigWindow : Window
     /// </remarks>
     private void DrawRestartBanner()
     {
-        if (!this.restartPending)
+        if (this.restartReason is not { Length: > 0 } reason)
         {
             return;
         }
@@ -340,9 +777,7 @@ internal sealed class ConfigWindow : Window
         ImGui.PopStyleColor();
 
         ImGui.SetWindowFontScale(1f);
-        ImGui.TextWrapped(
-            "The new language pack is installed but the game will not read it until it starts again — "
-            + "it loads all of its text once, at startup.");
+        ImGui.TextWrapped(reason);
         ImGui.Separator();
     }
 
@@ -582,7 +1017,12 @@ internal sealed class ConfigWindow : Window
                 var pack = result.Manifest!;
                 this.installFailed = false;
                 this.installMessage = $"Installed {pack.DisplayName} ({pack.TranslationVersion ?? "unversioned"}).";
-                this.restartPending = true;
+
+                // Overwrites whatever a part change had set. Both owe the same restart; this is the
+                // more urgent thing to say about it.
+                this.restartReason =
+                    "The new language pack is installed but the game will not read it until it starts "
+                    + "again — it loads all of its text once, at startup.";
 
                 // Lets the plugin drop what it learned about the previous pack's update address, and
                 // say so in chat where somebody who has closed this window will still see it.
@@ -690,12 +1130,33 @@ internal sealed class ConfigWindow : Window
             startPath);
     }
 
+    /// <summary>
+    ///     A tooltip that wraps, which is not what ImGui does by itself.
+    /// </summary>
+    /// <remarks>
+    ///     <para>
+    ///         Left to itself a tooltip is one line per paragraph, however long the paragraph is. The
+    ///         tooltips already here were written around that, each line broken by hand; the ones
+    ///         explaining what switching a part off costs you run to a paragraph each and came out as
+    ///         a band of text wider than the game window, over the top of everything.
+    ///     </para>
+    ///     <para>
+    ///         Wrapping here rather than at each call site, so the hand-broken ones keep their breaks
+    ///         and the long ones stop needing any.
+    ///     </para>
+    /// </remarks>
     private static void SetTooltip(string text)
     {
-        if (ImGui.IsItemHovered())
+        if (!ImGui.IsItemHovered())
         {
-            ImGui.SetTooltip(text);
+            return;
         }
+
+        ImGui.BeginTooltip();
+        ImGui.PushTextWrapPos(400f * ImGuiHelpers.GlobalScale);
+        ImGui.TextUnformatted(text);
+        ImGui.PopTextWrapPos();
+        ImGui.EndTooltip();
     }
 }
 

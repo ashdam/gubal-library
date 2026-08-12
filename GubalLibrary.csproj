@@ -6,7 +6,7 @@
     <Platforms>x64</Platforms>
     <AssemblyName>GubalLibrary</AssemblyName>
     <RootNamespace>GubalLibrary</RootNamespace>
-    <Version>0.2.3.0</Version>
+    <Version>0.2.4.0</Version>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
@@ -16,7 +16,7 @@
   </PropertyGroup>
 
   <!--
-    Nothing is bundled, by design, and there is no longer even a sample.
+    No translations are bundled, by design, and there is no longer even a sample.
 
     A language pack is tens of MB across thousands of files, is derived from the game's own data,
     and is regenerated whenever the game is patched, so it ships neither in the repository nor in
@@ -26,7 +26,19 @@
     one. It went with the injection engine it was for: the file route cannot demonstrate itself on
     two lines, because it only shows anything after a restart, and the settings window now answers
     the same question directly by reporting how many reads have actually been served.
+
+    The screenshots below are not an exception to that: they are pictures OF a translation, not a
+    translation, and they are what the Translated parts tab shows when you hover a group. Two per
+    group, the same window with the part switched off and switched on, and with no caption inside
+    them, because the captions are drawn by the window and should stay editable.
+
+    They must never contain other players' names or chat. These are photographs of a live server.
+    The frames they are cut from are not in this repository for the same reason; see .gitignore.
   -->
+
+  <ItemGroup>
+    <EmbeddedResource Include="images\tooltips\*.png" />
+  </ItemGroup>
 
 </Project>
 

@@ -23,3 +23,8 @@ misses.jsonl
 # Downscaled proofs emitted alongside the icon when it is regenerated. They exist to check the icon
 # survives being shown at 32px in the plugin installer; only images/icon.png is shipped.
 images/preview-*.png
+
+# The raw screenshots the Translated parts tooltips are cut from: whole 5120x1440 frames of a live
+# server, tens of MB, and full of other players' names and chat. Only the crops under
+# images/tooltips/ are shipped, and those are chosen to contain neither.
+images/parts/

@@ -84,7 +84,7 @@ internal sealed unsafe class ExdRedirector : IDisposable
     ///     Penumbra works around the limit with a second hook on <c>CreateFileW</c>; that is worth it
     ///     for arbitrary user mod folders and not for ours, which is one directory the user chose.
     /// </remarks>
-    private const int MaxLocalPathLength = 259;
+    internal const int MaxLocalPathLength = 259;
 
     private static readonly byte[] ExdSuffix = ".exd"u8.ToArray();
 
@@ -146,10 +146,18 @@ internal sealed unsafe class ExdRedirector : IDisposable
     ///         Nothing is hooked until there is something to serve. A plugin that installs a detour on
     ///         a core read path and then redirects nothing is pure risk with no benefit, and this is
     ///         the state every user who never points at a page directory would otherwise be left in.
+    ///         Switching every part off reaches the same state by a different road, and is refused in
+    ///         its own words rather than reported as an empty folder.
     ///     </para>
     /// </remarks>
+    /// <param name="contents">The pack, already read. See <see cref="PackContents" /> for why once.</param>
+    /// <param name="disabledSheets">The parts the user switched off, from the configuration.</param>
     public static (ExdRedirector? Redirector, string? Error) Create(
-        IGameInteropProvider interop, IPluginLog log, string directory)
+        IGameInteropProvider interop,
+        IPluginLog log,
+        string directory,
+        PackContents contents,
+        ICollection<string> disabledSheets)
     {
         if (string.IsNullOrWhiteSpace(directory) || !Directory.Exists(directory))
         {
@@ -176,33 +184,30 @@ internal sealed unsafe class ExdRedirector : IDisposable
                 + "Regenerate them; serving them now would put Spanish on the wrong rows.");
         }
 
-        var pages = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-        var tooLong = 0;
-        foreach (var file in Directory.EnumerateFiles(directory, "*.exd", SearchOption.AllDirectories))
-        {
-            if (file.Length > MaxLocalPathLength)
-            {
-                tooLong++;
-                continue;
-            }
-
-            // The folder mirrors the archive, so the game path is the relative path with the
-            // separators the game uses.
-            pages[Path.GetRelativePath(directory, file).Replace('\\', '/')] = file;
-        }
-
-        if (tooLong > 0)
+        if (contents.TooLong > 0)
         {
             log.Warning(
                 "{Count} page(s) sit at a path longer than {Max} characters and will not be served. "
                 + "Install the language pack somewhere with a shorter path.",
-                tooLong,
+                contents.TooLong,
                 MaxLocalPathLength);
         }
 
-        if (pages.Count == 0)
+        if (contents.PageCount == 0)
         {
             return (null, "That folder holds no .exd files, so it is not a language pack.");
+        }
+
+        var pages = contents.Servable(disabledSheets);
+        contents.LogOmissions(log, disabledSheets, pages.Count);
+
+        // Told apart from the empty folder above, because the two have opposite answers: one is a
+        // pack that is not there, the other is a pack that is there and was asked to stay quiet.
+        if (pages.Count == 0)
+        {
+            return (null,
+                "Every part of this language pack is switched off, so there is nothing to serve. "
+                + "Turn something back on under Translated parts.");
         }
 
         try
