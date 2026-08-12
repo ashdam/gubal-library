@@ -42,6 +42,13 @@ you replaced is genuinely gone while the pack is on.
 your pack should reproduce the game's own bytes exactly when it substitutes nothing, and verify that
 before it substitutes anything.
 
+**The user may choose to be served only part of your pack**, under *Translated parts* in the settings
+window — most often to leave the interface and the log messages in English, which is what other
+plugins read. **This is not your problem and there is nothing to declare for it.** The grouping is the
+plugin's, built from the game's own sheet names, so it already covers a pack that does not exist yet;
+a sheet it has no name for is listed under its own name rather than dropped. Ship the pages and the
+manifest as described here and selective serving works.
+
 ## The manifest
 
 `gubal-manifest.json` at the root of the pack, UTF-8.

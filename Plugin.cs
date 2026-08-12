@@ -58,6 +58,12 @@ public sealed class Plugin : IDalamudPlugin
     private readonly string? redirectorError;
     private readonly PackInstaller installer;
 
+    /// <summary>The installed pack's contents, read once per pack rather than once per frame.</summary>
+    private PackContents? contents;
+
+    /// <summary>Which folder <see cref="contents" /> was read from, so a change is noticed.</summary>
+    private string contentsPath = string.Empty;
+
     private readonly SqPackProbe? probe;
     private readonly WindowSystem windows = new("GubalLibrary");
 
@@ -103,6 +109,7 @@ public sealed class Plugin : IDalamudPlugin
         IClientState clientState,
         IFramework framework,
         IGameInteropProvider interop,
+        ITextureProvider textures,
         IPluginLog log)
     {
         this.pluginInterface = pluginInterface;
@@ -131,8 +138,12 @@ public sealed class Plugin : IDalamudPlugin
         // read. Measured, and it is why the guildhest descriptions once stayed English for a session.
         if (this.config.ServeLanguagePack && this.config.LanguagePackPath.Length > 0)
         {
-            (this.redirector, this.redirectorError) =
-                ExdRedirector.Create(interop, log, this.config.LanguagePackPath);
+            (this.redirector, this.redirectorError) = ExdRedirector.Create(
+                interop,
+                log,
+                this.config.LanguagePackPath,
+                this.Contents(),
+                this.config.DisabledSheets);
 
             if (this.redirectorError is { Length: > 0 } error)
             {
@@ -145,6 +156,8 @@ public sealed class Plugin : IDalamudPlugin
             this.SaveConfig,
             this.fileDialogs,
             this.PageSnapshot,
+            this.Contents,
+            textures,
             this.installer,
             this.OnPackInstalled,
             () => this.BeginUpdateCheck(verbose: false),
@@ -166,7 +179,7 @@ public sealed class Plugin : IDalamudPlugin
 
         this.commands.AddHandler(CommandName, new CommandInfo(this.OnCommand)
         {
-            HelpMessage = "Open settings. Subcommands: status, check, usepack, autoupdate, probesqpack",
+            HelpMessage = "Open settings. Subcommands: status, parts, check, usepack, autoupdate, probesqpack",
         });
 
         pluginInterface.UiBuilder.Draw += this.DrawUi;
@@ -215,6 +228,13 @@ public sealed class Plugin : IDalamudPlugin
 
             case "status":
                 this.PrintStatus();
+                break;
+
+            // Reports, and does not change anything. There is no subcommand to switch a part on or
+            // off: the window already does that, and a second way to write the same setting is a
+            // second way for it to disagree with itself.
+            case "parts":
+                this.PrintParts();
                 break;
 
             // Verbose, unlike the check at load: somebody who asked is owed an answer even when the
@@ -269,7 +289,7 @@ public sealed class Plugin : IDalamudPlugin
                 break;
 
             default:
-                this.chat.Print("[Gubal]Usage: /gubal [status|check|usepack|autoupdate|probesqpack]");
+                this.chat.Print("[Gubal]Usage: /gubal [status|parts|check|usepack|autoupdate|probesqpack]");
                 break;
         }
     }
@@ -288,11 +308,53 @@ public sealed class Plugin : IDalamudPlugin
             // The number that separates "loaded" from "working", and the reason it is printed at all:
             // a route installed too late to matter reports the two lines above identically.
             this.chat.Print($"[Gubal]{pages.ServedCount:N0} read(s) answered from disk this session.");
+
+            // Said here because the alternative is somebody reporting a bug about text that is
+            // English exactly as they asked for. A count of served pages cannot tell those apart.
+            if (this.Contents().PartsOff(this.config.DisabledSheets) is { Count: > 0 } off)
+            {
+                this.chat.Print($"[Gubal]Switched off on purpose, so still English: {string.Join(", ", off)}.");
+            }
+
             return;
         }
 
         this.chat.PrintError(
             $"[Gubal]No pages served — {pages.Error ?? "no language pack configured."}");
+    }
+
+    /// <summary>
+    ///     Lists the parts of the translation and whether each is being served.
+    /// </summary>
+    /// <remarks>
+    ///     Grouped rather than listed one checkbox at a time: nineteen lines of chat to answer "is the
+    ///     interface translated" would bury the answer in the question.
+    /// </remarks>
+    private void PrintParts()
+    {
+        var pack = this.Contents();
+
+        if (pack.Layout.Count == 0)
+        {
+            this.chat.Print("[Gubal]No language pack is installed, so there are no parts to list.");
+            return;
+        }
+
+        foreach (var group in pack.Layout)
+        {
+            var off = group.Parts.Count(p => p.Sheets.All(this.config.DisabledSheets.Contains));
+
+            var state = off switch
+            {
+                0 => "on",
+                _ when off == group.Parts.Length => "off",
+                _ => $"{group.Parts.Length - off} of {group.Parts.Length} on",
+            };
+
+            this.chat.Print($"[Gubal]{group.Name}: {state}");
+        }
+
+        this.chat.Print("[Gubal]Change these under Translated parts in /gubal. They take effect at the next start.");
     }
 
     /// <summary>
@@ -303,6 +365,35 @@ public sealed class Plugin : IDalamudPlugin
     ///     many reads were answered says the game is actually taking them, and only the second one
     ///     distinguishes a working route from a route that was installed too late to matter.
     /// </remarks>
+    /// <summary>
+    ///     What the installed pack holds, read from disk the first time and kept.
+    /// </summary>
+    /// <remarks>
+    ///     <para>
+    ///         Cached here rather than in the window because both need it and only one of them can
+    ///         afford to read it: the settings window calls this every frame, and a pack is four
+    ///         thousand files. The path is compared each time so that pointing at a different folder
+    ///         is noticed without anybody having to remember to say so.
+    ///     </para>
+    ///     <para>
+    ///         Read even when nothing is being served. Somebody deciding which parts to switch on is
+    ///         most often looking at a pack that is switched off, or at one installed a minute ago and
+    ///         waiting for a restart, and both of those have to list their contents.
+    ///     </para>
+    /// </remarks>
+    private PackContents Contents()
+    {
+        var path = this.config.LanguagePackPath;
+
+        if (this.contents is null || !string.Equals(this.contentsPath, path, StringComparison.OrdinalIgnoreCase))
+        {
+            this.contents = PackContents.Load(path, ExdRedirector.MaxLocalPathLength);
+            this.contentsPath = path;
+        }
+
+        return this.contents;
+    }
+
     private PageStatus PageSnapshot()
     {
         return this.redirector is { } r
@@ -330,6 +421,11 @@ public sealed class Plugin : IDalamudPlugin
     private void OnPackInstalled()
     {
         this.update = default;
+
+        // Dropped rather than reloaded: the new pack is on disk but the folder may be the same one,
+        // so nothing else would notice it had changed underneath. The window rebuilds it on its next
+        // frame, which is where the cost belongs.
+        this.contents = null;
 
         // In chat as well as in the window, because the window is where the person just was and chat
         // is where they will be. The instruction is worthless if it is only visible in the place they
