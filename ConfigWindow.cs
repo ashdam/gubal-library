@@ -250,6 +250,16 @@ internal sealed class ConfigWindow : Window
             return;
         }
 
+        // What the tab is for, said once at the top. Every box below explains itself on hover, but a
+        // list of fourteen checkboxes with no opening line leaves the reader to work out from the
+        // names alone whether ticking one adds a translation or removes it.
+        ImGui.TextWrapped(
+            "Choose how much of the game this language pack translates. Each box below is one part of "
+            + "the game's text: untick it and that part comes back in the language the game shipped "
+            + "with, while everything still ticked stays translated. Hover a box to see what it "
+            + "covers.");
+        ImGui.Spacing();
+
         // Body text, not a tooltip. Every setting in this plugin waits for the next start, and small
         // print saying so has already been proved too easy to miss once.
         ImGui.TextDisabled("Changes here take effect when the client next starts.");
