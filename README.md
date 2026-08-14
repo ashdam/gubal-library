@@ -97,9 +97,17 @@ and log messages all come out of the game's Excel sheets, so all of them are rea
 and gender agreement survive, and the engine does its own layout.
 
 **You can turn parts of it off.** The *Translated parts* tab lists what the installed pack holds —
-quest text, cutscene subtitles, NPC chatter, menus, the combat log, tutorials — with a checkbox each
-and a note on what switching one off costs you. Switching a part off does not blank it: the pack
-replaces the game's own English, so what comes back is that English.
+quest text and cutscene subtitles, what the people around you say, what happens inside duties, the
+Duty Finder, the interface, tutorials and the chat log — with a checkbox each, a note on where that
+text is read and what switching it off costs you, and the game's own name for the sheets behind it.
+Switching a part off does not blank it: the pack replaces the game's own English, so what comes back
+is that English.
+
+**A checkbox covers a whole page of the game's text, because that is the smallest thing that can be
+served or withheld.** Some of those pages hold more than one thing and cannot be split: the interface
+box is one page carrying every label in the game, and the chat log box is one page carrying the
+combat log, emotes, duty announcements and every error message together. Each tooltip says what it
+is really taking with it.
 
 The usual reason to use this is other plugins. Plenty of them, and every combat parser, look for the
 game's English interface and log messages and stop working when they cannot find them; leaving
