@@ -319,7 +319,7 @@ internal sealed class ConfigWindow : Window
             // group that only ever held one and the honest ones for a group this pack has cut down to
             // one. Calling a lone "title screen" checkbox "Menus and interface" would promise the rest
             // of the group, and unticking it would then look like it had failed.
-            this.DrawPart(only, only.Part.Name, group.Warning, group.Image, ref changed);
+            this.DrawPart(only, only.Part.Name, group.Warning, only.Part.Image ?? group.Image, ref changed);
             return;
         }
 
@@ -359,9 +359,11 @@ internal sealed class ConfigWindow : Window
 
         foreach (var part in group.Parts)
         {
-            // The picture belongs to the group, so it is shown on the group's marker and not
-            // repeated on every row underneath it.
-            this.DrawPart(part, part.Part.Name, part.Part.Warning, null, ref changed);
+            // The group's own picture stays on the group's marker rather than being repeated on
+            // every row underneath it. A part that has one of its own still shows it: the pair for
+            // the Duty Finder is a photograph of that window and says nothing about the retainer
+            // bell or the title screen sharing its group.
+            this.DrawPart(part, part.Part.Name, part.Part.Warning, part.Part.Image, ref changed);
         }
     }
 
@@ -406,9 +408,12 @@ internal sealed class ConfigWindow : Window
     ///         the first line of every tooltip with an answer to a question nobody had.
     ///     </para>
     ///     <para>
-    ///         The sheet names went the same way. They are the right answer to "which file is
-    ///         wrong", asked by whoever builds a pack, and noise to everybody else — and this window
-    ///         is not where that person is standing. <c>/gubal parts</c> is.
+    ///         <b>The sheet names come last, and they are back.</b> They were dropped once as noise —
+    ///         the right answer to "which file is wrong" and the wrong one to "what am I switching
+    ///         off". That reasoning held while the boxes matched what a player sees; it stopped
+    ///         holding the day two of them were caught promising the wrong thing, because a reader who
+    ///         can see <c>logmessage</c> under a box can tell it is not where the speech balloons are.
+    ///         They are the only part of this tooltip that cannot drift from what is served.
     ///     </para>
     /// </remarks>
     /// <param name="groupWarning">The group's caveat, when a group has collapsed into this one part.</param>
@@ -426,7 +431,9 @@ internal sealed class ConfigWindow : Window
             text += "\n\n" + group;
         }
 
-        return text;
+        // Only the sheets this pack actually holds, which is what PartView carries — naming one the
+        // pack does not have would send somebody looking for text that is not being served.
+        return text + "\n\nSheets: " + string.Join(", ", view.Sheets);
     }
 
     /// <summary>An amber "!" that carries the same words as the control beside it.</summary>
