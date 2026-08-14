@@ -200,14 +200,19 @@ internal static class PackParts
             "Duties, raids and field operations",
             "What happens once you are inside a dungeon, a raid, or one of the large field zones.",
             [
+                // VVDVoteRouteLabel TRAVELS WITH ContentTalk BECAUSE THEY HOLD THE SAME SENTENCE.
+                // «Our first fork in the road. Where should we go?» is in both, and the variant
+                // dungeon's voting window reads the VVD one — which is how it came to be showing
+                // English while the Spanish sat in ContentTalk, translated and never used. Two
+                // checkboxes for one window would let somebody switch off half a vote.
                 new TranslationPart(
                     "Dialogue, objectives and on-screen text",
                     "What bosses and NPCs say while you are inside, the objectives that appear as it "
-                    + "goes on, and the same for the large field zones and the big group content: "
-                    + "Eureka, Bozja, Zadnor, the Occult Crescent, the Ishgardian Restoration and the "
-                    + "Diadem.",
+                    + "goes on, the route your party votes on in a variant dungeon, and the same for "
+                    + "the large field zones and the big group content: Eureka, Bozja, Zadnor, the "
+                    + "Occult Crescent, the Ishgardian Restoration and the Diadem.",
                     ["instancecontenttextdata", "contenttalk", "publiccontenttextdata",
-                     "massivepccontenttextdata", "partycontenttextdata"]),
+                     "massivepccontenttextdata", "partycontenttextdata", "vvdvoteroutelabel"]),
 
                 new TranslationPart(
                     "Objects and mechanisms",
