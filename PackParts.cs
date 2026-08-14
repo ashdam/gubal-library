@@ -27,8 +27,14 @@ namespace GubalLibrary;
 /// </param>
 /// <param name="Sheets">The sheet keys it covers, as <see cref="PackParts.SheetOf" /> produces them.</param>
 /// <param name="Warning">A reason to think twice, for the few parts that have one. Null for most.</param>
+/// <param name="Image">
+///     A before-and-after picture of this part alone, for the few that have one of their own. A part
+///     inside a group otherwise shows no picture and lets the group's stand for all of it, which is
+///     right while the parts of a group are variations on one thing and wrong the moment one of them
+///     has a pair of screenshots that is about it and not about its neighbours.
+/// </param>
 internal sealed record TranslationPart(
-    string Name, string Description, string[] Sheets, string? Warning = null);
+    string Name, string Description, string[] Sheets, string? Warning = null, string? Image = null);
 
 /// <param name="Name">The heading. Also the label when the group holds a single part.</param>
 /// <param name="Description">Where this lot is seen, in one sentence.</param>
@@ -66,25 +72,53 @@ internal static class PackParts
     /// <summary>Where sheets the table does not know end up.</summary>
     public const string OtherGroupName = "Other text in this pack";
 
+    // A CARVE-OUT LIVED HERE AND WAS REMOVED ON 14 AUGUST 2026. Read this before adding another.
+    //
+    // The five retainer conversations were given a key of their own, `custom/retainer`, so that a
+    // player running a retainer plugin could have those windows back in English without giving up
+    // every NPC menu in the game. It did not do that, and could not: the retainer WINDOW is drawn
+    // from `Addon` — `Addon#2377` is «Retainer: … Ventures: … Select an option.», all three lines in
+    // one row, with `#2378`-`#2407` beneath it. The conversations hold what the retainer SAYS.
+    //
+    // So the checkbox promised a window and delivered the chatter, which is worse than no checkbox:
+    // somebody unticks it, restarts, sees the menu still in Spanish and concludes the plugin is
+    // broken. Splitting a folder is only worth it when the split matches something the player can
+    // point at, and this one matched the file layout instead.
+
     /// <summary>
-    ///     The six groups, in the order they are drawn.
+    ///     The groups, in the order they are drawn.
     /// </summary>
     /// <remarks>
-    ///     Ordered by how much of the game each one covers, so the first thing read is the part that
-    ///     matters most and the last is the one nobody will look for.
+    ///     <para>
+    ///         Ordered the way somebody reads down them looking for a thing: the story, then the
+    ///         people in it, then what happens inside content, then the windows around all of it, and
+    ///         last the two nobody comes here for. That is close to descending size and is not the
+    ///         same rule — the Duty Finder is 751 rows and sits fourth, because it is read beside the
+    ///         content it describes and not beside the character creator.
+    ///     </para>
+    ///     <para>
+    ///         <b>Every one of the pack's 28 keys is named exactly once below.</b> The table was
+    ///         rewritten on 14 August 2026 after each key was measured — row counts, median lengths,
+    ///         and what the text actually is — because two of the descriptions had been written from a
+    ///         sheet's name and were wrong on screen. The evidence is in
+    ///         <c>issues/pack-page-inventory.md</c>.
+    ///     </para>
     /// </remarks>
     public static readonly PartGroup[] Groups =
     [
         new PartGroup(
-            "Story and quests",
+            "Quests and cutscenes",
             "Everything a quest is made of: what people say to you, what you are told to go and do, "
-            + "and the subtitles during cutscenes.",
+            + "and the subtitles while a cutscene plays.",
             [
+                // One box for all four kinds of row in quest/, because they share a page per quest
+                // and cannot be offered apart: 210,430 spoken lines, 24,000 journal summaries, 20,067
+                // tracker steps and 8,341 system notices.
                 new TranslationPart(
-                    "Quest dialogue and objectives",
-                    "The text in the box when you talk to somebody about a quest, and the steps "
-                    + "listed under the quest in your Journal and in the tracker down the right of "
-                    + "the screen.",
+                    "Quest dialogue, journal and objectives",
+                    "The text in the box when you talk to somebody about a quest, the summary written "
+                    + "into your Journal as the story advances, the steps listed in the tracker down "
+                    + "the right of the screen, and the notices a quest posts while you are on it.",
                     ["quest/"]),
 
                 new TranslationPart(
@@ -92,88 +126,148 @@ internal static class PackParts
                     "The lines across the bottom of the screen while a cutscene is playing.",
                     ["cut_scene/"]),
 
-                // Both journals at once. CompleteJournal is the same quest titles again, listed
-                // under completed quests, and there is no reading of "translate the journal" that
-                // wants the finished half in a different language from the active half.
+                // BOTH TITLE SHEETS, AND THE REASON IS MEASURED. 5,367 of CompleteJournal's 7,598
+                // rows are byte-identical to a row in Quest: the same title, once for a quest you are
+                // on and once for one you have finished. And the Journal shows both at once — which
+                // is how the mismatch was found, with «Acechantes en la gruta» on the right of that
+                // window and "Lurkers in the Grotto" in the list on the left.
                 new TranslationPart(
-                    "Quest titles in the journal",
-                    "Only the names of quests — in the tracker down the right of the screen, in the "
-                    + "Journal, and in the list of ones you have finished. Not the text inside them.",
+                    "Quest names",
+                    "Only the names of quests, levequests and duties — in the tracker, in the "
+                    + "Journal, and in the Unending Journey at an inn where you replay cutscenes. Not "
+                    + "the text inside them.",
                     ["quest", "completejournal"],
                     "The names and the text are separate boxes, so switching one and not the other "
                     + "gives you English titles over Spanish objectives, or the other way round."),
-
-                new TranslationPart(
-                    "\"Ask about...\" menus",
-                    "The list of topics an NPC offers when they have several things to tell you, and "
-                    + "what they say once you pick one.",
-                    ["custom/", "customtalk"]),
-
-                new TranslationPart(
-                    "Dungeon, trial and raid dialogue",
-                    "What characters and bosses say while you are inside a duty.",
-                    ["instancecontenttextdata", "contenttalk"]),
-
-                new TranslationPart(
-                    "Open-world content, such as Bozja and Eureka",
-                    "The text in the large field zones: Eureka, Bozja, Zadnor and the Occult Crescent.",
-                    ["publiccontenttextdata"]),
-
-                new TranslationPart(
-                    "Party and large-scale content",
-                    "The text in content built for more than one party at a time.",
-                    ["partycontenttextdata", "massivepccontenttextdata"]),
             ],
             Image: "story"),
 
         new PartGroup(
-            "NPC chatter",
-            "What the people standing around the world say — the talk you can walk past without "
-            + "stopping, and the talk you get when you do stop.",
+            "What the people around you say",
+            "The talk you can walk past without stopping, and the talk you get when you do stop.",
             [
                 new TranslationPart(
-                    "Small talk when you speak to someone",
-                    "The box that opens when you talk to somebody who has nothing to do with a quest.",
+                    "Talking to someone",
+                    "The box that opens when you speak to somebody who has nothing to do with a quest.",
                     ["defaulttalk"]),
 
+                // THIS BOX IS HONESTLY TWO THINGS AND SAYS SO. custom/ is 26,859 rows over 752
+                // conversations, and 83% of it is measurably people talking — but the service windows
+                // are in there too, and they cannot be separated: CmnDefRetainerBell_00544 is 785
+                // rows of menu entries and retainer small talk in ONE file. Naming the windows in the
+                // description is the only honest option left, so it names them.
+                //
+                // CustomTalk is the list of verbs you pick from before any of it is spoken. It has to
+                // travel with custom/ or the menu and the answer end up in different languages.
+                new TranslationPart(
+                    "\"Ask about...\" menus and service windows",
+                    "The list of topics an NPC offers when they have several things to tell you, what "
+                    + "they say once you pick one, and the windows you work in afterwards — the "
+                    + "retainer, the aetheryte, the levequest board, linkshells, relic trade-ins and "
+                    + "your estate.",
+                    ["custom/", "customtalk"]),
+
                 // One checkbox for two sheets, decided by looking rather than by reading their
-                // names. Balloon is pedlars' cries and idle city chatter; NpcYell is combat barks —
-                // and also idle city chatter, and also the red banner that says a zone has been
-                // sealed off. Both draw the same little balloon over the same heads, and in testing
-                // every balloon that could be found came from NpcYell. Two boxes whose difference
-                // nobody can see is a worse answer than one box that covers what people mean.
+                // names. Balloon leans towards pedlars' cries and idle city chatter, NpcYell towards
+                // combat barks — but only by a lean: every lexical probe separates them by under 3%,
+                // 265 strings appear in BOTH sheets word for word, and in testing every balloon that
+                // could be found came from NpcYell. Two boxes whose difference nobody can see is a
+                // worse answer than one box that covers what people mean.
+                //
+                // THE RED "SEALED OFF" BANNER IS NOT HERE AND THE DESCRIPTION NO LONGER CLAIMS IT.
+                // It is LogMessage#2012 and #2013, so it belongs to the chat log box. Zero matches in
+                // Balloon, NpcYell or InstanceContentTextData.
                 new TranslationPart(
                     "Shouts and speech balloons",
-                    "The balloons that appear over people's heads as you walk past them, the "
-                    + "warnings shouted during a fight, and the red banner across the screen when a "
-                    + "zone is sealed off.",
+                    "The balloons that appear over people's heads as you walk past them, and the "
+                    + "warnings shouted during a fight.",
                     ["balloon", "npcyell"]),
-
-                new TranslationPart(
-                    "Objects and mechanisms in duties",
-                    "The text you get from levers, doors and the other things you can interact with "
-                    + "inside a dungeon.",
-                    ["gimmicktalk"]),
             ],
             "By far the largest part of the translation. Switching this off is the biggest single "
             + "change you can make here."),
+
+        // FIVE SHEETS IN ONE BOX, WHICH IS A MERGE AND NOT A SHRUG. They are the same kind of sheet:
+        // everything one type of content produces — dialogue, objectives, mechanic cues and the
+        // occasional scoreboard. Measured, the functional share is 10.7% of InstanceContentTextData
+        // and 7.3% of PublicContentTextData, which is the same shape; a player told them apart by
+        // name would be guessing.
+        //
+        // AND NONE OF IT IS AMBIENT, WHICH IS WHERE THEY NEARLY WENT. «Clear the binding lock» is an
+        // objective, «It's beginning to crack!» a mechanic cue, and «Successful catches / Current
+        // score» the Restoration's scoreboard. Filed as flavour, switching it off would quietly take
+        // the objectives off the screen.
+        new PartGroup(
+            "Duties, raids and field operations",
+            "What happens once you are inside a dungeon, a raid, or one of the large field zones.",
+            [
+                new TranslationPart(
+                    "Dialogue, objectives and on-screen text",
+                    "What bosses and NPCs say while you are inside, the objectives that appear as it "
+                    + "goes on, and the same for the large field zones and the big group content: "
+                    + "Eureka, Bozja, Zadnor, the Occult Crescent, the Ishgardian Restoration and the "
+                    + "Diadem.",
+                    ["instancecontenttextdata", "contenttalk", "publiccontenttextdata",
+                     "massivepccontenttextdata", "partycontenttextdata"]),
+
+                new TranslationPart(
+                    "Objects and mechanisms",
+                    "The text you get from levers, doors, corpses and the other things you can "
+                    + "interact with inside a duty.",
+                    ["gimmicktalk"]),
+            ]),
+
+        // One box for the whole window, which is what it was asked to be: the roulettes and the
+        // duties below them are one list to the person reading it, and there is no reading of "put
+        // the Duty Finder in Spanish" that wants the roulette names left in English above
+        // descriptions that are not. GuildOrder rides along because a guildhest's briefing is drawn
+        // in the same panel — the pair of screenshots for it was taken in that window.
+        //
+        // Its own group rather than a part of the interface, because it is read beside the content it
+        // describes. GoldSaucerTextData used to be bundled in here under a heading that said
+        // "descriptions", which covered for it; the sheet is chocobo courses and scoreboards, so it
+        // moved to the interface where it belongs.
+        new PartGroup(
+            "Duty Finder",
+            "The blurbs that tell you what something is before you go into it.",
+            [
+                new TranslationPart(
+                    "Duty Finder",
+                    "The Duty Finder from top to bottom: the roulettes and what each one asks of you "
+                    + "— including chocobo racing and ranked PvP — the paragraph down the right when "
+                    + "you pick a dungeon, trial or raid, and the briefing a guildhest gives you as it "
+                    + "starts.",
+                    ["contentfinderconditiontransient", "contentroulette", "guildorder"]),
+            ],
+            Image: "duty"),
 
         new PartGroup(
             "Menus and interface",
             "The game's own furniture: window titles, tabs, buttons, and the labels next to your "
             + "numbers.",
             [
+                // THREE SHEETS, ONE BOX, AND THE TWO PASSENGERS ARE HERE ON PURPOSE.
+                //
+                // RetainerTaskRandom is the venture names. They are read in the retainer window, and
+                // that window IS `addon` — Addon#2377 is «Retainer: … Ventures: … Select an option.»,
+                // all three lines in one row, with #2378-#2407 beneath it. Separately switchable, they
+                // would let somebody turn off the venture list and keep the labels around it.
+                //
+                // GoldSaucerTextData is an `addon` for one content area: 84 rows of racing courses,
+                // grades, placings and HUD counters — «Attacks Evaded», «Current MGP», «R-180». Same
+                // job, smaller scope, so the same box. Its own would allow a Spanish scoreboard over
+                // an English interface.
                 new TranslationPart(
                     "Menus, buttons and window titles",
                     "Everything written on the interface itself — the Character window, the Duty "
-                    + "Finder, your inventory, the tabs across the top of a window and the buttons "
-                    + "along the bottom.",
-                    ["addon"]),
+                    + "Finder, your inventory, the retainer windows and their venture list, the Gold "
+                    + "Saucer's scoreboards and race courses, the tabs across the top of a window and "
+                    + "the buttons along the bottom.",
+                    ["addon", "retainertaskrandom", "goldsaucertextdata"]),
 
                 new TranslationPart(
                     "Title screen and character creation",
-                    "The screens before you are in the world: logging in, choosing a character and "
-                    + "making one.",
+                    "The screens before you are in the world: logging in, choosing a character, and "
+                    + "the races, clans and options you pick from when making one.",
                     ["lobby"]),
             ],
             "Many other Dalamud plugins and combat parsers look for these words in English and stop "
@@ -183,51 +277,47 @@ internal static class PackParts
             + "those names looking inconsistent until the two are brought in line.",
             "interface"),
 
+        // TWO BOXES, AND THEY USED TO BE ONE. Active Help interrupts you the first time you do
+        // something; a content guide is a window you go and open. DescriptionString alone is 1,576
+        // rows with entries up to 3,258 characters — the whole mahjong rulebook, the Bozja briefing,
+        // the Island Sanctuary guide — and nobody reading it thinks of it as a tutorial popup.
+        new PartGroup(
+            "Tutorials and guides",
+            "The game explaining itself to you.",
+            [
+                new TranslationPart(
+                    "Active Help",
+                    "The windows that pop up the first time you do something, and the same texts "
+                    + "again when you look them up from the main menu afterwards.",
+                    ["howto", "howtopage", "howtocategory"]),
+
+                new TranslationPart(
+                    "Content guides",
+                    "The written guide a content window opens: the rules of mahjong and Triple Triad, "
+                    + "and the briefings for Bozja, deep dungeons, the Island Sanctuary and New "
+                    + "Game+.",
+                    ["description", "descriptionstring"]),
+            ],
+            Image: "help"),
+
+        // One box for 8,469 rows a player would happily split and cannot. LogKind isolates the battle
+        // log cleanly — kinds 41-49, 84 rows — but the duty announcements sit in a 4,495-row bucket
+        // with party invites and system notices, so there is no line to cut on. Parked in WORKQUEUE.
         new PartGroup(
             "Combat log and system messages",
             "The lines the game writes into your chat log by itself.",
             [
                 new TranslationPart(
                     "Combat log and system messages",
-                    "What you hit and for how much, gil spent and earned, entering and leaving a "
-                    + "sanctuary, duty and party notices, and market board messages.",
+                    "Everything the game writes into your chat log by itself: what you hit and for "
+                    + "how much, emotes, gil spent and earned, party and Free Company notices, "
+                    + "gathering and crafting, market board messages, the announcements a duty makes "
+                    + "including the red banner when a zone is sealed off, and every \"unable to\" the "
+                    + "game answers with.",
                     ["logmessage"]),
             ],
             "Combat parsers and several plugins read these lines in English and will not recognise "
             + "them translated."),
-
-        // The same call as the Duty Finder block: two boxes offering a choice between things nobody
-        // wants in different languages.
-        new PartGroup(
-            "Tutorials and help",
-            "The game explaining itself to you.",
-            [
-                new TranslationPart(
-                    "Tutorials and help",
-                    "The Active Help windows that appear the first time you do something, the same "
-                    + "texts again when you look them up from the main menu afterwards, and the "
-                    + "written guides attached to content.",
-                    ["howto", "howtopage", "howtocategory", "description", "descriptionstring"]),
-            ],
-            Image: "help"),
-
-        // One box for all three sheets. Splitting them offered a choice nobody wants to make: there
-        // is no reason to read a dungeon's blurb in Spanish and a guildhest's in English, and
-        // "Gold Saucer" as its own checkbox invited the reader to wonder what else was hiding.
-        // Named after the window it is read in, in the words that window uses. "Duty and content
-        // descriptions" was a phrase this project made up; "Duty Finder" is written on screen.
-        new PartGroup(
-            "Duty Finder descriptions",
-            "The blurbs that tell you what something is before you go into it.",
-            [
-                new TranslationPart(
-                    "Duty Finder descriptions",
-                    "The paragraph down the right of the Duty Finder when you pick a dungeon, trial "
-                    + "or raid; the instructions a guildhest gives you as it starts; and the text "
-                    + "around the Gold Saucer and its attractions.",
-                    ["contentfinderconditiontransient", "guildorder", "goldsaucertextdata"]),
-            ],
-            Image: "duty"),
     ];
 
     /// <summary>Every sheet key the table names, for telling the known from the unknown.</summary>
