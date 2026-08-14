@@ -39,6 +39,8 @@ read those words out of a file and drew them itself.
 
 ![A Spanish speech balloon above an NPC](images/example3.png)
 
+![The Character window in Spanish](images/example6.png)
+
 ## Install
 
 A testing build, so expect rough edges. It needs XIVLauncher/Dalamud.
