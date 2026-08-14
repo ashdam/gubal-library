@@ -125,6 +125,26 @@ plugin refuses to serve it and says so, because serving the previous patch's tex
 wrong rows silently. This is the day the startup fetch above earns its keep: if the pack has already
 been rebuilt, the client takes it while it boots and the patch costs you nothing.
 
+## How this compares
+
+Three ways to read Final Fantasy XIV in a language it does not ship.
+
+| | Live machine translation<br><sub>translated as it appears, drawn over the game</sub> | Mod-loader text packs<br><sub>the game's pages, applied by a mod loader</sub> | **Gubal Library**<br><sub>the game's pages, served by the plugin</sub> |
+|---|:---:|:---:|:---:|
+| **What else you must install** | a translation service,<br>usually with an API key | a mod loader | ✅ **nothing** |
+| **The game lays the text out**<br><sub>italics, colour, line breaks, the font shrinking on a long line</sub> | ❌ drawn on top | ✅ | ✅ |
+| **Gender and number agree**<br><sub>the game's own conditionals resolve for your character</sub> | ❌ already filled in<br>by the time it is seen | ✅ | ✅ |
+| **Network traffic while you play** | ❌ every line | ✅ none | ✅ none |
+| **Consistent from one line to the next** | ❌ each line<br>translated alone | ✅ | ✅ glossary of ~1,000 terms,<br>enforced by a validator |
+| **Choose what stays in English** | ➖ | ✅ by category | ✅ **14 switches** |
+| **Your game files untouched** | ✅ | ✅ | ✅ |
+
+**A plugin and nothing else.** It hooks the game's own file reads, so there is no mod loader to
+install, configure or keep up to date.
+
+**And it does not know it is Spanish.** What it handles is pages of the game's text, so a pack in any
+other language works with this same plugin and not one line of its code has to change.
+
 ## On the network
 
 **Nothing is ever sent anywhere.** No telemetry, no analytics, nothing about you or your character,
