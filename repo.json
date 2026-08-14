@@ -3,7 +3,7 @@
     "Author": "ashdam",
     "Name": "Gubal Library",
     "InternalName": "GubalLibrary",
-    "AssemblyVersion": "0.2.5.0",
+    "AssemblyVersion": "0.2.5.1",
     "Punchline": "Community language localizer. Needs a language pack.",
     "Description": "Gubal Library hands the game pre-translated copies of its own text files, and the game draws them itself -- its own font, its own typewriter effect, its own layout. Nothing is overlaid and nothing is translated at runtime. Your install is never touched: the archives are left alone and a patch overwrites nothing.\n\nIT SHIPS EMPTY, and it belongs to no language. Install it and do nothing else and the game reads exactly as it always did; point it at a language pack and the game speaks that language. ANY LANGUAGE WORKS -- the plugin serves whatever pages a pack contains and does not care which tongue they are in. Use a pack the community has published, or build one for a language nobody has covered yet: the file format and the tooling are documented in full, so starting from nothing is a real option.\n\nBecause the game does the drawing, coverage is not a list of supported windows. Dialogue, the quest journal, cutscene subtitles, speech balloons, menus, item names, tooltips and log messages all come from those files. Italics, colour and gender agreement survive.\n\nNothing is ever sent anywhere: no telemetry, no analytics, nothing about you or your character. The only outgoing request is to the pack address you typed in yourself.\n\nTwo things to know. A pack must be built against the patch you are running, and the game reads its text once at startup -- so switching a pack on takes effect the next time you start the client, not immediately.\n\nUPDATES CAN LOOK AFTER THEMSELVES. Once a pack is installed the plugin asks its publisher, in a couple of kilobytes, whether a newer one exists, and offers it. Turn on the startup fetch and it takes it instead: downloaded and installed while the game is starting, before it reads its text, so the newer translation is live in that session and nothing has to be restarted. It is off until you turn it on, it holds the game's start while it downloads, and it goes to no address but the one you typed in.\n\nThis is a testing build -- please report problems on GitHub.",
     "ApplicableVersion": "any",
@@ -25,7 +25,7 @@
     "IsHide": false,
     "IsTestingExclusive": false,
     "DownloadCount": 0,
-    "LastUpdate": 1786705113,
+    "LastUpdate": 1786707014,
     "DownloadLinkInstall": "https://github.com/ashdam/gubal-library/releases/latest/download/latest.zip",
     "DownloadLinkUpdate": "https://github.com/ashdam/gubal-library/releases/latest/download/latest.zip",
     "DownloadLinkTesting": "https://github.com/ashdam/gubal-library/releases/latest/download/latest.zip"
