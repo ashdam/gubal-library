@@ -175,3 +175,8 @@ at a local zip or a folder and it never touches the network at all.
 `probesqpack` attaches when the plugin loads and only then, so it takes effect at the next client
 start. It exists to check that the plugin still attaches before the game's first read, which is the
 one property this whole approach depends on.
+
+## Contributors
+
+- **Mini Ashdam** — [Lodestone profile](https://eu.finalfantasyxiv.com/lodestone/character/1580162/)
+- **Nier Gainsborough** — [Lodestone profile](https://eu.finalfantasyxiv.com/lodestone/character/30057928/)
