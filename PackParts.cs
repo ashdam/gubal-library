@@ -312,7 +312,12 @@ internal static class PackParts
                     "The written guide a content window opens: the rules of mahjong and Triple Triad, "
                     + "and the briefings for Bozja, deep dungeons, the Island Sanctuary and New "
                     + "Game+.",
-                    ["description", "descriptionstring"]),
+                    // `descriptionstandalonetransient` names the guides reached from the main menu
+                    // or from a window's own question mark, as opposed to the ones a content window
+                    // opens. It belongs with these two and NOT with the how-tos: leave it out and
+                    // the title above the page reads English while the page reads Spanish, which is
+                    // exactly how it was found.
+                    ["description", "descriptionstring", "descriptionstandalonetransient"]),
             ],
             Image: "help"),
 
