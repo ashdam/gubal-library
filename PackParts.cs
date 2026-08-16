@@ -261,13 +261,16 @@ internal static class PackParts
                 // grades, placings and HUD counters — «Attacks Evaded», «Current MGP», «R-180». Same
                 // job, smaller scope, so the same box. Its own would allow a Spanish scoreboard over
                 // an English interface.
+                // MainCommand IS THE MAIN MENU and joined this box on 16 August 2026. It had been
+                // falling through to "Other text in this pack" under its own sheet name, which named
+                // it after a file and filed the game's most-used menu with the leftovers.
                 new TranslationPart(
                     "Menus, buttons and window titles",
-                    "Everything written on the interface itself — the Character window, the Duty "
-                    + "Finder, your inventory, the retainer windows and their venture list, the Gold "
-                    + "Saucer's scoreboards and race courses, the tabs across the top of a window and "
-                    + "the buttons along the bottom.",
-                    ["addon", "retainertaskrandom", "goldsaucertextdata"]),
+                    "Everything written on the interface itself — the main menu you open with Esc, "
+                    + "the Character window, the Duty Finder, your inventory, the retainer windows and "
+                    + "their venture list, the Gold Saucer's scoreboards and race courses, the tabs "
+                    + "across the top of a window and the buttons along the bottom.",
+                    ["addon", "maincommand", "retainertaskrandom", "goldsaucertextdata"]),
 
                 new TranslationPart(
                     "Title screen and character creation",
@@ -290,11 +293,19 @@ internal static class PackParts
             "Tutorials and guides",
             "The game explaining itself to you.",
             [
+                // MultipleHelpString RIDES WITH THE HOW-TOS RATHER THAN GETTING A BOX OF ITS OWN. It
+                // was given one on 16 August and merged the same day: the trigger differs — Active
+                // Help interrupts you, this waits behind the "?" in a window's corner — but that is a
+                // distinction about how the text arrives, not about what it is, and the table's rule
+                // is that a checkbox names something the player can point at. 37 rows against 969 is
+                // also not a split anybody would go looking for.
                 new TranslationPart(
-                    "Active Help",
-                    "The windows that pop up the first time you do something, and the same texts "
-                    + "again when you look them up from the main menu afterwards.",
-                    ["howto", "howtopage", "howtocategory"]),
+                    "Active Help and window help",
+                    "The windows that pop up the first time you do something, the same texts again "
+                    + "when you look them up from the main menu afterwards, and the help behind the "
+                    + "question mark in the corner of a window — such as the Duty Finder's pages on "
+                    + "registering for a duty and what happens next.",
+                    ["howto", "howtopage", "howtocategory", "multiplehelpstring"]),
 
                 new TranslationPart(
                     "Content guides",
