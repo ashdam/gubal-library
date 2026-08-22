@@ -8,7 +8,7 @@ namespace GubalLibrary;
 /// </summary>
 /// <remarks>
 ///     <para>
-///         Written by <c>Tools/ExdRedirect</c> as <c>gubal-manifest.json</c> beside the pages. Half
+///         Written by <c>Tools/PackBuilder</c> as <c>gubal-manifest.json</c> beside the pages. Half
 ///         of it is authored in <c>corpus-es/pack.json</c> — name, language, author — and half is
 ///         stamped by the build, which is the half that must never be typed by hand: a version a
 ///         person maintains is a version that is wrong the first time somebody forgets.
