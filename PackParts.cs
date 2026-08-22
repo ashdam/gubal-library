@@ -146,10 +146,17 @@ internal static class PackParts
             "What the people around you say",
             "The talk you can walk past without stopping, and the talk you get when you do stop.",
             [
+                // GoldSaucerTalk IS IN THIS BOX AND NOT IN THE INTERFACE ONE, which is where its
+                // near-namesake went. GoldSaucerTextData is scoreboards and race courses — furniture.
+                // This sheet is the Mini Cactpot crier working the crowd and the ticket seller
+                // answering you, so it is somebody talking. The purchase prompt rides along because
+                // it is the same conversation: you are told the price by the person selling.
                 new TranslationPart(
                     "Talking to someone",
-                    "The box that opens when you speak to somebody who has nothing to do with a quest.",
-                    ["defaulttalk"]),
+                    "The box that opens when you speak to somebody who has nothing to do with a "
+                    + "quest, including the Gold Saucer's criers and the attendants who sell you a "
+                    + "Cactpot ticket.",
+                    ["defaulttalk", "goldsaucertalk"]),
 
                 // THIS BOX IS HONESTLY TWO THINGS AND SAYS SO. custom/ is 26,859 rows over 752
                 // conversations, and 83% of it is measurably people talking — but the service windows
@@ -217,8 +224,25 @@ internal static class PackParts
                 new TranslationPart(
                     "Objects and mechanisms",
                     "The text you get from levers, doors, corpses and the other things you can "
-                    + "interact with inside a duty.",
-                    ["gimmicktalk"]),
+                    + "interact with inside a duty, and the signs and journals you stop to read — "
+                    + "the Toto-Rak expedition notes among them.",
+                    ["gimmicktalk", "gimmickbill"]),
+
+                // WHAT ONLY EXISTS INSIDE ONE PIECE OF CONTENT, and it is a family rather than one
+                // expansion's quirk: the deep dungeons have their pomanders and aetherpool gear, the
+                // Occult Crescent its phantom jobs, traits and lore log, Eureka its aether items.
+                // Named after the kind of thing rather than after any one duty, because the first
+                // draft of this box was called "the Occult Crescent's own windows" and would have
+                // needed renaming the moment the deep dungeon sheets were extracted a day later.
+                new TranslationPart(
+                    "The items, jobs and gear found only inside them",
+                    "The things that exist in one piece of content and nowhere else: the pomanders "
+                    + "and aetherpool weapons of the deep dungeons, the floor effects announced as "
+                    + "you descend, and the Occult Crescent's phantom jobs, their traits, and the "
+                    + "lore log it fills in as you explore.",
+                    ["mkdsupportjob", "mkdtrait", "mkdlore", "deepdungeonitem",
+                     "deepdungeonequipment", "deepdungeonflooreffectui", "deepdungeondemiclone",
+                     "eurekaaetheritem"]),
             ]),
 
         // One box for the whole window, which is what it was asked to be: the roulettes and the
@@ -272,6 +296,19 @@ internal static class PackParts
                     + "across the top of a window and the buttons along the bottom.",
                     ["addon", "maincommand", "retainertaskrandom", "goldsaucertextdata"]),
 
+                // TWO SHEETS AND THEY MUST SHARE A BOX, for the reason VVDVoteRouteLabel shares one
+                // with ContentTalk: THEY HOLD THE SAME SENTENCE. «Radiant's Gear Augmentation
+                // (IL 600)» is SpecialShop#1770447 and it is also TopicSelect#3276940, and the menu
+                // the vendor opens reads the TopicSelect one. SpecialShop was translated first and
+                // alone, and the window still came up in English — which is how this was found.
+                // Two checkboxes would let somebody translate the shop and not the way in.
+                new TranslationPart(
+                    "Shop and exchange windows",
+                    "The title on a vendor's window and the list of shops they offer before you pick "
+                    + "one: the tomestone exchanges, the gear sets listed by item level, and the "
+                    + "seasonal event stalls.",
+                    ["specialshop", "topicselect"]),
+
                 new TranslationPart(
                     "Title screen and character creation",
                     "The screens before you are in the world: logging in, choosing a character, and "
@@ -305,7 +342,7 @@ internal static class PackParts
                     + "when you look them up from the main menu afterwards, and the help behind the "
                     + "question mark in the corner of a window — such as the Duty Finder's pages on "
                     + "registering for a duty and what happens next.",
-                    ["howto", "howtopage", "howtocategory", "multiplehelpstring"]),
+                    ["howto", "howtopage", "howtocategory", "multiplehelpstring", "multiplehelp"]),
 
                 new TranslationPart(
                     "Content guides",
