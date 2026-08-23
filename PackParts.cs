@@ -221,12 +221,24 @@ internal static class PackParts
                     ["instancecontenttextdata", "contenttalk", "publiccontenttextdata",
                      "massivepccontenttextdata", "partycontenttextdata", "vvdvoteroutelabel"]),
 
+                // WHAT THE OBJECT SAYS, NOT WHAT IT IS CALLED. The name under the cursor is
+                // EObjName and lives in the interface group; this pair is the text that arrives
+                // once you have already used the thing. The first draft of this description listed
+                // "levers, doors and corpses", which named the objects rather than the text and
+                // read as though it covered EObjName too.
+                //
+                // The two sheets differ in voice and that is the clearest way to describe them.
+                // GimmickTalk narrates at you in the second person — «You find the smouldering
+                // remains of magitek armour». GimmickBill is the document itself, with no narrator:
+                // First Spear Rydel's expedition notes, day by day, and the memos scrawled by
+                // Sastasha's pirates.
                 new TranslationPart(
-                    "Objects and mechanisms",
-                    "The text you get from levers, doors, corpses and the other things you can "
-                    + "interact with inside a duty, and the signs and journals you stop to read — "
-                    + "the Toto-Rak expedition notes among them.",
-                    ["gimmicktalk", "gimmickbill"]),
+                    "What an object tells you when you use it",
+                    "The message that comes back when you examine a corpse, pull a lever or open a "
+                    + "panel, and the documents you find and read in full — expedition journals, "
+                    + "letters, and the scrawled memos that give away a puzzle's answer.",
+                    ["gimmicktalk", "gimmickbill"],
+                    Image: "examine"),
 
                 // WHAT ONLY EXISTS INSIDE ONE PIECE OF CONTENT, and it is a family rather than one
                 // expansion's quirk: the deep dungeons have their pomanders and aetherpool gear, the
@@ -309,6 +321,22 @@ internal static class PackParts
                     + "seasonal event stalls.",
                     ["specialshop", "topicselect"]),
 
+                // THE NAME UNDER THE CURSOR IS INTERFACE, not scenery, which is why it is in this
+                // group and not with the duties: it is a label the game draws over the world, and
+                // the warning this group carries — other plugins read these words in English —
+                // applies to it more than to anything else here.
+                //
+                // 16,146 rows over 4,626 distinct strings. «destination» alone is 3,279 of them,
+                // so the first layer of 29 decisions covered 5,752 rows; the one-off names of
+                // individual dungeons are still English and will be for a while.
+                new TranslationPart(
+                    "Names of things you can interact with",
+                    "What the cursor reads when you point at something in the world: aetherytes and "
+                    + "the destinations they offer, aether currents, treasure coffers, levers, "
+                    + "doors, gathering nodes and the signs and notes you stop to read.",
+                    ["eobjname"],
+                    Image: "interactable"),
+
                 new TranslationPart(
                     "Title screen and character creation",
                     "The screens before you are in the world: logging in, choosing a character, and "
@@ -342,7 +370,8 @@ internal static class PackParts
                     + "when you look them up from the main menu afterwards, and the help behind the "
                     + "question mark in the corner of a window — such as the Duty Finder's pages on "
                     + "registering for a duty and what happens next.",
-                    ["howto", "howtopage", "howtocategory", "multiplehelpstring", "multiplehelp"]),
+                    ["howto", "howtopage", "howtocategory", "multiplehelpstring", "multiplehelp"],
+                    Image: "help"),
 
                 new TranslationPart(
                     "Content guides",
@@ -354,9 +383,9 @@ internal static class PackParts
                     // opens. It belongs with these two and NOT with the how-tos: leave it out and
                     // the title above the page reads English while the page reads Spanish, which is
                     // exactly how it was found.
-                    ["description", "descriptionstring", "descriptionstandalonetransient"]),
-            ],
-            Image: "help"),
+                    ["description", "descriptionstring", "descriptionstandalonetransient"],
+                    Image: "contentguide"),
+            ]),
 
         // One box for 8,469 rows a player would happily split and cannot. LogKind isolates the battle
         // log cleanly — kinds 41-49, 84 rows — but the duty announcements sit in a 4,495-row bucket
