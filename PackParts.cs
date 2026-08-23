@@ -286,9 +286,17 @@ internal static class PackParts
                     Loc.Localize("Part.WorldObjects.Name", "Names of things you can interact with"),
                     Loc.Localize("Part.WorldObjects.Desc",
                         "What the cursor reads when you point at something in the world: aetherytes "
-                        + "and the destinations they offer, aether currents, treasure coffers, "
-                        + "levers, doors, gathering nodes and the signs and notes you stop to read."),
-                    ["eobjname"],
+                        + "and the destinations they offer, Aethernet shards, aether currents, "
+                        + "levers, doors, gathering nodes, the signs and notes you stop to read, and "
+                        + "the treasure coffers a duty leaves behind."),
+                    // THREE SHEETS, ONE BOX, BECAUSE THE PLAYER POINTS AT ONE THING. `eobjname` is
+                    // the name of anything with a cursor target; `aetheryte` holds the two the game
+                    // keeps apart — «aetheryte» and «Aethernet shard» — and `treasure` the lettered
+                    // chests a duty leaves, «treasure coffer A» and its B and C. All three were
+                    // found the same way: a sheet was translated, the thing still read English on
+                    // screen, and the word turned out to live somewhere else. Split into separate
+                    // checkboxes they would let somebody translate the coffer and not its letter.
+                    ["eobjname", "aetheryte", "treasure"],
                     Image: "interactable"),
 
                 new TranslationPart(
