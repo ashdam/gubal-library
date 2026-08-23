@@ -3,7 +3,7 @@
     "Author": "ashdam",
     "Name": "Gubal Library",
     "InternalName": "GubalLibrary",
-    "AssemblyVersion": "0.2.7.0",
+    "AssemblyVersion": "0.3.0.0",
     "Punchline": "Community language localizer. Needs a language pack.",
     "Description": "Gubal Library hands the game pre-translated copies of its own text files, so the game draws another language itself, in its own font and its own layout. Nothing is overlaid and your install is never touched.\n\nIt ships empty and belongs to no language: point it at a community language pack and the game speaks that language. You choose what gets translated and what stays English, part by part.\n\n/gubal → Opens the settings window.\n/gubal status → What is installed, what is being served, and whether it reached the game.\n/gubal parts → Lists what the pack covers and what you have switched off.\n/gubal check → Asks the publisher whether a newer pack exists.\n/gubal usepack → Serves the installed pack, or stops serving it.\n/gubal autoupdate → Fetches a newer pack while the game is starting.\n/gubal probesqpack → Diagnostics for when a page is not reaching the game.\n\nA pack must match the patch you are running, and the game reads its text once at startup, so a change takes effect the next time you start the client.\n\nThis is a testing build. Please report problems on GitHub.",
     "ApplicableVersion": "any",
@@ -25,7 +25,7 @@
     "IsHide": false,
     "IsTestingExclusive": false,
     "DownloadCount": 0,
-    "LastUpdate": 1787481732,
+    "LastUpdate": 1787486863,
     "DownloadLinkInstall": "https://github.com/ashdam/gubal-library/releases/latest/download/latest.zip",
     "DownloadLinkUpdate": "https://github.com/ashdam/gubal-library/releases/latest/download/latest.zip",
     "DownloadLinkTesting": "https://github.com/ashdam/gubal-library/releases/latest/download/latest.zip"
