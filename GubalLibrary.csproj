@@ -36,8 +36,32 @@
     The frames they are cut from are not in this repository for the same reason; see .gitignore.
   -->
 
+  <!--
+    CheapLoc is the localization library Dalamud uses for its own interface, and it ships beside
+    Dalamud rather than as a package: referenced from the loader's own folder, and not copied, so a
+    plugin never carries a second copy of something the host already loaded.
+  -->
+  <ItemGroup>
+    <Reference Include="CheapLoc">
+      <HintPath>$(DalamudLibPath)CheapLoc.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+  </ItemGroup>
+
   <ItemGroup>
     <EmbeddedResource Include="images\tooltips\*.png" />
+  </ItemGroup>
+
+  <!--
+    The settings window's own words, one file per language, in the format CheapLoc reads. English is
+    not here: it is the fallback written beside every key in the code, so a language with no file and
+    a key with no translation both come out in English. See Language.cs.
+
+    Only languages Dalamud can actually be set to are worth adding — its list is de, ja, fr, it, es,
+    ko, no, ru, zh, tw and English, so a file for anything else would never be chosen by anybody.
+  -->
+  <ItemGroup>
+    <EmbeddedResource Include="loc\*.json" LogicalName="GubalLibrary.loc.%(Filename)%(Extension)" />
   </ItemGroup>
 
 </Project>

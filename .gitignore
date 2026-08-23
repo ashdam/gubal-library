@@ -12,9 +12,11 @@ obj/
 # directory, and !Data/sample-corpus.json under a bare `Data/` would never be considered.
 Data/*
 !Data/sample-corpus.json
-es.json
-corpus.json
-corpus-*.json
+# Anchored to the root on purpose. Unanchored, `es.json` also matched loc/es.json and quietly kept
+# the settings window's Spanish out of the repository -- caught on the way into 0.3.0.0.
+/es.json
+/corpus.json
+/corpus-*.json
 
 # Diagnostic output, written into the plugin config directory at runtime. Only ever appears here if
 # someone points the plugin at the source tree.

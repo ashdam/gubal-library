@@ -8,109 +8,38 @@ internal sealed class Configuration : IPluginConfiguration
     /// <summary>Bumped to 2 when the page-flavoured names became language-pack ones.</summary>
     public int Version { get; set; } = 2;
 
-    /// <summary>
-    ///     Where the user got the pack from: a folder, a <c>.zip</c>, or a URL to one.
-    /// </summary>
-    /// <remarks>
-    ///     Kept alongside <see cref="LanguagePackPath" /> rather than replacing it, because they
-    ///     answer different questions. This one is where to look for a newer generation, and only a
-    ///     URL can answer that; the other is what to serve at the next start, and after an archive is
-    ///     unpacked that is somewhere else entirely.
-    /// </remarks>
+    /// <summary>Where the pack came from: a folder, a <c>.zip</c>, or a URL. Only a URL can be asked
+    /// for a newer one, which is why this is kept beside <see cref="LanguagePackPath" />.</summary>
     public string PackSource { get; set; } = string.Empty;
 
-    /// <summary>
-    ///     Absolute path to the folder actually served. Empty means nothing is served.
-    /// </summary>
-    /// <remarks>
-    ///     <para>
-    ///         Set by installing, not typed. For an archive it is the plugin's own directory, where
-    ///         <see cref="PackInstaller" /> unpacked it; for a folder source it is that folder,
-    ///         because copying it would make a second copy that no build writes to.
-    ///     </para>
-    ///     <para>
-    ///         Nothing is bundled with the plugin: a pack is tens of megabytes across thousands of
-    ///         files, it is derived from the game's own data, and it is regenerated whenever the game
-    ///         is patched.
-    ///     </para>
-    /// </remarks>
+    /// <summary>Absolute path to the folder actually served; empty serves nothing. Set by installing,
+    /// not typed: an archive lands in the plugin directory, a folder source is served where it lies.</summary>
     public string LanguagePackPath { get; set; } = string.Empty;
 
-    /// <summary>
-    ///     Serve the installed pack in place of the game's own text. Off until one is chosen.
-    /// </summary>
-    /// <remarks>
-    ///     Read once, in the constructor, and never again. The client reads its Excel sheets about two
-    ///     seconds after plugins load and keeps them for the session, so this decides what happens at
-    ///     the next start rather than now — see <see cref="ExdRedirector" />.
-    /// </remarks>
+    /// <summary>Serve the installed pack. Read once in the constructor, so it decides the next start
+    /// rather than now — see <see cref="ExdRedirector" />.</summary>
     public bool ServeLanguagePack { get; set; }
 
-    /// <summary>
-    ///     Fetch a newer pack during startup, before the game reads its text.
-    /// </summary>
-    /// <remarks>
-    ///     <para>
-    ///         Off by default, and it has to be: it spends somebody's bandwidth and holds their game's
-    ///         start without them having asked on the day it happens. Every other download this plugin
-    ///         makes is a button press.
-    ///     </para>
-    ///     <para>
-    ///         Only honoured when Dalamud is set to wait for plugins before the game loads. Without
-    ///         that the client reads its sheets while the download is still running, which costs the
-    ///         session its translation rather than saving it a restart — see
-    ///         <see cref="DalamudBootWait" />.
-    ///     </para>
-    /// </remarks>
+    /// <summary>Fetch a newer pack during startup. Off by default: it spends bandwidth and holds the
+    /// game's start unasked. Only honoured when Dalamud waits for plugins — see
+    /// <see cref="DalamudBootWait" />.</summary>
     public bool AutoUpdatePack { get; set; }
 
-    /// <summary>
-    ///     Hook the client's archive reads and log the Excel pages it asks for, redirecting nothing.
-    /// </summary>
-    /// <remarks>
-    ///     Diagnostic, off by default. It answered whether this plugin could redirect files itself
-    ///     rather than going through Penumbra — it attaches 2.1 seconds before the client's first
-    ///     Excel read, so it can, and <see cref="ExdRedirector" /> now does. It is kept because that
-    ///     margin is a property of Dalamud's load order rather than of this code, and the cheapest way
-    ///     to find out that a patch or a settings change has eaten it is to look again.
-    /// </remarks>
+    /// <summary>Log the Excel pages the client asks for, redirecting nothing. Diagnostic: the margin
+    /// before the client's first read belongs to Dalamud's load order, and this is how to check a
+    /// patch has not eaten it.</summary>
     public bool ProbeSqPack { get; set; }
 
     /// <summary>
-    ///     The parts of the translation the user has switched off. Empty means all of it is served.
+    ///     The parts switched off. Empty serves everything.
     /// </summary>
     /// <remarks>
-    ///     <para>
-    ///         <b>What is stored is what is OFF.</b> An absent or empty set therefore means "serve
-    ///         everything", which is what every existing install and every fresh one already does —
-    ///         no migration, and no way for an upgrade to quietly stop serving something. It also
-    ///         settles the other direction: a sheet that appears in a later pack, or a part this table
-    ///         learns to name in a later build, arrives translated rather than silently withheld.
-    ///     </para>
-    ///     <para>
-    ///         <b>Keyed by sheet, not by the checkbox it was ticked on.</b> The groups and parts in
-    ///         <see cref="PackParts" /> are this plugin's presentation of the game's sheets and may be
-    ///         re-cut in a later version; the sheet names are facts about the game and will not move.
-    ///         Saving the presentation would orphan somebody's choices the first time a part was split
-    ///         in two.
-    ///     </para>
-    ///     <para>
-    ///         Keys naming sheets the installed pack does not hold are kept rather than pruned. They
-    ///         cost nothing, and somebody who switches back to a pack that has them again gets the
-    ///         answer they gave last time instead of a silent reset.
-    ///     </para>
-    ///     <para>
-    ///         <b>Keys are lower case, and nothing here relies on a comparer.</b> A set built with
-    ///         <see cref="StringComparer.OrdinalIgnoreCase" /> does not necessarily come back with one
-    ///         after a round trip through the configuration file, and a comparison that is
-    ///         case-insensitive until somebody restarts is worse than one that never was. Both sources
-    ///         of a key — <see cref="PackParts.SheetOf" /> and the table it is matched against — are
-    ///         lower case already, so ordinary equality is enough.
-    ///     </para>
-    ///     <para>
-    ///         Read in the constructor, like <see cref="ServeLanguagePack" />, so this decides what is
-    ///         served at the next start rather than now — see <see cref="ExdRedirector" />.
-    ///     </para>
+    ///     <b>What is stored is what is OFF</b>, so a sheet a later pack adds arrives translated
+    ///     rather than silently withheld. <b>Keyed by sheet</b>, which is a fact about the game, and
+    ///     not by the checkbox, which this plugin may re-cut. <b>Keys are lower case and nothing
+    ///     relies on a comparer</b>: an <see cref="StringComparer.OrdinalIgnoreCase" /> set does not
+    ///     survive the round trip through the config file, and case-insensitive until somebody
+    ///     restarts is worse than never. Keys for sheets the pack lacks are kept, not pruned.
     /// </remarks>
     public HashSet<string> DisabledSheets { get; set; } = [];
 }

@@ -1,4 +1,5 @@
 using System.Numerics;
+using CheapLoc;
 using Dalamud.Bindings.ImGui;
 using Dalamud.Interface;
 using Dalamud.Interface.ImGuiFileDialog;
@@ -15,10 +16,8 @@ namespace GubalLibrary;
 ///     they contain.
 /// </summary>
 /// <remarks>
-///     Ordered by what a new user has to do, not by what the plugin does internally. The plugin
-///     ships no translations, so a fresh install can do exactly one useful thing — be pointed at a
-///     folder — and that row is therefore first, under whatever the status line has to say about it.
-///     Everything below it only has meaning once that folder exists.
+///     Ordered by what a new user has to do, not by what the plugin does internally: it ships no
+///     translations, so a fresh install can do exactly one useful thing — be pointed at a folder.
 /// </remarks>
 internal sealed class ConfigWindow : Window
 {
@@ -30,24 +29,18 @@ internal sealed class ConfigWindow : Window
     /// <summary>The information markers. One colour, because they all mean the same thing.</summary>
     private static readonly Vector4 Blue = new(0.45f, 0.72f, 1f, 1f);
 
-    /// <summary>
-    ///     How wide a tooltip picture is drawn, before the interface scale is applied.
-    /// </summary>
+    /// <summary>How wide a tooltip picture is drawn, before the interface scale is applied.</summary>
     /// <remarks>
-    ///     The width the screenshots are cut to, so at 100% they are drawn pixel for pixel. The text
-    ///     above them wraps at the same width: a narrow column of words over a wide picture reads as
-    ///     two things that landed in the same box by accident.
+    ///     The width the screenshots are cut to, so at 100% they are pixel for pixel. The text above
+    ///     wraps at the same width, or the two read as things that landed in one box by accident.
     /// </remarks>
     private const float PictureWidth = 760f;
 
-    /// <summary>
-    ///     Wider than this and a picture is drawn above its partner rather than beside it.
-    /// </summary>
+    /// <summary>Wider than this and a picture is drawn above its partner rather than beside it.</summary>
     /// <remarks>
-    ///     Where halving a screenshot stops being a smaller picture and starts being an unreadable one.
-    ///     Set by the shapes this actually has: the cursor crops are 1.2 and go side by side; the help
-    ///     windows are 2.4 and did not survive it — 560 wide natively, they were drawn at 283 and the
-    ///     text inside them went to nothing. The message-window crops are 4.0.
+    ///     Where halving a screenshot stops being a smaller picture and starts being an unreadable
+    ///     one. Set by the shapes in hand: cursor crops are 1.2 and survive it, the help windows are
+    ///     2.4 and did not — drawn at 283 from 560, their text went to nothing.
     /// </remarks>
     private const float PanoramicRatio = 2.2f;
 
@@ -99,20 +92,11 @@ internal sealed class ConfigWindow : Window
     private string? installMessage;
     private bool installFailed;
 
-    /// <summary>
-    ///     Why a restart is owed, or null when none is. Never cleared once set.
-    /// </summary>
+    /// <summary>Why a restart is owed, or null when none is. Never cleared once set.</summary>
     /// <remarks>
-    ///     <para>
-    ///         Only a restart clears it, because only a restart acts on it: the client reads its text
-    ///         once at startup, so between changing something and restarting the game is still showing
-    ///         what it read and there is nothing the plugin can do about that.
-    ///     </para>
-    ///     <para>
-    ///         A reason rather than a flag, because two different things now owe one and the sentence
-    ///         under the banner has to say which. "The new language pack is installed" in front of
-    ///         somebody who only unticked a checkbox describes something that did not happen.
-    ///     </para>
+    ///     Only a restart acts on it: the client reads its text once at startup. A reason rather than
+    ///     a flag, because two different things owe one — "the new language pack is installed" in
+    ///     front of somebody who only unticked a checkbox describes something that did not happen.
     /// </remarks>
     private string? restartReason;
 
@@ -161,20 +145,20 @@ internal sealed class ConfigWindow : Window
     }
 
     /// <summary>
-    ///     The status line and the restart banner, then the tabs.
+    ///     The restart banner, then the tabs.
     /// </summary>
     /// <remarks>
-    ///     Those two stay above the tab bar because neither is about a tab: one answers "is another
-    ///     language actually reaching the game" and the other "do I have to restart", and both remain
-    ///     true whichever tab happens to be open. Hiding the restart banner behind the tab somebody is
-    ///     not looking at would undo the whole reason it is a banner.
+    ///     The banner stays above the tab bar because it is not about a tab. <b>A status headline
+    ///     used to sit here and was removed on 23 August 2026:</b> it repeated the pack and version
+    ///     shown inside the tab, and went amber whenever no read had been answered yet — the ordinary
+    ///     state after every hot reload, so the warning colour fired on the common case. The reads
+    ///     counter it existed for is now a number in the pack block rather than an alarm.
     /// </remarks>
     public override void Draw()
     {
         var pages = this.pageStatus();
         var changed = false;
 
-        this.DrawHeadline(pages);
         this.DrawRestartBanner();
         ImGui.Spacing();
 
@@ -182,7 +166,7 @@ internal sealed class ConfigWindow : Window
         {
             if (bar)
             {
-                using (var tab = ImRaii.TabItem("Language pack"))
+                using (var tab = ImRaii.TabItem(Loc.Localize("Tab.Pack", "Language pack")))
                 {
                     if (tab)
                     {
@@ -190,7 +174,7 @@ internal sealed class ConfigWindow : Window
                     }
                 }
 
-                using (var tab = ImRaii.TabItem("Translated parts"))
+                using (var tab = ImRaii.TabItem(Loc.Localize("Tab.Parts", "Translated parts")))
                 {
                     if (tab)
                     {
@@ -209,23 +193,13 @@ internal sealed class ConfigWindow : Window
     /// <summary>Where the pack comes from and how it keeps itself current. All of the old window.</summary>
     private void DrawSetupTab(PageStatus pages, ref bool changed)
     {
-        // Suppressed once something has been installed, because everything it could say is about the
-        // pack that is on its way out. Whether the OLD pack has a newer version published stopped
-        // being anybody's problem the moment a new one was put in its place.
-        if (this.restartReason is null)
-        {
-            this.DrawUpdateNotice(pages);
-        }
+        // The installed pack first: what is loaded, what it holds, and — on the same line as its
+        // name — the one button that can say something new about it. Where the pack CAME from is a
+        // separate question and sits below, because it is answered once and then never again.
+        this.DrawInstalledPack(pages);
 
-        // First, because on a fresh install it is the only thing that can be done and everything
-        // else on screen is a consequence of it.
+        ImGui.Separator();
         this.DrawLanguagePackRow(ref changed);
-
-        if (pages.Manifest is { } pack)
-        {
-            ImGui.Separator();
-            DrawPackDetail(pack, pages);
-        }
 
         ImGui.Separator();
         this.DrawDiagnostics(ref changed);
@@ -235,20 +209,12 @@ internal sealed class ConfigWindow : Window
     ///     Which parts of the translation are served, and what switching one off means.
     /// </summary>
     /// <remarks>
-    ///     <para>
-    ///         <b>Nothing in this list carries a number.</b> The obvious one to show is how many pages
-    ///         each part holds, and it is worse than useless: the quest text is three thousand tiny
-    ///         files and the whole interface is one, so the honest-looking figures say the interface is
-    ///         a rounding error when it is thirteen thousand lines of it. Counting sheets says the same
-    ///         thing less clearly. Until a pack can state how much text a part actually holds, the only
-    ///         count on screen is of the checkboxes themselves, which is a fact about this window and
-    ///         cannot be misread as a fact about the game.
-    ///     </para>
-    ///     <para>
-    ///         Drawn from the installed pack rather than from the table, so a part the pack does not
-    ///         hold is never offered — and, the other way round, text this build has no name for is
-    ///         still listed rather than quietly served with no way to refuse it.
-    ///     </para>
+    ///     <b>Nothing in this list carries a number.</b> Pages per part would be worse than useless —
+    ///     the quest text is three thousand tiny files and the whole interface is one, so the figures
+    ///     call the interface a rounding error when it is thirteen thousand lines. The only count on
+    ///     screen is of the checkboxes, which cannot be misread as a fact about the game. Drawn from
+    ///     the installed pack rather than the table, so a part the pack lacks is never offered and
+    ///     text this build cannot name is still listed rather than served with no way to refuse it.
     /// </remarks>
     private void DrawPartsTab(ref bool changed)
     {
@@ -256,36 +222,37 @@ internal sealed class ConfigWindow : Window
 
         if (pack.Layout.Count == 0)
         {
-            ImGui.TextWrapped(
-                "Nothing to list yet. Install a language pack on the other tab and its parts appear here.");
+            ImGui.TextWrapped(Loc.Localize("Parts.Empty",
+                "Nothing to list yet. Install a language pack on the other tab and its parts appear here."));
             return;
         }
 
         // What the tab is for, said once at the top. Every box below explains itself on hover, but a
         // list of fourteen checkboxes with no opening line leaves the reader to work out from the
         // names alone whether ticking one adds a translation or removes it.
-        ImGui.TextWrapped(
+        ImGui.TextWrapped(Loc.Localize("Parts.Intro",
             "Choose how much of the game this language pack translates. Each box below is one part of "
             + "the game's text: untick it and that part comes back in the language the game shipped "
             + "with, while everything still ticked stays translated. Hover a box to see what it "
-            + "covers.");
+            + "covers."));
         ImGui.Spacing();
 
         // Body text, not a tooltip. Every setting in this plugin waits for the next start, and small
         // print saying so has already been proved too easy to miss once.
-        ImGui.TextDisabled("Changes here take effect when the client next starts.");
+        ImGui.TextDisabled(Loc.Localize("Parts.NextStart",
+            "Changes here take effect when the client next starts."));
         ImGui.Spacing();
 
         var total = pack.PartCount;
         var off = pack.PartsOff(this.config.DisabledSheets).Count;
 
         ImGui.AlignTextToFramePadding();
-        ImGui.TextUnformatted($"{total - off} of {total} on");
+        ImGui.TextUnformatted(string.Format(Loc.Localize("Parts.Count", "{0} of {1} on"), total - off, total));
 
         // One button, doing the only bulk thing worth offering. There is deliberately no "turn
         // everything off": that is the "use this language pack" switch on the other tab, and a second
         // control for the same fact is a control that can disagree with the first.
-        const string reset = "Turn everything on";
+        var reset = Loc.Localize("Parts.TurnAllOn", "Turn everything on");
         var width = ImGui.CalcTextSize(reset).X + (ImGui.GetStyle().FramePadding.X * 2);
         ImGui.SameLine(0f, 0f);
         ImGui.SetCursorPosX(ImGui.GetCursorPosX() + ImGui.GetContentRegionAvail().X - width);
@@ -318,17 +285,10 @@ internal sealed class ConfigWindow : Window
     ///     A heading with a checkbox that speaks for everything under it.
     /// </summary>
     /// <remarks>
-    ///     <para>
-    ///         <b>ImGui has no three-state checkbox, so this one answers a single question</b> — is
-    ///         <em>all</em> of this group on? — and when the answer is no, an amber count says how much
-    ///         of it is. An empty box beside a group that is half served would otherwise be a plain
-    ///         lie about what is below it. Clicking a partial group turns all of it on; clicking a
-    ///         full one turns all of it off.
-    ///     </para>
-    ///     <para>
-    ///         A group holding one part is drawn as that part. An expander whose contents are exactly
-    ///         what its heading already said is a click that buys nothing.
-    ///     </para>
+    ///     <b>ImGui has no three-state checkbox</b>, so this one answers "is <em>all</em> of this
+    ///     group on?" and an amber count says how much of it is when the answer is no. Clicking a
+    ///     partial group turns all of it on, a full one off. A group holding one part is drawn as
+    ///     that part: an expander whose contents restate its heading is a click that buys nothing.
     /// </remarks>
     private void DrawPartGroup(GroupView group, ref bool changed)
     {
@@ -366,7 +326,8 @@ internal sealed class ConfigWindow : Window
         if (off > 0)
         {
             ImGui.SameLine();
-            ImGui.TextColored(Amber, $"· {group.Parts.Length - off} of {group.Parts.Length} on");
+            ImGui.TextColored(Amber, "· " + string.Format(
+                Loc.Localize("Parts.Count", "{0} of {1} on"), group.Parts.Length - off, group.Parts.Length));
         }
 
         // Every group gets one. A row with no marker at all reads as a row with nothing to say,
@@ -417,18 +378,10 @@ internal sealed class ConfigWindow : Window
     ///     The sheet names, under a rule and set in the monospaced face.
     /// </summary>
     /// <remarks>
-    ///     <para>
-    ///         <b>Only the sheets this pack actually holds</b>, which is what <see cref="PartView" />
-    ///         carries — naming one the pack does not have would send somebody looking for text that
-    ///         is not being served.
-    ///     </para>
-    ///     <para>
-    ///         <b>Monospaced rather than bold, and that is not a compromise.</b> Dalamud ships three
-    ///         faces — default, icon and mono — and no bold one, so bold would mean building a font
-    ///         handle off the atlas for a single line. Mono says the right thing anyway: these are
-    ///         identifiers out of the game's own files, not words, and setting them apart from the
-    ///         prose above is the whole point of the rule.
-    ///     </para>
+    ///     <b>Only the sheets this pack actually holds</b>, which is what <see cref="PartView" />
+    ///     carries: naming one it lacks sends somebody looking for text that is not served.
+    ///     <b>Monospaced rather than bold</b>, and not as a compromise — Dalamud ships no bold face,
+    ///     and mono says the right thing anyway, since these are identifiers and not words.
     /// </remarks>
     private void Sheets(string[] sheets)
     {
@@ -452,25 +405,12 @@ internal sealed class ConfigWindow : Window
     ///     Where this is on screen, then anything worth thinking about before switching it off.
     /// </summary>
     /// <remarks>
-    ///     <para>
-    ///         <b>Where it is comes first, because that is the only question being asked.</b> Somebody
-    ///         reading this is deciding whether they want a thing translated, and to decide that they
-    ///         have to recognise the thing.
-    ///     </para>
-    ///     <para>
-    ///         It used to lead with a sentence explaining that a part switched off is served from the
-    ///         game's own files rather than blanked. That is how the plugin works and not what it
-    ///         does: from where the player sits nothing else was ever going to happen, so it filled
-    ///         the first line of every tooltip with an answer to a question nobody had.
-    ///     </para>
-    ///     <para>
-    ///         <b>The sheet names come last, and they are back.</b> They were dropped once as noise —
-    ///         the right answer to "which file is wrong" and the wrong one to "what am I switching
-    ///         off". That reasoning held while the boxes matched what a player sees; it stopped
-    ///         holding the day two of them were caught promising the wrong thing, because a reader who
-    ///         can see <c>logmessage</c> under a box can tell it is not where the speech balloons are.
-    ///         They are the only part of this tooltip that cannot drift from what is served.
-    ///     </para>
+    ///     <b>Where it is comes first</b>, because that is the only question being asked: to decide
+    ///     whether they want a thing translated, somebody has to recognise the thing. <b>The sheet
+    ///     names come last, and they are back</b> after being dropped once as noise — they stopped
+    ///     being noise the day two boxes were caught promising the wrong thing, since a reader who
+    ///     sees <c>logmessage</c> can tell it is not where the speech balloons are. They are the only
+    ///     part of the tooltip that cannot drift from what is served.
     /// </remarks>
     /// <param name="groupWarning">The group's caveat, when a group has collapsed into this one part.</param>
     private static string Explain(PartView view, string? groupWarning)
@@ -531,22 +471,12 @@ internal sealed class ConfigWindow : Window
     ///     A tooltip that can carry a picture of what the setting does.
     /// </summary>
     /// <remarks>
-    ///     <para>
-    ///         The picture is a pair of screenshots, the same window with the part switched off and
-    ///         switched on. It answers the question the words cannot: what "the interface" or "the
-    ///         combat log" is, for somebody who has never had to name those separately.
-    ///     </para>
-    ///     <para>
-    ///         <b>Absence is normal.</b> A group without one, or a build where the resource failed to
-    ///         load, draws the text and nothing else. These are photographs of one language pack in
-    ///         one patch of the game; there will always be groups nobody has taken a pair for.
-    ///     </para>
+    ///     A pair of screenshots, the same window with the part off and on, answering what the words
+    ///     cannot: what "the interface" is for somebody who never had to name it. <b>Absence is
+    ///     normal</b> — these are photographs of one pack in one patch, and a group without one draws
+    ///     the text and nothing else.
     /// </remarks>
-    /// <param name="sheets">
-    ///     Drawn last of all, under the pictures. They are the footnote of the tooltip: the answer to
-    ///     "which file is this" for somebody who has already read what the box does, and the one part
-    ///     of it that cannot drift from what is served.
-    /// </param>
+    /// <param name="sheets">The footnote: which file this is, for somebody who has read the rest.</param>
     private void Tip(string text, string? image, string[]? sheets = null)
     {
         if (!ImGui.IsItemHovered())
@@ -576,16 +506,10 @@ internal sealed class ConfigWindow : Window
     ///     The same window with the part switched off and switched on, one above the other.
     /// </summary>
     /// <remarks>
-    ///     <para>
-    ///         <b>Two pictures and two captions, rather than one picture with the captions inside
-    ///         it.</b> The words belong to the interface: rewording them, recolouring them or one day
-    ///         translating them should not mean finding the script that cut the screenshots and
-    ///         producing the whole set again.
-    ///     </para>
-    ///     <para>
-    ///         Either half may be missing and the other is still worth drawing — a pair is taken by
-    ///         hand, and the two halves of one are taken on different days.
-    ///     </para>
+    ///     <b>Two pictures and two captions, not one picture with the captions inside it.</b> The
+    ///     words belong to the interface: rewording or translating them should not mean cutting the
+    ///     whole set of screenshots again. Either half may be missing and the other is still worth
+    ///     drawing — a pair is taken by hand, and its halves on different days.
     /// </remarks>
     private void DrawComparison(string name)
     {
@@ -609,7 +533,9 @@ internal sealed class ConfigWindow : Window
             // A LONE HALF KEEPS THE FULL WIDTH: it is not competing with anything, and half a pair
             // is normal — the two halves of one are taken on different days.
             var only = off ?? on!;
-            this.Half(off is null ? "Switched on" : "Switched off", off is null ? Green : Amber,
+            this.Half(
+                off is null ? Loc.Localize("Parts.On", "Switched on") : Loc.Localize("Parts.Off", "Switched off"),
+                off is null ? Green : Amber,
                 only, available, only.Height * (available / only.Width));
             return;
         }
@@ -625,8 +551,8 @@ internal sealed class ConfigWindow : Window
         // both — a pair drawn two different ways is worse than either way.
         if (offRatio >= PanoramicRatio || onRatio >= PanoramicRatio)
         {
-            this.Half("Switched off", Amber, off, available, available / offRatio);
-            this.Half("Switched on", Green, on, available, available / onRatio);
+            this.Half(Loc.Localize("Parts.Off", "Switched off"), Amber, off, available, available / offRatio);
+            this.Half(Loc.Localize("Parts.On", "Switched on"), Green, on, available, available / onRatio);
             return;
         }
 
@@ -641,9 +567,9 @@ internal sealed class ConfigWindow : Window
         var spacing = ImGui.GetStyle().ItemSpacing.X;
         var height = (available - spacing) / (offRatio + onRatio);
 
-        this.Half("Switched off", Amber, off, height * offRatio, height);
+        this.Half(Loc.Localize("Parts.Off", "Switched off"), Amber, off, height * offRatio, height);
         ImGui.SameLine();
-        this.Half("Switched on", Green, on, height * onRatio, height);
+        this.Half(Loc.Localize("Parts.On", "Switched on"), Green, on, height * onRatio, height);
     }
 
     /// <summary>One captioned picture, as a group so that <c>SameLine</c> puts the next one beside it.</summary>
@@ -700,97 +626,124 @@ internal sealed class ConfigWindow : Window
     private void NoteParted()
     {
         this.restartReason ??=
-            "You changed which parts are translated. The game reads all of its text once, at "
-            + "startup, so this takes effect the next time it starts.";
+            Loc.Localize("Restart.Parts",
+                "You changed which parts are translated. The game reads all of its text once, at "
+                + "startup, so this takes effect the next time it starts.");
     }
 
     /// <summary>
-    ///     One line at the top saying whether another language is actually reaching the game.
+    ///     The pack that is loaded, everything it says about itself, and whether anything newer exists.
     /// </summary>
     /// <remarks>
-    ///     Recomputed every frame rather than cached, because the interesting part of it changes
-    ///     while the window is open. The distinction between <em>loaded</em> and <em>read from</em>
-    ///     is carried in the colour and it is not a nicety: a route installed too late to matter
-    ///     looks, on every other indicator, exactly like one that is working, and confusing those two
-    ///     states cost a full session of testing.
+    ///     One block, one subject: the name and version on a line with <em>Check for updates</em> at
+    ///     the right of it, so the question and the button that answers it share a line, and the
+    ///     verdict underneath. Nothing is claimed until a check comes back — a window that says "up
+    ///     to date" without having asked is worse than one that says nothing. Recomputed every frame,
+    ///     because the reads count changes while the window is open.
     /// </remarks>
-    private void DrawHeadline(PageStatus pages)
+    private void DrawInstalledPack(PageStatus pages)
     {
-        var pack = pages.Manifest;
-
-        var (colour, icon, text) = pages switch
+        if (pages.Manifest is not { } pack)
         {
-            { Active: true, ServedCount: > 0 } => (
-                Green,
-                FontAwesomeIcon.Check,
-                $"{pack!.DisplayName} ({pack.TranslationVersion ?? "unversioned"})"),
+            // The refusal, when there is one, is the whole story: it is the plugin declining to serve
+            // pages it has, and it says why. Otherwise nobody has installed anything yet.
+            var (colour, text) = pages.Error is { Length: > 0 } error
+                ? (Red, error)
 
-            // Loaded and never hit. Amber rather than green: at the title screen it is simply too
-            // early, but a few minutes into a session it means the redirection is not being reached.
-            { Active: true } => (
-                Amber,
-                FontAwesomeIcon.Check,
-                $"{pack!.DisplayName} ({pack.TranslationVersion ?? "unversioned"}) — loaded, nothing read yet."),
-
-            { Error: { Length: > 0 } error } => (Red, FontAwesomeIcon.ExclamationTriangle, error),
-
-            _ => (
-                Amber,
-                FontAwesomeIcon.ExclamationTriangle,
                 // Three steps, not four. It used to say "tick the box" as well, which is work the
                 // Install button already does — and an instruction that asks for something already
                 // done reads as a step that did not take.
-                "NO LANGUAGE PACK LOADED. This plugin ships no translations — put a link or a folder "
-                + "below, press Install, and restart the client."),
-        };
+                : (Amber, Loc.Localize("Pack.None",
+                    "NO LANGUAGE PACK LOADED. This plugin ships no translations — put a link or a "
+                    + "folder below, press Install, and restart the client."));
 
-        ImGui.PushStyleColor(ImGuiCol.Text, colour);
-        using (ImRaii.PushFont(UiBuilder.IconFont, true))
-        {
-            ImGui.TextUnformatted(icon.ToIconString());
+            Icon(FontAwesomeIcon.ExclamationTriangle, colour);
+            ImGui.TextWrapped(text);
+            ImGui.PopStyleColor();
+            return;
         }
 
-        ImGui.SameLine();
-        ImGui.TextWrapped(text);
-        ImGui.PopStyleColor();
+        var version = pack.TranslationVersion ?? Loc.Localize("Pack.Unversioned", "unversioned");
+
+        // The verdict lands on this line rather than under it. A clean check has nothing to add to
+        // what the line already says — only that it is now known to be the newest — so it says it in
+        // the colour and in three words, and no second line appears saying the same version again.
+        var clean = pages.Update.State == UpdateState.UpToDate;
+
+        using (ImRaii.PushColor(ImGuiCol.Text, Green, clean))
+        {
+            ImGui.TextUnformatted(clean
+                ? string.Format(Loc.Localize("Pack.UpToDate", "{0} — up to date: {1}"), pack.DisplayName, version)
+                : $"{pack.DisplayName} ({version})");
+        }
+
+        this.DrawCheckButton(pages);
+        DrawPackDetail(pack, pages);
+
+        // Suppressed once something has been installed, because everything it could say is about the
+        // pack that is on its way out. Whether the OLD pack has a newer version published stopped
+        // being anybody's problem the moment a new one was put in its place.
+        if (this.restartReason is null)
+        {
+            this.DrawUpdateNotice(pages);
+        }
+    }
+
+    /// <summary>
+    ///     <em>Check for updates</em>, at the right-hand end of the line the pack is named on.
+    /// </summary>
+    /// <remarks>
+    ///     Disabled rather than hidden when the pack declares no update address. A button that
+    ///     vanishes leaves the reader wondering whether this build has one; a greyed one with a
+    ///     sentence on hover answers the question where it was asked.
+    /// </remarks>
+    private void DrawCheckButton(PageStatus pages)
+    {
+        var label = Loc.Localize("Update.Check", "Check for updates");
+
+        var width = ImGui.CalcTextSize(label).X + (ImGui.GetStyle().FramePadding.X * 2);
+        ImGui.SameLine(ImGui.GetContentRegionMax().X - width);
+
+        var declared = pages.Update.State != UpdateState.NotDeclared;
+        var busy = this.installing || pages.Update.State == UpdateState.Checking;
+
+        using (ImRaii.Disabled(busy || !declared))
+        {
+            if (ImGui.Button($"{label}##pack"))
+            {
+                this.checkForUpdate();
+            }
+        }
+
+        SetTooltip(declared
+            ? Loc.Localize("Update.CheckTip",
+                "Asks the address inside the installed pack whether a newer one is published.\n"
+                + "A couple of kilobytes; nothing is downloaded or changed by asking.\n"
+                + "This also runs by itself each time the plugin loads.")
+            : Loc.Localize("Update.NoAddressTip",
+                "This language pack carries no update address, so there is nothing to ask."));
     }
 
     /// <summary>
     ///     Says whether the installed pack can keep itself current, and never acts on the answer.
     /// </summary>
     /// <remarks>
-    ///     <para>
-    ///         A newer version is offered rather than applied, even though this plugin could obviously
-    ///         just fetch it. Taking the update means downloading tens of megabytes and then
-    ///         restarting the client, and doing that to somebody who sat down to play is not an
-    ///         improvement however new the translation is. The check costs two kilobytes and runs by
-    ///         itself; the twenty megabytes are a decision.
-    ///     </para>
-    ///     <para>
-    ///         A pack that <em>cannot</em> update is said out loud too, whether because it declares no
-    ///         address or because the address it declares has gone quiet. Those differ in blame and
-    ///         not in effect: either way the translation on screen is the last one this person will
-    ///         ever see unless they go looking, and that is worth knowing before they wonder for
-    ///         months why a line they reported is still wrong.
-    ///     </para>
-    ///     <para>
-    ///         <b>Every state draws something, including the two that once drew nothing.</b> That was
-    ///         fine while the check ran by itself and unseen; with a button beside it, a press that
-    ///         leaves the window exactly as it was is indistinguishable from a button that does not
-    ///         work — and "up to date" is the answer somebody opening this window came for.
-    ///     </para>
+    ///     A newer version is offered, not applied: the check costs two kilobytes and runs by itself,
+    ///     while taking it means tens of megabytes and a restart, which is a decision. A pack that
+    ///     <em>cannot</em> update is said out loud too — no address declared and an address gone
+    ///     quiet differ in blame and not in effect, and either way the translation on screen is the
+    ///     last one this person sees unless they go looking. <b>Every state draws something</b>: with
+    ///     a button beside it, a press that changes nothing on screen reads as a broken button.
     /// </remarks>
     private void DrawUpdateNotice(PageStatus pages)
     {
-        // Nothing to say about updating something that is not there. The headline above already says
-        // no pack is loaded, and following it with "and it will never update" reads as a second,
+        // Nothing to say about updating something that is not there. The block above already says no
+        // pack is loaded, and following it with "and it will never update" reads as a second,
         // separate fault.
         if (pages.Manifest is null)
         {
             return;
         }
-
-        var checking = pages.Update.State == UpdateState.Checking;
 
         switch (pages.Update.State)
         {
@@ -798,15 +751,20 @@ internal sealed class ConfigWindow : Window
             // answered — at load, and again every time the button below is pressed.
             case UpdateState.Checking:
                 Icon(FontAwesomeIcon.Hourglass, Grey);
-                ImGui.TextWrapped("Checking whether a newer language pack is published...");
+                ImGui.TextWrapped(Loc.Localize("Update.Checking",
+                    "Checking whether a newer language pack is published..."));
                 ImGui.PopStyleColor();
                 break;
 
             case UpdateState.Available when pages.Update.Published is { } update:
                 Icon(FontAwesomeIcon.ArrowUp, Amber);
                 ImGui.TextWrapped(
-                    $"A newer language pack is published: {update.TranslationVersion}"
-                    + (update.GameVersion is { Length: > 0 } game ? $", built for game {game}" : string.Empty));
+                    string.Format(
+                        Loc.Localize("Update.Available", "A newer language pack is published: {0}"),
+                        update.TranslationVersion)
+                    + (update.GameVersion is { Length: > 0 } game
+                        ? string.Format(Loc.Localize("Update.BuiltForGame", ", built for game {0}"), game)
+                        : string.Empty));
                 ImGui.PopStyleColor();
 
                 using (ImRaii.Disabled(this.installing || this.config.PackSource.Trim().Length == 0))
@@ -814,22 +772,17 @@ internal sealed class ConfigWindow : Window
                     // Reinstalls from where this one came from. There is no address in the manifest
                     // to prefer, on purpose: the pack does not repeat a fact the user already
                     // supplied, and successive versions are expected at a stable address.
-                    if (ImGui.Button("Update##pack"))
+                    if (ImGui.Button($"{Loc.Localize("Update.Install", "Update")}##pack"))
                     {
                         this.Install(this.config.PackSource);
                     }
                 }
 
-                ImGui.SameLine();
                 break;
 
-            // Green and quiet. It says nothing the player has to act on, and its whole job is to be
-            // the visible difference between a check that came back clean and one that never ran.
+            // No line of its own: a clean check is said by the pack's own name line turning green.
+            // See DrawInstalledPack. Two texts for one fact is what this window was just rid of.
             case UpdateState.UpToDate:
-                Icon(FontAwesomeIcon.Check, Green);
-                ImGui.TextWrapped(
-                    $"Up to date: {pages.Manifest.TranslationVersion ?? "unversioned"} is the latest published.");
-                ImGui.PopStyleColor();
                 break;
 
             // Both halves of "this pack will not improve on its own" get said, because from where the
@@ -840,8 +793,9 @@ internal sealed class ConfigWindow : Window
             case UpdateState.Unreachable:
                 Icon(FontAwesomeIcon.ExclamationTriangle, Red);
                 ImGui.TextWrapped(
-                    "No connection to the language pack update URL. If it persists, this pack will "
-                    + "not update itself — check where you got it from.");
+                    Loc.Localize("Update.Unreachable",
+                        "No connection to the language pack update URL. If it persists, this pack "
+                        + "will not update itself — check where you got it from."));
                 ImGui.PopStyleColor();
                 break;
 
@@ -850,43 +804,21 @@ internal sealed class ConfigWindow : Window
             case UpdateState.NotDeclared:
                 Icon(FontAwesomeIcon.ExclamationTriangle, Amber);
                 ImGui.TextWrapped(
-                    "This language pack has no update URL, so it will never update itself.");
+                    Loc.Localize("Update.NotDeclared",
+                        "This language pack has no update URL, so it will never update itself."));
                 ImGui.PopStyleColor();
-
-                // No button: there is no address to ask, so the only honest thing a Check here could
-                // do is come straight back with the sentence above.
-                return;
+                break;
         }
-
-        using (ImRaii.Disabled(checking))
-        {
-            if (ImGui.Button("Check for updates##pack"))
-            {
-                this.checkForUpdate();
-            }
-        }
-
-        SetTooltip("Asks the address inside the installed pack whether a newer one is published.\n"
-                   + "A couple of kilobytes; nothing is downloaded or changed by asking.\n"
-                   + "This also runs by itself each time the plugin loads.");
     }
 
     /// <summary>
     ///     The one instruction the user has to act on, drawn so it cannot be skimmed past.
     /// </summary>
     /// <remarks>
-    ///     <para>
-    ///         Installing a pack changes nothing until the client restarts, and that is not a wart to
-    ///         be apologised for in small print: the game reads its text once, seconds into startup,
-    ///         and keeps it for the session. Somebody who installs, sees the confirmation and carries
-    ///         on playing will conclude the plugin is broken, and will be right to, because from where
-    ///         they sit nothing happened.
-    ///     </para>
-    ///     <para>
-    ///         So it gets its own banner, at a larger size, above everything except the headline, and
-    ///         it stays there until the restart it is asking for. A line of ordinary text under the
-    ///         install button had already proved too easy to miss.
-    ///     </para>
+    ///     Installing changes nothing until the client restarts, and that is not a wart to apologise
+    ///     for in small print: somebody who installs, sees the confirmation and plays on concludes the
+    ///     plugin is broken, and is right to. So it gets a banner, larger, above the tabs, until the
+    ///     restart it asks for — a line of ordinary text under the button proved too easy to miss.
     /// </remarks>
     private void DrawRestartBanner()
     {
@@ -899,7 +831,7 @@ internal sealed class ConfigWindow : Window
         ImGui.SetWindowFontScale(1.25f);
 
         Icon(FontAwesomeIcon.PowerOff, Amber);
-        ImGui.TextWrapped("RESTART THE CLIENT");
+        ImGui.TextWrapped(Loc.Localize("Restart.Title", "RESTART THE CLIENT"));
         ImGui.PopStyleColor();
 
         ImGui.SetWindowFontScale(1f);
@@ -923,20 +855,11 @@ internal sealed class ConfigWindow : Window
     ///     Where the language pack is, and the switch that turns it on.
     /// </summary>
     /// <remarks>
-    ///     <para>
-    ///         <b>"Language pack", never "pages".</b> A page is an <c>.exd</c> file, which is this
-    ///         project's vocabulary and not a user's; what somebody installs is a language. The
-    ///         distinction is not pedantry — it is what the folder will stop being, since the intent
-    ///         is to ship a pack as a single zip holding the same files and the same manifest, at
-    ///         which point "page folder" would name an implementation detail that had gone away.
-    ///     </para>
-    ///     <para>
-    ///         A checkbox rather than a Serve button, and it says so, because there is nothing this
-    ///         can do now. The game reads its sheets once, seconds into startup, and caches them for
-    ///         the session; the redirection has to be in place before that or it may as well not
-    ///         exist. So this decides what happens at the <em>next</em> start, and a button labelled
-    ///         Serve that changed nothing visible was read — correctly — as a broken button.
-    ///     </para>
+    ///     <b>"Language pack", never "pages".</b> A page is an <c>.exd</c> file, which is this
+    ///     project's vocabulary and not a user's; what somebody installs is a language. A checkbox
+    ///     rather than a Serve button, and it says so, because nothing can happen now: the game reads
+    ///     its sheets seconds into startup and caches them, so this decides the <em>next</em> start —
+    ///     and a Serve button that changed nothing visible read, correctly, as broken.
     /// </remarks>
     private void DrawLanguagePackRow(ref bool changed)
     {
@@ -945,7 +868,7 @@ internal sealed class ConfigWindow : Window
         // Aligned to the frame padding, not drawn at the raw cursor: text placed beside an input box
         // sits at the top of it otherwise, a couple of pixels above the text inside the box.
         ImGui.AlignTextToFramePadding();
-        ImGui.TextDisabled("Language pack");
+        ImGui.TextDisabled(Loc.Localize("Setup.PathLabel", "Language pack"));
         ImGui.SameLine();
 
         // Negative width, so the box gives back a fixed strip to the buttons on its right and takes
@@ -957,12 +880,13 @@ internal sealed class ConfigWindow : Window
             changed = true;
         }
 
-        SetTooltip("A .zip, a link to one, or a folder that has already been unpacked.\n"
-                   + "Whatever it is must contain gubal-manifest.json, which says what the\n"
-                   + "pack is and which game version it was built for.");
+        SetTooltip(Loc.Localize("Setup.PathTip",
+            "A .zip, a link to one, or a folder that has already been unpacked.\n"
+            + "Whatever it is must contain gubal-manifest.json, which says what the\n"
+            + "pack is and which game version it was built for."));
 
         ImGui.SameLine();
-        if (ImGui.Button("Browse...##packSource"))
+        if (ImGui.Button($"{Loc.Localize("Setup.Browse", "Browse...")}##packSource"))
         {
             this.BrowseForLanguagePack();
         }
@@ -970,28 +894,31 @@ internal sealed class ConfigWindow : Window
         ImGui.SameLine();
         using (ImRaii.Disabled(this.installing || this.config.PackSource.Trim().Length == 0))
         {
-            if (ImGui.Button("Install##packSource"))
+            if (ImGui.Button($"{Loc.Localize("Setup.Install", "Install")}##packSource"))
             {
                 this.Install(this.config.PackSource);
             }
         }
 
-        SetTooltip("Downloads and unpacks it if it needs it, then serves it from the next start.\n"
-                   + "Nothing is fetched unless you press this.");
+        SetTooltip(Loc.Localize("Setup.InstallTip",
+            "Downloads and unpacks it if it needs it, then serves it from the next start.\n"
+            + "Nothing is fetched unless you press this."));
 
         var serve = this.config.ServeLanguagePack;
         using (ImRaii.Disabled(this.config.LanguagePackPath.Length == 0))
         {
-            if (ImGui.Checkbox("Use this language pack from the next start", ref serve))
+            if (ImGui.Checkbox(
+                    Loc.Localize("Setup.Serve", "Use this language pack from the next start"), ref serve))
             {
                 this.config.ServeLanguagePack = serve;
                 changed = true;
             }
         }
 
-        SetTooltip("Gives the game the pack's text instead of its own.\n"
-                   + "Takes effect when the client next starts: the game reads its text once\n"
-                   + "at startup and keeps it for the session, so this cannot be switched on mid-game.");
+        SetTooltip(Loc.Localize("Setup.ServeTip",
+            "Gives the game the pack's text instead of its own.\n"
+            + "Takes effect when the client next starts: the game reads its text once\n"
+            + "at startup and keeps it for the session, so this cannot be switched on mid-game."));
 
         this.DrawAutoUpdateRow();
 
@@ -1022,19 +949,12 @@ internal sealed class ConfigWindow : Window
     ///     The switch that makes an update arrive by itself, and the conditions it depends on.
     /// </summary>
     /// <remarks>
-    ///     <para>
-    ///         Beside "use this language pack" rather than beside the update notice above, because it
-    ///         is the same kind of thing: a standing decision about the pack, not a reaction to what a
-    ///         check happened to find. It also has to stay on screen while a restart is pending, and
-    ///         everything in that notice is deliberately hidden then.
-    ///     </para>
-    ///     <para>
-    ///         <b>Both reasons it can be unavailable are written out rather than left to a tooltip.</b>
-    ///         A greyed box with no explanation is the same as a broken one, and the two cases have
-    ///         different answers: a pack installed from a file has no address to fetch a newer one
-    ///         from, while Dalamud not waiting for its plugins is a setting away from working — so
-    ///         that one gets a button rather than a sentence.
-    ///     </para>
+    ///     Beside "use this language pack" because it is the same kind of thing — a standing decision
+    ///     about the pack, not a reaction to a check — and because it must stay on screen while a
+    ///     restart is pending, when the update notice is hidden. <b>Both reasons it can be
+    ///     unavailable are written out</b>, since a greyed box with no explanation is a broken one:
+    ///     a pack from a file has no address to ask, while Dalamud not waiting for plugins is a
+    ///     setting away from working, so that one gets a button rather than a sentence.
     /// </remarks>
     private void DrawAutoUpdateRow()
     {
@@ -1051,26 +971,28 @@ internal sealed class ConfigWindow : Window
         var auto = this.config.AutoUpdatePack;
         using (ImRaii.Disabled(!available))
         {
-            if (ImGui.Checkbox("Fetch a newer pack while the game starts", ref auto))
+            if (ImGui.Checkbox(
+                    Loc.Localize("Setup.Auto", "Fetch a newer pack while the game starts"), ref auto))
             {
                 // Saves itself: it writes Dalamud's configuration as well as this one.
                 this.setAutoUpdate(auto);
             }
         }
 
-        SetTooltip("Checks at every start, and if a newer pack is published, downloads and installs it\n"
-                   + "before the game reads its text — so the new translation is live in that session\n"
-                   + "and nothing has to be restarted.\n\n"
-                   + "The game's start is held while it downloads. Ticking this also turns on Dalamud's\n"
-                   + "\"wait for plugins\", which is what makes holding it possible.");
+        SetTooltip(Loc.Localize("Setup.AutoTip",
+            "Checks at every start, and if a newer pack is published, downloads and installs it\n"
+            + "before the game reads its text — so the new translation is live in that session\n"
+            + "and nothing has to be restarted.\n\n"
+            + "The game's start is held while it downloads. Ticking this also turns on Dalamud's\n"
+            + "\"wait for plugins\", which is what makes holding it possible."));
 
         ImGui.Indent();
 
         if (!available)
         {
-            ImGui.TextDisabled(
+            ImGui.TextDisabled(Loc.Localize("Setup.AutoUnavailable",
                 "Available for a pack installed from a link. A pack taken from a file or used where it "
-                + "lies has no address to ask.");
+                + "lies has no address to ask."));
         }
         else if (auto)
         {
@@ -1091,23 +1013,25 @@ internal sealed class ConfigWindow : Window
     {
         if (this.dalamudWaits() is true)
         {
-            ImGui.TextDisabled("Dalamud will hold the game's start until the update has finished.");
+            ImGui.TextDisabled(Loc.Localize("Boot.Waiting",
+                "Dalamud will hold the game's start until the update has finished."));
             return;
         }
 
         ImGui.PushStyleColor(ImGuiCol.Text, Amber);
-        ImGui.TextWrapped(
+        ImGui.TextWrapped(Loc.Localize("Boot.NotWaiting",
             "Dalamud is not set to wait for plugins before the game loads, so nothing will be fetched "
             + "at startup: the game would read its text while the download was still running. Updates "
-            + "are offered above instead.");
+            + "are offered above instead."));
         ImGui.PopStyleColor();
 
-        if (ImGui.Button("Open Dalamud settings##bootWait"))
+        if (ImGui.Button($"{Loc.Localize("Boot.OpenSettings", "Open Dalamud settings")}##bootWait"))
         {
             this.openDalamudSettings();
         }
 
-        SetTooltip("It is on the General tab, called \"Wait for plugins before game loads\".");
+        SetTooltip(Loc.Localize("Boot.WhereTip",
+            "It is on the General tab, called \"Wait for plugins before game loads\"."));
     }
 
     /// <summary>
@@ -1142,13 +1066,17 @@ internal sealed class ConfigWindow : Window
 
                 var pack = result.Manifest!;
                 this.installFailed = false;
-                this.installMessage = $"Installed {pack.DisplayName} ({pack.TranslationVersion ?? "unversioned"}).";
+                this.installMessage = string.Format(
+                    Loc.Localize("Install.Done", "Installed {0} ({1})."),
+                    pack.DisplayName,
+                    pack.TranslationVersion ?? Loc.Localize("Pack.Unversioned", "unversioned"));
 
                 // Overwrites whatever a part change had set. Both owe the same restart; this is the
                 // more urgent thing to say about it.
                 this.restartReason =
-                    "The new language pack is installed but the game will not read it until it starts "
-                    + "again — it loads all of its text once, at startup.";
+                    Loc.Localize("Restart.Installed",
+                        "The new language pack is installed but the game will not read it until it "
+                        + "starts again — it loads all of its text once, at startup.");
 
                 // Lets the plugin drop what it learned about the previous pack's update address, and
                 // say so in chat where somebody who has closed this window will still see it.
@@ -1167,8 +1095,10 @@ internal sealed class ConfigWindow : Window
     /// <summary>What the loaded pack is, who made it, and how much of it is translated.</summary>
     private static void DrawPackDetail(PackManifest pack, PageStatus pages)
     {
-        var by = pack.Author is { Length: > 0 } author ? $" by {author}" : string.Empty;
-        ImGui.TextDisabled($"{pack.LanguageName ?? pack.Language ?? "unknown language"}{by}");
+        var language = pack.LanguageName ?? pack.Language ?? Loc.Localize("Pack.UnknownLanguage", "unknown language");
+        ImGui.TextDisabled(pack.Author is { Length: > 0 } author
+            ? string.Format(Loc.Localize("Pack.LanguageByAuthor", "{0} by {1}"), language, author)
+            : language);
 
         // Reported as a fraction with its denominator named, not as a bare percentage. The
         // denominator counts only sheets the corpus has opened at all, so a sheet nobody has started
@@ -1176,16 +1106,24 @@ internal sealed class ConfigWindow : Window
         // materially different and much smaller number.
         if (pack.Rows > 0)
         {
-            ImGui.TextDisabled(
-                $"{pack.Lines:N0} of {pack.Rows:N0} lines translated ({pack.TranslatedFraction:P1}) "
-                + $"across {pack.Pages:N0} page(s), in the sheets the pack covers");
+            ImGui.TextDisabled(string.Format(
+                Loc.Localize("Pack.Lines",
+                    "{0} of {1} lines translated ({2}) across {3} page(s), in the sheets the pack covers"),
+                pack.Lines.ToString("N0"),
+                pack.Rows.ToString("N0"),
+                pack.TranslatedFraction.ToString("P1"),
+                pack.Pages.ToString("N0")));
         }
 
-        ImGui.TextDisabled($"Built for game {pack.GameVersion ?? "unknown"}");
+        ImGui.TextDisabled(string.Format(
+            Loc.Localize("Pack.BuiltFor", "Built for game {0}"),
+            pack.GameVersion ?? Loc.Localize("Pack.UnknownVersion", "unknown")));
 
         if (pages.Active)
         {
-            ImGui.TextDisabled($"{pages.ServedCount:N0} read(s) answered from disk this session");
+            ImGui.TextDisabled(string.Format(
+                Loc.Localize("Pack.Served", "{0} read(s) answered from disk this session"),
+                pages.ServedCount.ToString("N0")));
         }
     }
 
@@ -1200,36 +1138,31 @@ internal sealed class ConfigWindow : Window
     /// </remarks>
     private void DrawDiagnostics(ref bool changed)
     {
-        if (!ImGui.CollapsingHeader("Diagnostics"))
+        if (!ImGui.CollapsingHeader(Loc.Localize("Diag.Header", "Diagnostics")))
         {
             return;
         }
 
         var probe = this.config.ProbeSqPack;
-        if (ImGui.Checkbox("Log every Excel page the game reads", ref probe))
+        if (ImGui.Checkbox(Loc.Localize("Diag.Probe", "Log every Excel page the game reads"), ref probe))
         {
             this.config.ProbeSqPack = probe;
             changed = true;
         }
 
-        SetTooltip("Writes one line per page to /xllog, redirecting nothing.\n"
-                   + "Attaches at load, so it takes effect on the next client start.");
+        SetTooltip(Loc.Localize("Diag.ProbeTip",
+            "Writes one line per page to /xllog, redirecting nothing.\n"
+            + "Attaches at load, so it takes effect on the next client start."));
     }
 
     /// <summary>
     ///     Picks a <c>.zip</c> or an already-unpacked folder, and fills the source box with it.
     /// </summary>
     /// <remarks>
-    ///     <para>
-    ///         A file dialog rather than a folder one, with a filter that admits both. Browse cannot
-    ///         offer a URL, so restricting it to folders would have made the commonest local case —
-    ///         somebody who has just downloaded a zip — the one case the button could not help with.
-    ///     </para>
-    ///     <para>
-    ///         Fills the box and stops there. Installing from a path the moment it is picked would
-    ///         start a download or unpack thousands of files on a single click, before the person has
-    ///         had a chance to read what they picked.
-    ///     </para>
+    ///     A file dialog rather than a folder one, with a filter admitting both: restricting it to
+    ///     folders would leave the commonest local case — a freshly downloaded zip — unhelped. Fills
+    ///     the box and stops there, because installing on the click would unpack thousands of files
+    ///     before the person has read what they picked.
     /// </remarks>
     private void BrowseForLanguagePack()
     {
@@ -1240,7 +1173,7 @@ internal sealed class ConfigWindow : Window
         }
 
         this.fileDialogs.OpenFileDialog(
-            "Select a language pack (.zip) or an unpacked folder",
+            Loc.Localize("Setup.PickerTitle", "Select a language pack (.zip) or an unpacked folder"),
             ".zip,.*",
             (confirmed, selected) =>
             {
@@ -1260,16 +1193,9 @@ internal sealed class ConfigWindow : Window
     ///     A tooltip that wraps, which is not what ImGui does by itself.
     /// </summary>
     /// <remarks>
-    ///     <para>
-    ///         Left to itself a tooltip is one line per paragraph, however long the paragraph is. The
-    ///         tooltips already here were written around that, each line broken by hand; the ones
-    ///         explaining what switching a part off costs you run to a paragraph each and came out as
-    ///         a band of text wider than the game window, over the top of everything.
-    ///     </para>
-    ///     <para>
-    ///         Wrapping here rather than at each call site, so the hand-broken ones keep their breaks
-    ///         and the long ones stop needing any.
-    ///     </para>
+    ///     Left to itself a tooltip is one line per paragraph however long, which turned the ones
+    ///     explaining what switching a part off costs into a band wider than the game window.
+    ///     Wrapped here rather than at each call site, so the hand-broken ones keep their breaks.
     /// </remarks>
     private static void SetTooltip(string text)
     {

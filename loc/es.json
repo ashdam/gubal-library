@@ -1,0 +1,344 @@
+{
+  "Group.Other.Name": {
+    "message": "Otro texto de este language pack",
+    "description": "Fallback group for sheets this build has no name for."
+  },
+
+  "Group.Story.Name": {
+    "message": "Misiones y escenas",
+    "description": "Group heading."
+  },
+  "Group.Story.Desc": {
+    "message": "Todo lo que compone una misión: lo que te dicen, lo que te mandan hacer y los subtítulos de las escenas.",
+    "description": "Group description."
+  },
+  "Part.QuestText.Name": {
+    "message": "Diálogo, diario y objetivos de misión",
+    "description": "Part label."
+  },
+  "Part.QuestText.Desc": {
+    "message": "El texto del cuadro cuando hablas con alguien sobre una misión, el resumen que se escribe en tu Journal según avanza la historia, los pasos de la lista de seguimiento a la derecha de la pantalla y los avisos que la misión va dejando mientras la llevas.",
+    "description": "Part description. 'Journal' is the English window name."
+  },
+  "Part.Cutscenes.Name": {
+    "message": "Subtítulos de las escenas",
+    "description": "Part label."
+  },
+  "Part.Cutscenes.Desc": {
+    "message": "Las líneas que salen abajo de la pantalla mientras se reproduce una escena.",
+    "description": "Part description."
+  },
+  "Part.QuestNames.Name": {
+    "message": "Nombres de las misiones",
+    "description": "Part label."
+  },
+  "Part.QuestNames.Desc": {
+    "message": "Solo los nombres de misiones, levequests y duties: en la lista de seguimiento, en el Journal y en el Unending Journey de las posadas, donde vuelves a ver las escenas. No el texto de dentro.",
+    "description": "Part description. Journal, Unending Journey and levequest stay English."
+  },
+  "Part.QuestNames.Warning": {
+    "message": "Los nombres y el texto son casillas distintas, así que activar una y no la otra te deja títulos en inglés sobre objetivos traducidos, o al revés.",
+    "description": "Part warning."
+  },
+
+  "Group.People.Name": {
+    "message": "Lo que dice la gente a tu alrededor",
+    "description": "Group heading."
+  },
+  "Group.People.Desc": {
+    "message": "Lo que puedes oír de paso sin detenerte, y lo que te cuentan cuando te paras.",
+    "description": "Group description."
+  },
+  "Group.People.Warning": {
+    "message": "Con diferencia, la parte más grande de la traducción. Desactivarla es el mayor cambio que puedes hacer aquí.",
+    "description": "Group warning."
+  },
+  "Part.Talk.Name": {
+    "message": "Hablar con alguien",
+    "description": "Part label."
+  },
+  "Part.Talk.Desc": {
+    "message": "El cuadro que se abre al hablar con alguien que no tiene nada que ver con una misión, incluidos los pregoneros del Gold Saucer y quienes te venden un boleto del Cactpot.",
+    "description": "Part description. Gold Saucer and Cactpot stay English."
+  },
+  "Part.AskAbout.Name": {
+    "message": "Menús de «Ask about...» y ventanas de servicio",
+    "description": "Part label. The menu verb is quoted from the English client."
+  },
+  "Part.AskAbout.Desc": {
+    "message": "La lista de temas que ofrece un NPC cuando tiene varias cosas que contarte, lo que dice cuando eliges uno, y las ventanas en las que trabajas después: el retainer, el aetheryte, el tablón de levequests, las linkshells, el canje de reliquias y tu vivienda.",
+    "description": "Part description. Retainer, aetheryte, levequest and linkshell stay English."
+  },
+  "Part.Balloons.Name": {
+    "message": "Gritos y bocadillos",
+    "description": "Part label."
+  },
+  "Part.Balloons.Desc": {
+    "message": "Los bocadillos que salen sobre la cabeza de la gente cuando pasas a su lado, y los avisos que se gritan durante un combate.",
+    "description": "Part description."
+  },
+
+  "Group.Duties.Name": {
+    "message": "Duties, raids y operaciones de campo",
+    "description": "Group heading. Duty and raid stay English."
+  },
+  "Group.Duties.Desc": {
+    "message": "Lo que ocurre una vez estás dentro de una mazmorra, una raid o una de las zonas de campo grandes.",
+    "description": "Group description."
+  },
+  "Part.DutyText.Name": {
+    "message": "Diálogo, objetivos y texto en pantalla",
+    "description": "Part label."
+  },
+  "Part.DutyText.Desc": {
+    "message": "Lo que dicen los jefes y los NPC mientras estás dentro, los objetivos que van saliendo, la ruta que vota tu grupo en una variant dungeon, y lo mismo para las zonas de campo grandes y el contenido de grupo: Eureka, Bozja, Zadnor, el Occult Crescent, la Ishgardian Restoration y el Diadem.",
+    "description": "Part description. Content names stay English."
+  },
+  "Part.Objects.Name": {
+    "message": "Lo que te dice un objeto al usarlo",
+    "description": "Part label."
+  },
+  "Part.Objects.Desc": {
+    "message": "El mensaje que sale al examinar un cadáver, tirar de una palanca o abrir un panel, y los documentos que encuentras y lees enteros: diarios de expedición, cartas y las notas garabateadas que desvelan la solución de un puzle.",
+    "description": "Part description."
+  },
+  "Part.DutyItems.Name": {
+    "message": "Los objetos, trabajos y equipo que solo existen dentro",
+    "description": "Part label."
+  },
+  "Part.DutyItems.Desc": {
+    "message": "Lo que existe en un contenido y en ningún otro sitio: los pomanders y el equipo aetherpool de las deep dungeons, los efectos de planta que se anuncian al bajar, y los phantom jobs del Occult Crescent, sus rasgos y el registro de lore que se va rellenando.",
+    "description": "Part description. Pomander, aetherpool, deep dungeon and phantom job stay English."
+  },
+
+  "Group.DutyFinder.Name": {
+    "message": "Duty Finder",
+    "description": "Group heading. The window's English name."
+  },
+  "Group.DutyFinder.Desc": {
+    "message": "Los textos que te dicen qué es algo antes de entrar.",
+    "description": "Group description."
+  },
+  "Part.DutyFinder.Name": {
+    "message": "Duty Finder",
+    "description": "Part label. The window's English name."
+  },
+  "Part.DutyFinder.Desc": {
+    "message": "El Duty Finder de arriba abajo: las roulettes y lo que pide cada una —incluidas las carreras de chocobo y el PvP clasificatorio—, el párrafo de la derecha al elegir una mazmorra, trial o raid, y la explicación que te da un guildhest al empezar.",
+    "description": "Part description. Roulette, trial, raid and guildhest stay English."
+  },
+
+  "Group.Interface.Name": {
+    "message": "Menús e interfaz",
+    "description": "Group heading."
+  },
+  "Group.Interface.Desc": {
+    "message": "El mobiliario del juego: títulos de ventana, pestañas, botones y las etiquetas al lado de tus números.",
+    "description": "Group description."
+  },
+  "Group.Interface.Warning": {
+    "message": "Muchos otros plugins de Dalamud y los analizadores de combate buscan estas palabras en inglés y dejan de funcionar cuando no lo están. Este es el motivo habitual para desactivar algo aquí.\n\nLas traducciones también dejan los nombres propios en inglés dentro de las frases, para que cuadren con la interfaz sobre la que los lees. Traducir también la interfaz deja esos nombres descuadrados hasta que se pongan de acuerdo.",
+    "description": "Group warning."
+  },
+  "Part.Menus.Name": {
+    "message": "Menús, botones y títulos de ventana",
+    "description": "Part label."
+  },
+  "Part.Menus.Desc": {
+    "message": "Todo lo escrito en la propia interfaz: el menú principal que abres con Esc, la ventana de Character, el Duty Finder, el inventario, las ventanas del retainer y su lista de ventures, los marcadores y circuitos del Gold Saucer, las pestañas de arriba de una ventana y los botones de abajo.",
+    "description": "Part description. Window names stay English."
+  },
+  "Part.Shops.Name": {
+    "message": "Ventanas de tienda y canje",
+    "description": "Part label."
+  },
+  "Part.Shops.Desc": {
+    "message": "El título de la ventana de un vendedor y la lista de tiendas que ofrece antes de elegir una: los canjes de tomestones, los conjuntos de equipo por nivel de objeto y los puestos de los eventos de temporada.",
+    "description": "Part description. Tomestone stays English."
+  },
+  "Part.WorldObjects.Name": {
+    "message": "Nombres de las cosas con las que puedes interactuar",
+    "description": "Part label."
+  },
+  "Part.WorldObjects.Desc": {
+    "message": "Lo que lee el cursor al apuntar a algo del mundo: aetherytes y los destinos que ofrecen, aether currents, cofres, palancas, puertas, nodos de recolección y los carteles y notas que te paras a leer.",
+    "description": "Part description. Aetheryte and aether current stay English."
+  },
+  "Part.Lobby.Name": {
+    "message": "Pantalla de título y creación de personaje",
+    "description": "Part label."
+  },
+  "Part.Lobby.Desc": {
+    "message": "Las pantallas anteriores a estar en el mundo: iniciar sesión, elegir personaje, y las razas, clanes y opciones entre las que eliges al crear uno.",
+    "description": "Part description."
+  },
+
+  "Group.Guides.Name": {
+    "message": "Tutoriales y guías",
+    "description": "Group heading."
+  },
+  "Group.Guides.Desc": {
+    "message": "El juego explicándose a sí mismo.",
+    "description": "Group description."
+  },
+  "Part.ActiveHelp.Name": {
+    "message": "Active Help y ayuda de ventana",
+    "description": "Part label. Active Help is the feature's English name."
+  },
+  "Part.ActiveHelp.Desc": {
+    "message": "Las ventanas que saltan la primera vez que haces algo, esos mismos textos cuando los consultas después desde el menú principal, y la ayuda detrás del interrogante de la esquina de una ventana, como las páginas del Duty Finder sobre inscribirse en un duty y lo que pasa luego.",
+    "description": "Part description."
+  },
+  "Part.ContentGuides.Name": {
+    "message": "Guías de contenido",
+    "description": "Part label."
+  },
+  "Part.ContentGuides.Desc": {
+    "message": "La guía escrita que abre una ventana de contenido: las reglas del mahjong y del Triple Triad, y las explicaciones de Bozja, las deep dungeons, el Island Sanctuary y el New Game+.",
+    "description": "Part description. Content names stay English."
+  },
+
+  "Group.Log.Name": {
+    "message": "Registro de combate y mensajes del sistema",
+    "description": "Group heading."
+  },
+  "Group.Log.Desc": {
+    "message": "Las líneas que el juego escribe solo en tu registro de chat.",
+    "description": "Group description."
+  },
+  "Group.Log.Warning": {
+    "message": "Los analizadores de combate y varios plugins leen estas líneas en inglés y no las reconocen traducidas.",
+    "description": "Group warning."
+  },
+  "Part.Log.Name": {
+    "message": "Registro de combate y mensajes del sistema",
+    "description": "Part label."
+  },
+  "Part.Log.Desc": {
+    "message": "Todo lo que el juego escribe solo en tu registro de chat: a qué pegas y cuánto, emotes, gil gastado y ganado, avisos de grupo y de Free Company, recolección y artesanía, mensajes del market board, los anuncios de un duty —incluido el cartel rojo cuando se sella una zona— y cada «unable to» con el que te responde el juego.",
+    "description": "Part description. Free Company, market board and the quoted refusal stay English."
+  },
+  "Group.Other.Desc": {
+    "message": "Texto que traduce este language pack y que esta versión del plugin no sabe nombrar, listado con el nombre que le da el juego. Un language pack en otro idioma puede cubrir cosas que este no.",
+    "description": "Description of the fallback group."
+  },
+  "Group.Other.PartDesc": {
+    "message": "Esta versión del plugin no tiene nombre para esto.",
+    "description": "Tooltip for a sheet the table cannot name."
+  },
+
+  "Tab.Pack": { "message": "Language pack", "description": "Tab label." },
+  "Tab.Parts": { "message": "Partes traducidas", "description": "Tab label." },
+
+  "Parts.Empty": {
+    "message": "Todavía no hay nada que listar. Instala un language pack en la otra pestaña y sus partes aparecerán aquí.",
+    "description": "Shown in the parts tab when no pack is installed."
+  },
+  "Parts.Intro": {
+    "message": "Elige cuánto del juego traduce este language pack. Cada casilla de abajo es una parte del texto del juego: si la desmarcas, esa parte vuelve al idioma con el que salió el juego, y todo lo que siga marcado sigue traducido. Pasa el ratón por encima de una casilla para ver qué cubre.",
+    "description": "Opening line of the parts tab."
+  },
+  "Parts.NextStart": {
+    "message": "Los cambios de aquí surten efecto en el próximo arranque del cliente.",
+    "description": "Body text under the intro."
+  },
+  "Parts.Count": { "message": "{0} de {1} activas", "description": "How many parts are on. {0} on, {1} total." },
+  "Parts.TurnAllOn": { "message": "Activarlo todo", "description": "Button." },
+  "Parts.On": { "message": "Activado", "description": "Caption over the translated half of a screenshot pair." },
+  "Parts.Off": { "message": "Desactivado", "description": "Caption over the untranslated half." },
+
+  "Restart.Title": { "message": "REINICIA EL CLIENTE", "description": "Banner heading." },
+  "Restart.Parts": {
+    "message": "Has cambiado qué partes se traducen. El juego lee todo su texto una sola vez, al arrancar, así que esto surte efecto la próxima vez que arranque.",
+    "description": "Banner reason after a parts change."
+  },
+  "Restart.Installed": {
+    "message": "El nuevo language pack está instalado, pero el juego no lo leerá hasta que vuelva a arrancar: carga todo su texto una vez, al inicio.",
+    "description": "Banner reason after an install."
+  },
+
+  "Pack.None": {
+    "message": "NO HAY NINGÚN LANGUAGE PACK CARGADO. Este plugin no incluye traducciones: pon abajo un enlace o una carpeta, pulsa Instalar y reinicia el cliente.",
+    "description": "Shown when nothing is installed."
+  },
+  "Pack.UpToDate": { "message": "{0} — al día: {1}", "description": "Pack name and version after a clean check." },
+  "Pack.Unversioned": { "message": "sin versión", "description": "Stands in for a missing version." },
+  "Pack.UnknownLanguage": { "message": "idioma desconocido", "description": "Stands in for a missing language." },
+  "Pack.UnknownVersion": { "message": "desconocida", "description": "Stands in for a missing game version." },
+  "Pack.LanguageByAuthor": { "message": "{0}, de {1}", "description": "Language and author of the pack." },
+  "Pack.Lines": {
+    "message": "{0} de {1} líneas traducidas ({2}) en {3} página(s), dentro de las hojas que cubre el language pack",
+    "description": "Translated, total, percentage, pages."
+  },
+  "Pack.BuiltFor": { "message": "Construido para la versión {0} del juego", "description": "Game patch the pack was built from." },
+  "Pack.Served": { "message": "{0} lectura(s) atendidas desde disco en esta sesión", "description": "Proves the redirection is working." },
+
+  "Update.Check": { "message": "Buscar actualizaciones", "description": "Button." },
+  "Update.CheckTip": {
+    "message": "Pregunta a la dirección que trae el language pack instalado si hay uno más nuevo publicado.\nUn par de kilobytes; preguntar no descarga ni cambia nada.\nEsto también se hace solo cada vez que carga el plugin.",
+    "description": "Tooltip of the check button."
+  },
+  "Update.NoAddressTip": {
+    "message": "Este language pack no trae ninguna dirección de actualización, así que no hay a quién preguntar.",
+    "description": "Tooltip when the button is disabled."
+  },
+  "Update.Checking": { "message": "Comprobando si hay un language pack más nuevo publicado...", "description": "While the check runs." },
+  "Update.Available": { "message": "Hay publicado un language pack más nuevo: {0}", "description": "{0} is the new version." },
+  "Update.BuiltForGame": { "message": ", construido para la versión {0} del juego", "description": "Appended to the line above." },
+  "Update.Install": { "message": "Actualizar", "description": "Button that installs the newer pack." },
+  "Update.Unreachable": {
+    "message": "Sin conexión con la dirección de actualización del language pack. Si sigue así, este language pack no se actualizará solo: mira de dónde lo sacaste.",
+    "description": "The declared address did not answer."
+  },
+  "Update.NotDeclared": {
+    "message": "Este language pack no tiene dirección de actualización, así que nunca se actualizará solo.",
+    "description": "The pack declares no address."
+  },
+
+  "Setup.PathLabel": { "message": "Language pack", "description": "Label of the source box." },
+  "Setup.PathTip": {
+    "message": "Un .zip, un enlace a uno, o una carpeta ya descomprimida.\nSea lo que sea debe contener gubal-manifest.json, que dice qué\nlanguage pack es y para qué versión del juego se construyó.",
+    "description": "Tooltip of the source box."
+  },
+  "Setup.Browse": { "message": "Examinar...", "description": "Button that opens the file picker." },
+  "Setup.Install": { "message": "Instalar", "description": "Button." },
+  "Setup.InstallTip": {
+    "message": "Lo descarga y lo descomprime si hace falta, y lo sirve desde el próximo arranque.\nNo se descarga nada si no pulsas esto.",
+    "description": "Tooltip of the install button."
+  },
+  "Setup.Serve": { "message": "Usar este language pack desde el próximo arranque", "description": "Checkbox." },
+  "Setup.ServeTip": {
+    "message": "Le da al juego el texto del language pack en vez del suyo.\nSurte efecto en el próximo arranque del cliente: el juego lee su texto una vez\nal arrancar y lo guarda toda la sesión, así que esto no se puede activar a mitad de partida.",
+    "description": "Tooltip of the serve checkbox."
+  },
+  "Setup.Auto": { "message": "Buscar un language pack más nuevo mientras arranca el juego", "description": "Checkbox." },
+  "Setup.AutoTip": {
+    "message": "Comprueba en cada arranque y, si hay publicado un language pack más nuevo, lo descarga e instala\nantes de que el juego lea su texto, así la traducción nueva está viva en esa misma sesión\ny no hay que reiniciar nada.\n\nEl arranque del juego se retiene mientras descarga. Marcar esto también activa la opción\n«wait for plugins» de Dalamud, que es lo que permite retenerlo.",
+    "description": "Tooltip of the auto-update checkbox. The Dalamud setting keeps its English name."
+  },
+  "Setup.AutoUnavailable": {
+    "message": "Disponible para un language pack instalado desde un enlace. Un language pack cogido de un fichero, o usado donde está, no tiene dirección a la que preguntar.",
+    "description": "Why the auto-update box is greyed out."
+  },
+  "Setup.PickerTitle": { "message": "Elige un language pack (.zip) o una carpeta descomprimida", "description": "File dialog title." },
+
+  "Boot.Waiting": { "message": "Dalamud retendrá el arranque del juego hasta que termine la actualización.", "description": "Reassurance." },
+  "Boot.NotWaiting": {
+    "message": "Dalamud no está configurado para esperar a los plugins antes de cargar el juego, así que no se descargará nada al arrancar: el juego leería su texto mientras la descarga sigue en marcha. Las actualizaciones se ofrecen arriba.",
+    "description": "Warning when the boot wait is off."
+  },
+  "Boot.OpenSettings": { "message": "Abrir los ajustes de Dalamud", "description": "Button." },
+  "Boot.WhereTip": {
+    "message": "Está en la pestaña General, se llama «Wait for plugins before game loads».",
+    "description": "Where to find it. The Dalamud setting keeps its English name."
+  },
+
+  "Install.Done": { "message": "Instalado {0} ({1}).", "description": "Pack name and version." },
+
+  "Diag.Header": { "message": "Diagnóstico", "description": "Collapsing header." },
+  "Diag.Probe": { "message": "Registrar cada página de Excel que lee el juego", "description": "Checkbox." },
+  "Diag.ProbeTip": {
+    "message": "Escribe una línea por página en /xllog, sin redirigir nada.\nSe engancha al cargar, así que surte efecto en el próximo arranque del cliente.",
+    "description": "Tooltip of the probe checkbox."
+  }
+}
