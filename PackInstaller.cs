@@ -9,31 +9,23 @@ namespace GubalLibrary;
 /// </summary>
 /// <remarks>
 ///     <para>
-///         <b>Installing is a separate act from serving, and that separation is load-bearing.</b> The
-///         redirection has to be in place before the client's first Excel read, which is about a
-///         second after this plugin loads. Ordinarily nothing here runs during startup at all: the
-///         user presses a button, waits, and restarts.
+///         <b>Installing is a separate act from serving.</b> The redirection has to be in place
+///         before the client's first Excel read, a second after the plugin loads; ordinarily nothing
+///         here runs during startup at all — the user presses a button, waits, and restarts.
 ///     </para>
 ///     <para>
-///         <b>The exception is deliberate and narrow.</b> With <c>AutoUpdatePack</c> on, the plugin
-///         runs an install <em>during</em> its own construction, so the new pages are in place before
-///         that first read and the session needs no restart. It works only because Dalamud can be
-///         asked to hold the game's boot until plugins have loaded, which is a setting the player
-///         owns; the plugin checks it and declines rather than gambling. Everything reachable from
-///         there takes a <see cref="CancellationToken" /> for that reason — a stalled download during
-///         startup is somebody's game not starting.
+///         <b>The exception is narrow.</b> With <c>AutoUpdatePack</c> on, the install runs during the
+///         plugin's own construction so the session needs no restart. That works only because Dalamud
+///         can be asked to hold the game's boot, a setting the player owns and the plugin checks
+///         rather than gambles on. Everything reachable from there takes a
+///         <see cref="CancellationToken" />: a stalled download during startup is somebody's game not
+///         starting.
 ///     </para>
 ///     <para>
-///         <b>A pack is published as a pair.</b> <c>whatever.zip</c> holds the pages and their
-///         <c>gubal-manifest.json</c>; <c>whatever.json</c> sits beside it and is a copy of that same
-///         manifest. Asking whether a newer generation exists then costs two kilobytes instead of the
-///         whole archive, which is what makes an automatic check acceptable to run at all.
-///     </para>
-///     <para>
-///         <b>A folder source is used where it lies.</b> Copying it into the plugin's own directory
-///         would produce a second copy that no build writes to, and the first person to rebuild would
-///         be testing yesterday's pack while believing otherwise. Only archives are unpacked, because
-///         only archives have to be.
+///         <b>A pack is published as a pair</b> — <c>whatever.zip</c> and a <c>whatever.json</c> copy
+///         of its manifest beside it, so asking whether a newer generation exists costs two kilobytes
+///         instead of the whole archive. <b>A folder source is used where it lies</b>: copying it
+///         would leave a second copy no build writes to.
 ///     </para>
 /// </remarks>
 internal sealed class PackInstaller
@@ -44,10 +36,8 @@ internal sealed class PackInstaller
     /// <summary>Where it is unpacked <em>to</em> before replacing the installed one.</summary>
     /// <remarks>
     ///     Unpacking over the live folder would leave a mixture of two generations behind any failure
-    ///     — a half-written pack that still holds a manifest and still loads. Nothing downstream can
-    ///     detect that: every page is individually valid, so the game draws yesterday's Spanish on
-    ///     today's rows in whichever sheets did not get replaced. Staging then swapping makes a failed
-    ///     install leave the previous pack exactly as it was.
+    ///     — a half-written pack that still holds a manifest and still loads, with every page
+    ///     individually valid. Staging then swapping leaves a failed install exactly as it was.
     /// </remarks>
     private const string StagingFolder = "pack.staging";
 
@@ -84,18 +74,10 @@ internal sealed class PackInstaller
     ///     Resolves a source to a folder the redirector can serve, unpacking it if it is an archive.
     /// </summary>
     /// <remarks>
-    ///     <para>
-    ///         Deliberately not incremental. The states a resumable install could leave behind — a
-    ///         pack that is half of one generation and half of another — are precisely the ones
-    ///         nothing downstream can detect.
-    ///     </para>
-    ///     <para>
-    ///         Cancellable, but only up to <see cref="Commit" />. That is the safe half by
-    ///         construction: everything before it happens in the staging folder, so abandoning it
-    ///         leaves the installed pack untouched, and after it there is nothing left to abandon.
-    ///         Nobody cancels by hand — the token is how the startup path puts a ceiling on a download
-    ///         that would otherwise hold the game's boot for as long as the network felt like.
-    ///     </para>
+    ///     Deliberately not incremental: a pack half of one generation and half of another is exactly
+    ///     what nothing downstream can detect. Cancellable only up to <see cref="Commit" />, which is
+    ///     the safe half by construction — everything before it happens in the staging folder. Nobody
+    ///     cancels by hand; the token is how the startup path puts a ceiling on a download.
     /// </remarks>
     public async Task<InstallResult> InstallAsync(
         string source, IProgress<InstallProgress>? progress = null, CancellationToken cancel = default)
@@ -128,8 +110,8 @@ internal sealed class PackInstaller
                 }
                 finally
                 {
-                    // The archive has served its purpose the moment it is unpacked, and it is the
-                    // largest thing this plugin ever writes.
+                    // Its purpose ends the moment it is unpacked, and it is the largest thing this
+                    // plugin ever writes.
                     DeleteFileIfPresent(downloaded);
                 }
             }
@@ -147,9 +129,8 @@ internal sealed class PackInstaller
         }
         catch (OperationCanceledException)
         {
-            // Reported as an outcome rather than thrown on. The caller that set the ceiling knows
-            // what it was; every other caller only needs to know that the previous pack is still
-            // there, which the staging folder guarantees and this sweeps up after.
+            // An outcome rather than a rethrow: every caller only needs to know the previous pack is
+            // still there, which the staging folder guarantees and this sweeps up after.
             DeleteIfPresent(Path.Combine(this.configDirectory, StagingFolder));
             DeleteFileIfPresent(Path.Combine(this.configDirectory, DownloadFile));
             this.log.Warning("Installing the language pack from '{Source}' was abandoned.", source);
@@ -166,17 +147,10 @@ internal sealed class PackInstaller
     ///     Unpacks an archive entry by entry so the caller can say how far along it is.
     /// </summary>
     /// <remarks>
-    ///     <para>
-    ///         <c>ZipFile.ExtractToDirectory</c> would be one line, and was, but it is opaque: a pack
-    ///         is thousands of files and on a slow disk the wait is long enough that silence reads as
-    ///         a hang.
-    ///     </para>
-    ///     <para>
-    ///         Doing it by hand means doing the safety check by hand too. An archive can name an entry
-    ///         like <c>..\..\something.dll</c>, and an extractor that simply joins paths will happily
-    ///         write outside the directory it was given. Every destination is resolved and required to
-    ///         sit under the target root before anything is written.
-    ///     </para>
+    ///     <c>ZipFile.ExtractToDirectory</c> would be one line, and was, but a pack is thousands of
+    ///     files and on a slow disk the silence reads as a hang. Doing it by hand means doing the
+    ///     safety check by hand: an entry named <c>..\..\something.dll</c> would otherwise be written
+    ///     outside the target, so every destination is resolved and required to sit under the root.
     /// </remarks>
     private static void Extract(
         string archivePath, string destination, IProgress<InstallProgress>? progress, CancellationToken cancel)
@@ -191,8 +165,8 @@ internal sealed class PackInstaller
 
         foreach (var entry in archive.Entries)
         {
-            // Between entries, never inside one. A half-written .exd is a page the redirector would
-            // serve as if it were whole, and the staging folder only protects what it replaces.
+            // Between entries, never inside one: a half-written .exd is a page the redirector would
+            // serve as if it were whole.
             cancel.ThrowIfCancellationRequested();
 
             done++;
@@ -213,8 +187,7 @@ internal sealed class PackInstaller
             Directory.CreateDirectory(Path.GetDirectoryName(target)!);
             entry.ExtractToFile(target, overwrite: true);
 
-            // Every few hundred files: often enough to move, rarely enough not to spend the install
-            // marshalling progress reports.
+            // Often enough to move, rarely enough not to spend the install marshalling reports.
             if (done % 200 == 0 || done == total)
             {
                 progress?.Report(InstallProgress.Working("Unpacking", done, total));
@@ -227,9 +200,8 @@ internal sealed class PackInstaller
     /// </summary>
     /// <remarks>
     ///     The path a pack is built to rather than installed to, which is how this project's own
-    ///     corpus is used: the generator writes a folder and the plugin reads it. Checking the
-    ///     manifest here rather than later means a mistyped path is reported while somebody is
-    ///     looking at the window, not silently at the next start.
+    ///     corpus is used. Checking the manifest here means a mistyped path is reported while somebody
+    ///     is looking at the window, not silently at the next start.
     /// </remarks>
     private InstallResult Adopt(string folder)
     {
@@ -243,16 +215,9 @@ internal sealed class PackInstaller
     ///     Checks what was unpacked, then puts it in place of the pack that was installed before.
     /// </summary>
     /// <remarks>
-    ///     <para>
-    ///         Validated before the swap, never after. Once the previous pack is gone there is nothing
-    ///         to fall back to, so an archive that turns out to hold the wrong thing has to be caught
-    ///         while the old one is still there.
-    ///     </para>
-    ///     <para>
-    ///         An archive zipped one level too high is the likeliest mistake a publisher makes and it
-    ///         is worth recovering from rather than reporting: it unpacks to a single folder holding
-    ///         the real pack, which is unambiguous enough to just use.
-    ///     </para>
+    ///     Validated before the swap, never after: once the previous pack is gone there is nothing to
+    ///     fall back to. An archive zipped one level too high is the likeliest publisher mistake and
+    ///     is recovered rather than reported, being unambiguous.
     /// </remarks>
     private InstallResult Commit(string staging, string source)
     {
@@ -312,13 +277,13 @@ internal sealed class PackInstaller
         response.EnsureSuccessStatusCode();
 
         // Null when the server does not say, which is legal and happens with chunked responses. The
-        // bar then has no fraction to show and the byte count carries the reassurance on its own.
+        // bar then has no fraction and the byte count carries the reassurance alone.
         var total = response.Content.Headers.ContentLength;
 
         await using (var http = await response.Content.ReadAsStreamAsync().ConfigureAwait(false))
         await using (var file = File.Create(target))
         {
-            // Copied by hand rather than with CopyToAsync, only so that the bytes can be counted.
+            // Copied by hand rather than with CopyToAsync, only so the bytes can be counted.
             var buffer = new byte[81920];
             long received = 0;
             int read;
@@ -336,20 +301,13 @@ internal sealed class PackInstaller
     }
 
     /// <summary>
-    ///     Refuses anything that is not a zip, before the unpacker gets to describe it in its own words.
+    ///     Refuses anything that is not a zip, before the unpacker describes it in its own words.
     /// </summary>
     /// <remarks>
-    ///     <para>
-    ///         This is the likeliest mistake anybody makes with this feature, by a wide margin: a
-    ///         file-sharing link is a <em>page</em>, not a file. WeTransfer, Google Drive and Dropbox
-    ///         share URLs all answer with HTML — sometimes a consent screen, sometimes a login, often
-    ///         a 404 to anything without a browser session — and none of them hand over the archive.
-    ///     </para>
-    ///     <para>
-    ///         Left to itself the unpacker says "End of Central Directory record could not be found",
-    ///         which is precisely true and tells the reader nothing they can act on. Two bytes of
-    ///         checking buys a sentence that names the actual problem.
-    ///     </para>
+    ///     The likeliest mistake with this feature by a wide margin: a file-sharing link is a
+    ///     <em>page</em>, not a file — WeTransfer, Google Drive and Dropbox all answer with HTML.
+    ///     Left alone the unpacker says "End of Central Directory record could not be found", which
+    ///     is true and useless; two bytes of checking buys a sentence naming the real problem.
     /// </remarks>
     private static void RequireArchive(string file, string url)
     {
@@ -376,22 +334,16 @@ internal sealed class PackInstaller
     ///     Asks the publisher whether a newer generation exists, without downloading the pack.
     /// </summary>
     /// <remarks>
-    ///     <para>
-    ///         Fetches the manifest at the installed pack's own <see cref="PackManifest.UpdateUrl" />,
-    ///         which is a few kilobytes rather than the twenty megabytes of the archive — and that
-    ///         disproportion is the whole reason an automatic check is acceptable at all.
-    ///     </para>
-    ///     <para>
-    ///         Returns null for every kind of "no", including every kind of failure. A pack that
-    ///         declares no address, a host that is down, a captive portal serving an HTML page where
-    ///         JSON should be — none of those are the user's problem and none justify a message. The
-    ///         consequence of being wrong here is that somebody carries on using a pack that works.
-    ///     </para>
+    ///     Fetches the manifest at the pack's own <see cref="PackManifest.UpdateUrl" /> — kilobytes
+    ///     against the archive's twenty megabytes, which is why an automatic check is acceptable.
+    ///     Returns null for every kind of "no", failures included: no address, a host that is down, a
+    ///     captive portal serving HTML. The cost of being wrong is somebody carrying on with a pack
+    ///     that works.
     /// </remarks>
     public async Task<UpdateStatus> CheckForUpdateAsync(PackManifest? installed, CancellationToken cancel = default)
     {
-        // Silence, and no complaint. A pack that declares no address has promised nothing, which is a
-        // legitimate way to publish one — a test build, or an author with nowhere to host a manifest.
+        // Silence, and no complaint: a pack that declares no address has promised nothing, which is a
+        // legitimate way to publish one.
         if (installed?.UpdateUrl is not { Length: > 0 } updateUrl)
         {
             return UpdateStatus.NotDeclared;
@@ -412,13 +364,13 @@ internal sealed class PackInstaller
 
             if (published?.TranslationVersion is not { Length: > 0 } latest)
             {
-                // Answered, but with something that is not a manifest. A captive portal or an error
-                // page dressed as HTML lands here, and it is a broken promise like any other.
+                // Answered, but with something that is not a manifest — a captive portal or an error
+                // page. A broken promise like any other.
                 return UpdateStatus.Unreachable("what is published there is not a pack manifest.");
             }
 
             // Ordinal, not a version parse. The stamp is yyyy.MM.dd.HHmm, which sorts correctly as
-            // text and has no meaning as a number; parsing it would only invent failure modes.
+            // text and has no meaning as a number.
             return string.CompareOrdinal(latest, installed.TranslationVersion ?? string.Empty) > 0
                 ? UpdateStatus.Available(published)
                 : UpdateStatus.UpToDate;
@@ -459,8 +411,8 @@ internal readonly record struct InstallProgress(string Label, float? Fraction, s
         new(label, total > 0 ? (float)done / total : null, $"{done:N0} / {total:N0} files");
 
     /// <remarks>
-    ///     Reported in megabytes rather than bytes because the number is for a person, and a
-    ///     nine-digit byte count moving too fast to read reassures nobody.
+    ///     Megabytes rather than bytes: the number is for a person, and a nine-digit count moving too
+    ///     fast to read reassures nobody.
     /// </remarks>
     public static InstallProgress Downloading(long received, long? total)
     {
@@ -474,9 +426,8 @@ internal readonly record struct InstallProgress(string Label, float? Fraction, s
 /// <summary>What came of asking whether a newer pack exists.</summary>
 /// <remarks>
 ///     Four outcomes rather than a nullable manifest, because two of them are silence for opposite
-///     reasons and the difference is the user's to know. A pack that names no address has promised
-///     nothing. A pack that names one and does not answer has stopped delivering corrections, and
-///     from the player's chair that is indistinguishable from a translation nobody is working on.
+///     reasons: a pack naming no address has promised nothing, while one that names an address and
+///     does not answer has stopped delivering corrections.
 /// </remarks>
 internal readonly record struct UpdateStatus(UpdateState State, PackManifest? Published, string? Error)
 {
@@ -491,13 +442,10 @@ internal readonly record struct UpdateStatus(UpdateState State, PackManifest? Pu
 
 internal enum UpdateState
 {
-    /// <summary>
-    ///     Nothing has been asked yet. <b>Deliberately first, so it is the default.</b>
-    /// </summary>
+    /// <summary>Nothing has been asked yet. <b>Deliberately first, so it is the default.</b></summary>
     /// <remarks>
-    ///     The check runs on a background task and takes as long as a web request. Any other value
-    ///     here would mean the window states a conclusion during the seconds before there is one —
-    ///     and the conclusion it would state, for a pack that does publish updates, is the opposite
+    ///     The check takes as long as a web request. Any other default would state a conclusion during
+    ///     the seconds before there is one — and for a pack that does publish updates, the opposite
     ///     of the truth.
     /// </remarks>
     Checking,

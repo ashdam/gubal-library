@@ -1,3 +1,4 @@
+using CheapLoc;
 using Dalamud.Plugin.Services;
 
 namespace GubalLibrary;
@@ -20,16 +21,10 @@ internal sealed record GroupView(
 ///     What an installed language pack holds, read once and kept.
 /// </summary>
 /// <remarks>
-///     <para>
-///         Split out of <see cref="ExdRedirector" /> because the settings window needs the same answer
-///         and cannot get it from there: the redirector only exists when a pack is being served, and
-///         the window has to show what is in a pack that is switched off, or installed and waiting for
-///         a restart — which are exactly the moments somebody is deciding what to switch on.
-///     </para>
-///     <para>
-///         <b>Read once.</b> A pack is four thousand files; ImGui draws sixty times a second. This is
-///         loaded when the pack path changes and cached, never touched from a draw call.
-///     </para>
+///     Separate from <see cref="ExdRedirector" />, which exists only while a pack is being served —
+///     the window has to describe one that is switched off, or installed and waiting for a restart,
+///     which are the moments somebody is deciding what to switch on. <b>Read once</b>, when the path
+///     changes: a pack is four thousand files and ImGui draws sixty times a second.
 /// </remarks>
 internal sealed class PackContents
 {
@@ -62,17 +57,11 @@ internal sealed class PackContents
     ///     The parts that are switched off, by the name they are switched off under.
     /// </summary>
     /// <remarks>
-    ///     <para>
-    ///         <b>Any sheet of it being off makes the part off</b>, not all of them. Ticking a box
-    ///         writes every sheet it covers at once, so the half-and-half state cannot be reached by
-    ///         using the window — but it is reached the moment a later build of this plugin folds
-    ///         another sheet into an existing part, which is exactly when somebody's saved choice
-    ///         covers some of a part and not the rest.
-    ///     </para>
-    ///     <para>
-    ///         Of the two ways to round that off, this is the one that cannot mislead. Calling a
-    ///         half-served part "on" puts a tick beside text the user is looking at in English.
-    ///     </para>
+    ///     <b>Any sheet of it being off makes the part off.</b> Ticking a box writes every sheet at
+    ///     once, so the half-and-half state is unreachable from the window — but a later build
+    ///     folding another sheet into an existing part reaches it. Of the two ways to round that off,
+    ///     this is the one that cannot mislead: calling a half-served part "on" puts a tick beside
+    ///     text the user is reading in English.
     /// </remarks>
     public IReadOnlyList<string> PartsOff(ICollection<string> disabledSheets)
     {
@@ -89,8 +78,8 @@ internal sealed class PackContents
     }
 
     /// <summary>
-    ///     Reads a pack folder. A folder that is missing or empty yields empty contents rather than
-    ///     an error — whoever asked is the one who reports that, and both callers already do.
+    ///     Reads a pack folder. Missing or empty yields empty contents rather than an error, because
+    ///     whoever asked is the one who reports that and both callers already do.
     /// </summary>
     public static PackContents Load(string directory, int maxLocalPathLength)
     {
@@ -110,8 +99,8 @@ internal sealed class PackContents
                 continue;
             }
 
-            // The folder mirrors the archive, so the game path is the relative path with the
-            // separators the game uses.
+            // The folder mirrors the archive, so the game path is the relative path with the game's
+            // own separators.
             var gamePath = Path.GetRelativePath(directory, file).Replace('\\', '/');
             pages.Add(new PackPage(gamePath, file, PackParts.SheetOf(gamePath)));
         }
@@ -123,9 +112,9 @@ internal sealed class PackContents
     ///     The pages to hand the game, with the switched-off parts left out.
     /// </summary>
     /// <remarks>
-    ///     The whole feature is this method. A page that is not in the returned map is not in the
+    ///     The whole feature is this method. A page absent from the map is absent from the
     ///     redirector's dictionary, so its read misses and the game reads its own copy — no fallback
-    ///     text, no second code path, and nothing extra on the hot read path.
+    ///     text, no second code path, nothing extra on the hot read path.
     /// </remarks>
     public Dictionary<string, string> Servable(ICollection<string> disabledSheets)
     {
@@ -144,8 +133,8 @@ internal sealed class PackContents
 
     /// <summary>Says in the log which parts were held back, since the page count alone cannot.</summary>
     /// <remarks>
-    ///     A pack serving fewer pages than it holds looks identical to a pack that failed to read
-    ///     half of itself. One line naming the sheets is the difference between a decision and a bug.
+    ///     A pack serving fewer pages than it holds looks identical to one that failed to read half
+    ///     of itself. Naming the sheets is the difference between a decision and a bug.
     /// </remarks>
     public void LogOmissions(IPluginLog log, ICollection<string> disabledSheets, int served)
     {
@@ -166,12 +155,10 @@ internal sealed class PackContents
             string.Join(", ", off));
     }
 
-    /// <summary>
-    ///     Matches the curated table against what this pack holds, keeping only what is present.
-    /// </summary>
+    /// <summary>Matches the curated table against what this pack holds, keeping only what is present.</summary>
     /// <remarks>
     ///     Sheets the table does not name are gathered at the end, one checkbox each. Dropping them
-    ///     would mean a pack in another language had text nobody could switch off and no sign that it
+    ///     would leave a pack in another language with text nobody could switch off and no sign it
     ///     was there.
     /// </remarks>
     private static IReadOnlyList<GroupView> BuildLayout(List<PackPage> pages)
@@ -203,16 +190,20 @@ internal sealed class PackContents
             .Where(s => !PackParts.IsKnown(s))
             .Order(StringComparer.OrdinalIgnoreCase)
             .Select(s => new PartView(
-                new TranslationPart(s, "This build of the plugin has no name for this one.", [s]), [s]))
+                new TranslationPart(
+                    s,
+                    Loc.Localize("Group.Other.PartDesc", "This build of the plugin has no name for this one."),
+                    [s]), [s]))
             .ToArray();
 
         if (unknown.Length > 0)
         {
             groups.Add(new GroupView(
                 PackParts.OtherGroupName,
-                "Text this pack translates that this build of the plugin has no name for, listed "
-                + "under the game's own name for it. A pack in another language may well cover "
-                + "things this one does not.",
+                Loc.Localize("Group.Other.Desc",
+                    "Text this pack translates that this build of the plugin has no name for, listed "
+                    + "under the game's own name for it. A pack in another language may well cover "
+                    + "things this one does not."),
                 null,
                 unknown,
                 null));
