@@ -179,7 +179,7 @@ public sealed class Plugin : IDalamudPlugin
 
         this.commands.AddHandler(CommandName, new CommandInfo(this.OnCommand)
         {
-            HelpMessage = "Open settings. Subcommands: status, parts, check, usepack, autoupdate, probesqpack",
+            HelpMessage = "Open settings. See the plugin description for subcommands.",
         });
 
         pluginInterface.UiBuilder.Draw += this.DrawUi;

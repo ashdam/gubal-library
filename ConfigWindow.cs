@@ -38,7 +38,18 @@ internal sealed class ConfigWindow : Window
     ///     above them wraps at the same width: a narrow column of words over a wide picture reads as
     ///     two things that landed in the same box by accident.
     /// </remarks>
-    private const float PictureWidth = 560f;
+    private const float PictureWidth = 760f;
+
+    /// <summary>
+    ///     Wider than this and a picture is drawn above its partner rather than beside it.
+    /// </summary>
+    /// <remarks>
+    ///     Where halving a screenshot stops being a smaller picture and starts being an unreadable one.
+    ///     Set by the shapes this actually has: the cursor crops are 1.2 and go side by side; the help
+    ///     windows are 2.4 and did not survive it — 560 wide natively, they were drawn at 283 and the
+    ///     text inside them went to nothing. The message-window crops are 4.0.
+    /// </remarks>
+    private const float PanoramicRatio = 2.2f;
 
     private readonly Configuration config;
     private readonly FileDialogManager fileDialogs;
@@ -398,8 +409,43 @@ internal sealed class ConfigWindow : Window
         }
 
         var explain = Explain(view, warning);
-        this.Tip(explain, image);
-        this.Marker(explain, image);
+        this.Tip(explain, image, view.Sheets);
+        this.Marker(explain, image, view.Sheets);
+    }
+
+    /// <summary>
+    ///     The sheet names, under a rule and set in the monospaced face.
+    /// </summary>
+    /// <remarks>
+    ///     <para>
+    ///         <b>Only the sheets this pack actually holds</b>, which is what <see cref="PartView" />
+    ///         carries — naming one the pack does not have would send somebody looking for text that
+    ///         is not being served.
+    ///     </para>
+    ///     <para>
+    ///         <b>Monospaced rather than bold, and that is not a compromise.</b> Dalamud ships three
+    ///         faces — default, icon and mono — and no bold one, so bold would mean building a font
+    ///         handle off the atlas for a single line. Mono says the right thing anyway: these are
+    ///         identifiers out of the game's own files, not words, and setting them apart from the
+    ///         prose above is the whole point of the rule.
+    ///     </para>
+    /// </remarks>
+    private void Sheets(string[] sheets)
+    {
+        if (sheets.Length == 0)
+        {
+            return;
+        }
+
+        ImGui.Separator();
+        ImGui.TextColored(Grey, "Sheets");
+
+        using (ImRaii.PushFont(UiBuilder.MonoFont))
+        {
+            ImGui.PushTextWrapPos(PictureWidth * ImGuiHelpers.GlobalScale);
+            ImGui.TextUnformatted(string.Join(", ", sheets));
+            ImGui.PopTextWrapPos();
+        }
     }
 
     /// <summary>
@@ -441,9 +487,7 @@ internal sealed class ConfigWindow : Window
             text += "\n\n" + group;
         }
 
-        // Only the sheets this pack actually holds, which is what PartView carries — naming one the
-        // pack does not have would send somebody looking for text that is not being served.
-        return text + "\n\nSheets: " + string.Join(", ", view.Sheets);
+        return text;
     }
 
     /// <summary>An amber "!" that carries the same words as the control beside it.</summary>
@@ -452,7 +496,7 @@ internal sealed class ConfigWindow : Window
     ///     to be the thing that answers when hovered. A marker that only says "there is something to
     ///     know here" spends a click and tells nobody anything.
     /// </remarks>
-    private void Marker(string tooltip, string? image)
+    private void Marker(string tooltip, string? image, string[]? sheets = null)
     {
         ImGui.SameLine();
         ImGui.PushStyleColor(ImGuiCol.Text, Blue);
@@ -462,7 +506,7 @@ internal sealed class ConfigWindow : Window
         }
 
         ImGui.PopStyleColor();
-        this.Tip(tooltip, image);
+        this.Tip(tooltip, image, sheets);
     }
 
     /// <summary>What a group's tooltip says: its caveat if it has one, then what is inside it.</summary>
@@ -498,7 +542,12 @@ internal sealed class ConfigWindow : Window
     ///         one patch of the game; there will always be groups nobody has taken a pair for.
     ///     </para>
     /// </remarks>
-    private void Tip(string text, string? image)
+    /// <param name="sheets">
+    ///     Drawn last of all, under the pictures. They are the footnote of the tooltip: the answer to
+    ///     "which file is this" for somebody who has already read what the box does, and the one part
+    ///     of it that cannot drift from what is served.
+    /// </param>
+    private void Tip(string text, string? image, string[]? sheets = null)
     {
         if (!ImGui.IsItemHovered())
         {
@@ -513,6 +562,11 @@ internal sealed class ConfigWindow : Window
         if (image is { Length: > 0 })
         {
             this.DrawComparison(image);
+        }
+
+        if (sheets is not null)
+        {
+            this.Sheets(sheets);
         }
 
         ImGui.EndTooltip();
@@ -546,37 +600,65 @@ internal sealed class ConfigWindow : Window
         // SIDE BY SIDE WHEN BOTH ARE THERE, because that is the reading order of the thing being
         // shown: English on the left, Spanish on the right, the same window twice. Stacked, the eye
         // has to scroll between them and the comparison stops being one glance.
-        //
-        // HALF THE WIDTH EACH SO THE PAIR STILL FITS THE TOOLTIP. A pair drawn at full width would
-        // make the tooltip twice as wide as the text above it, which no screen thanks you for.
-        // A LONE HALF KEEPS THE FULL WIDTH: it is not competing with anything.
-        var both = off is not null && on is not null;
-        var width = (both ? PictureWidth / 2f : PictureWidth) * ImGuiHelpers.GlobalScale;
-
         ImGui.Spacing();
 
-        if (off is not null)
+        var available = PictureWidth * ImGuiHelpers.GlobalScale;
+
+        if (off is null || on is null)
         {
-            this.Half("Switched off", Amber, off, width);
+            // A LONE HALF KEEPS THE FULL WIDTH: it is not competing with anything, and half a pair
+            // is normal — the two halves of one are taken on different days.
+            var only = off ?? on!;
+            this.Half(off is null ? "Switched on" : "Switched off", off is null ? Green : Amber,
+                only, available, only.Height * (available / only.Width));
+            return;
         }
 
-        if (both)
+        var offRatio = (float)off.Width / off.Height;
+        var onRatio = (float)on.Width / on.Height;
+
+        // A PANORAMIC PAIR STACKS INSTEAD, because side by side it is unreadable. `examine` is a
+        // 1041x259 crop of a message window: halved it draws at 274x68 and the two lines of text
+        // inside it are four pixels tall. Stacked, each keeps the full width and twice the height.
+        //
+        // The threshold is per image, not on the pair, so one panoramic half is enough to stack
+        // both — a pair drawn two different ways is worse than either way.
+        if (offRatio >= PanoramicRatio || onRatio >= PanoramicRatio)
         {
-            ImGui.SameLine();
+            this.Half("Switched off", Amber, off, available, available / offRatio);
+            this.Half("Switched on", Green, on, available, available / onRatio);
+            return;
         }
 
-        if (on is not null)
-        {
-            this.Half("Switched on", Green, on, width);
-        }
+        // OTHERWISE THE PAIR SHARES A HEIGHT, NOT A WIDTH, and that is the point of this arithmetic.
+        // These are screenshots cropped by hand on different days: `interactable-off` is 618x516 and
+        // its partner 551x560. Drawn to a common width the second comes out taller, the captions
+        // stop lining up, and the two pictures no longer read as the same window twice.
+        //
+        // Solve for the height at which both fit: at height H the widths are H*r1 and H*r2, so
+        // H = (available - spacing) / (r1 + r2). The pair then fills the width exactly, whatever
+        // shape the screenshots happen to be.
+        var spacing = ImGui.GetStyle().ItemSpacing.X;
+        var height = (available - spacing) / (offRatio + onRatio);
+
+        this.Half("Switched off", Amber, off, height * offRatio, height);
+        ImGui.SameLine();
+        this.Half("Switched on", Green, on, height * onRatio, height);
     }
 
     /// <summary>One captioned picture, as a group so that <c>SameLine</c> puts the next one beside it.</summary>
-    private void Half(string caption, Vector4 colour, IDalamudTextureWrap wrap, float width)
+    private void Half(string caption, Vector4 colour, IDalamudTextureWrap wrap, float width, float height)
     {
+        // NEVER LARGER THAN THE SCREENSHOT ITSELF. Widening the tooltip to 760 would otherwise blow
+        // the 560-wide help pair up by a third and trade one kind of unreadable for another: a
+        // screenshot has no detail above its own resolution, and upscaled game text goes soft in a
+        // way that looks like a rendering fault rather than a big picture.
+        var scale = ImGuiHelpers.GlobalScale;
+        var cap = Math.Min(1f, wrap.Width * scale / width);
+
         ImGui.BeginGroup();
         ImGui.TextColored(colour, caption);
-        ImGui.Image(wrap.Handle, new Vector2(width, wrap.Height * (width / wrap.Width)));
+        ImGui.Image(wrap.Handle, new Vector2(width * cap, height * cap));
         ImGui.EndGroup();
     }
 
