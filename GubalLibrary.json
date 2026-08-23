@@ -15,11 +15,15 @@
   "//ImageUrls": [
     "Shown in the plugin installer under the description. A translation as the game draws it,",
     "because the one thing a screenshot can say here that words cannot is that this is the game's",
-    "own text box and not an overlay."
+    "own text box and not an overlay.",
+    "",
+    "SIZED FOR DALAMUD, WHICH IS WHY THESE ARE THEIR OWN FILES. PluginImageCache caps them at",
+    "730x380 the way it caps an icon at 512x512, and the README screenshots they are cut from are",
+    "978 and 777 wide. The originals are left alone; these are copies scaled to fit."
   ],
   "ImageUrls": [
-    "https://raw.githubusercontent.com/ashdam/gubal-library/main/images/example1.png",
-    "https://raw.githubusercontent.com/ashdam/gubal-library/main/images/example4.png"
+    "https://raw.githubusercontent.com/ashdam/gubal-library/main/images/manifest-1.png",
+    "https://raw.githubusercontent.com/ashdam/gubal-library/main/images/manifest-2.png"
   ],  "ApplicableVersion": "any",
   "Tags": [ "translation", "localization", "localisation", "dialogue", "community" ],
   "CategoryTags": [ "utility" ],
