@@ -180,3 +180,4 @@ one property this whole approach depends on.
 
 - **Mini Ashdam** — [Lodestone profile](https://eu.finalfantasyxiv.com/lodestone/character/1580162/)
 - **Nier Gainsborough** — [Lodestone profile](https://eu.finalfantasyxiv.com/lodestone/character/30057928/)
+- **Lfay Yette** — [Lodestone profile](https://eu.finalfantasyxiv.com/lodestone/character/20396696/)
