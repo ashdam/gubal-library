@@ -535,22 +535,49 @@ internal sealed class ConfigWindow : Window
     /// </remarks>
     private void DrawComparison(string name)
     {
-        this.Half("Switched off", Amber, $"{name}-off");
-        this.Half("Switched on", Green, $"{name}-on");
-    }
+        var off = this.Picture($"{name}-off");
+        var on = this.Picture($"{name}-on");
 
-    private void Half(string caption, Vector4 colour, string resource)
-    {
-        if (this.Picture(resource) is not { } wrap)
+        if (off is null && on is null)
         {
             return;
         }
 
-        ImGui.Spacing();
-        ImGui.TextColored(colour, caption);
+        // SIDE BY SIDE WHEN BOTH ARE THERE, because that is the reading order of the thing being
+        // shown: English on the left, Spanish on the right, the same window twice. Stacked, the eye
+        // has to scroll between them and the comparison stops being one glance.
+        //
+        // HALF THE WIDTH EACH SO THE PAIR STILL FITS THE TOOLTIP. A pair drawn at full width would
+        // make the tooltip twice as wide as the text above it, which no screen thanks you for.
+        // A LONE HALF KEEPS THE FULL WIDTH: it is not competing with anything.
+        var both = off is not null && on is not null;
+        var width = (both ? PictureWidth / 2f : PictureWidth) * ImGuiHelpers.GlobalScale;
 
-        var width = PictureWidth * ImGuiHelpers.GlobalScale;
+        ImGui.Spacing();
+
+        if (off is not null)
+        {
+            this.Half("Switched off", Amber, off, width);
+        }
+
+        if (both)
+        {
+            ImGui.SameLine();
+        }
+
+        if (on is not null)
+        {
+            this.Half("Switched on", Green, on, width);
+        }
+    }
+
+    /// <summary>One captioned picture, as a group so that <c>SameLine</c> puts the next one beside it.</summary>
+    private void Half(string caption, Vector4 colour, IDalamudTextureWrap wrap, float width)
+    {
+        ImGui.BeginGroup();
+        ImGui.TextColored(colour, caption);
         ImGui.Image(wrap.Handle, new Vector2(width, wrap.Height * (width / wrap.Width)));
+        ImGui.EndGroup();
     }
 
     /// <summary>The picture for a group, or null while it loads or if it is not there.</summary>
