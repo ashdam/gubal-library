@@ -306,7 +306,12 @@ internal static class PackParts
                     + "the Character window, the Duty Finder, your inventory, the retainer windows and "
                     + "their venture list, the Gold Saucer's scoreboards and race courses, the tabs "
                     + "across the top of a window and the buttons along the bottom.",
-                    ["addon", "maincommand", "retainertaskrandom", "goldsaucertextdata"]),
+                    ["addon", "maincommand", "retainertaskrandom", "goldsaucertextdata"],
+                    // The pair is the Character window, which is `addon` and nothing else in this
+                    // group. It hung off the group while this was the only part with a picture; the
+                    // moment its neighbours got their own it started promising them a screenshot of
+                    // somebody else's box.
+                    Image: "interface"),
 
                 // TWO SHEETS AND THEY MUST SHARE A BOX, for the reason VVDVoteRouteLabel shares one
                 // with ContentTalk: THEY HOLD THE SAME SENTENCE. «Radiant's Gear Augmentation
@@ -347,8 +352,7 @@ internal static class PackParts
             + "working when they are not. This is the usual reason to switch something off here.\n\n"
             + "Translations also keep proper names in English inside sentences, to match the "
             + "interface you are reading them against. Translating the interface as well leaves "
-            + "those names looking inconsistent until the two are brought in line.",
-            "interface"),
+            + "those names looking inconsistent until the two are brought in line."),
 
         // TWO BOXES, AND THEY USED TO BE ONE. Active Help interrupts you the first time you do
         // something; a content guide is a window you go and open. DescriptionString alone is 1,576
