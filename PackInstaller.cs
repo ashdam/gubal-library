@@ -325,7 +325,7 @@ internal sealed class PackInstaller
         DeleteFileIfPresent(file);
 
         throw new InvalidDataException(
-            $"{url} did not return a zip file ({size:N0} bytes of something else, most likely a web "
+            $"{url} did not return a zip file ({size:N0} bytes of something else — most likely a web "
             + "page). Share links from WeTransfer, Google Drive and Dropbox give you a page rather "
             + "than the file; you need an address that downloads the archive directly.");
     }

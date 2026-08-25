@@ -15,9 +15,9 @@ namespace GubalLibrary;
 /// </summary>
 /// <remarks>
 ///     Makes no network calls beyond fetching a pack somebody else built; translation happens offline
-///     in a separate pipeline. <b>The file route, never UI injection.</b> Intercepting what the game
-///     is about to draw and swapping the text in a node cannot reach the sheets the client reads at
-///     boot, and costs thousands of lines to get that far.
+///     in a separate pipeline. It used to do the opposite — intercept what the game was about to draw
+///     and swap the text in a UI node, some 3,500 lines of it — and the file route replaced that once
+///     it was proven to reach the sheets the client reads at boot, which injection never could.
 /// </remarks>
 public sealed class Plugin : IDalamudPlugin
 {
@@ -44,19 +44,8 @@ public sealed class Plugin : IDalamudPlugin
     private readonly ConfigWindow configWindow;
     private readonly IDalamudPluginInterface pluginInterface;
 
-    /// <summary>Not readonly: it is withdrawn again when the archive turns out to have failed, rather
-    /// than leave the client translated while every plugin reads the game own text.</summary>
-    private ExdRedirector? redirector;
+    private readonly ExdRedirector? redirector;
     private readonly string? redirectorError;
-
-    /// <summary>Whether the pack reached Dalamud and where from, or null when none was asked for.
-    /// Shown in the settings window: a silent success here looks the same as a silent failure.</summary>
-    private readonly ShadowState? shadow;
-
-    /// <summary>Said once. A login happens on every zone change to a new world, and saying the same
-    /// thing every time somebody switches character is noise.</summary>
-    private bool shadowAnnounced;
-
     private readonly PackInstaller installer;
 
     /// <summary>The installed pack's contents, read once per pack rather than once per frame.</summary>
@@ -106,7 +95,6 @@ public sealed class Plugin : IDalamudPlugin
         IFramework framework,
         IGameInteropProvider interop,
         ITextureProvider textures,
-        IDataManager data,
         IPluginLog log)
     {
         // Before anything else reads a string: CheapLoc answers "#Key" rather than the English
@@ -134,56 +122,22 @@ public sealed class Plugin : IDalamudPlugin
         // before the pages are enumerated, or it is a generation too late.
         this.bootUpdate = this.UpdateBeforeTheGameReads(log);
 
-        // SERVING THE PACK MEANS SERVING IT TO BOTH, or serving nothing. A pack that reaches the
-        // screen and not Dalamud leaves every installed plugin comparing the game's own words against
-        // translated ones, and the only repair for what that breaks is a pull request against every
-        // plugin that ever wrote a string into its source. So there is no half: either both routes go
-        // in or neither does. THE PLUGIN LOADS EITHER WAY — the settings window is where the folder
-        // that caused the trouble gets corrected, so throwing here would seal the only door back.
+        // Installed in the constructor and nowhere else — the whole reason the route works. The
+        // client reads its sheets about two seconds after plugins load and keeps them for the
+        // session, so a redirection put in place later is invisible for everything already read.
         if (this.config.ServeLanguagePack && this.config.LanguagePackPath.Length > 0)
         {
-            // Settled first, and cheaply: one hard link, undone. Getting the answer before the read
-            // hook goes in is what keeps a refusal from being a session with the hook already in.
-            this.shadow = GubalLumina.Resolve(
-                this.config.SheetShadowPath,
-                pluginInterface.GetPluginConfigDirectory(),
-                data.GameData.DataPath.FullName,
+            (this.redirector, this.redirectorError) = ExdRedirector.Create(
+                interop,
+                log,
                 this.config.LanguagePackPath,
-                log);
+                this.Contents(),
+                this.config.DisabledSheets);
 
-            if (this.shadow.Ok)
+            if (this.redirectorError is { Length: > 0 } error)
             {
-                // Installed in the constructor and nowhere else — the whole reason the route works.
-                // The client reads its sheets about two seconds after plugins load and keeps them for
-                // the session, so a redirection put in place later is invisible for what it read.
-                (this.redirector, this.redirectorError) = ExdRedirector.Create(
-                    interop,
-                    log,
-                    this.config.LanguagePackPath,
-                    this.Contents(),
-                    this.config.DisabledSheets);
-
-                if (this.redirectorError is { Length: > 0 } error)
-                {
-                    log.Warning("Translated pages are not being served: {Error}", error);
-                }
-
-                // Dalamud's own Lumina caches a sheet on first access, so anything another plugin
-                // reads before this runs stays untranslated for the whole session.
-                this.shadow = GubalLumina.Install(data, this.config.LanguagePackPath, this.shadow.Folder, log);
-
-                // The probe said the archive could be assembled and assembling it failed anyway. The
-                // read hook is already in, so it comes back out: the client has not read a sheet yet,
-                // and half-served is the one outcome this ordering exists to prevent.
-                if (!this.shadow.Ok)
-                {
-                    this.redirector?.Dispose();
-                    this.redirector = null;
-                    log.Warning("[shadow] the pack was withdrawn from the client too, rather than serve half");
-                }
+                log.Warning("Translated pages are not being served: {Error}", error);
             }
-
-            log.Information($"[shadow] {this.shadow.Message} [{this.shadow.Folder}]");
         }
 
         this.configWindow = new ConfigWindow(
@@ -199,8 +153,6 @@ public sealed class Plugin : IDalamudPlugin
             this.SetAutoUpdate,
             () => DalamudBootWait.IsOn(this.pluginInterface),
             () => pluginInterface.OpenDalamudSettingsTo(SettingsOpenKind.General),
-            () => this.shadow,
-            Path.GetPathRoot(data.GameData.DataPath.FullName) ?? string.Empty,
             pluginInterface.Manifest.AssemblyVersion.ToString());
 
         this.windows.AddWindow(this.configWindow);
@@ -278,7 +230,7 @@ public sealed class Plugin : IDalamudPlugin
                 this.chat.Print(this.BeginUpdateCheck(verbose: true)
                     ? "[Gubal]Asking whether a newer language pack is published..."
                     // Not "the answer follows": the check already running is the quiet one from load.
-                    : "[Gubal]A check is already running, and /gubal shows what it comes back with.");
+                    : "[Gubal]A check is already running — /gubal shows what it comes back with.");
                 break;
 
             // Exists so recovering from a bad run needs no text editor: the route detours the function
@@ -314,7 +266,7 @@ public sealed class Plugin : IDalamudPlugin
                 this.config.ProbeSqPack = !this.config.ProbeSqPack;
                 this.SaveConfig(this.config);
                 this.chat.Print(this.config.ProbeSqPack
-                    ? "[Gubal]SqPack probe ON. Restart the client, because it attaches at load and only then."
+                    ? "[Gubal]SqPack probe ON. Restart the client — it attaches at load and only then."
                     : "[Gubal]SqPack probe OFF from the next load.");
                 break;
 
@@ -339,24 +291,17 @@ public sealed class Plugin : IDalamudPlugin
             // reports the two lines above identically.
             this.chat.Print($"[Gubal]{pages.ServedCount:N0} read(s) answered from disk this session.");
 
-            // One command away, because it is the first thing to rule out when a plugin misbehaves.
-            // The folder is named because it is not always under Dalamud: a game on another drive
-            // puts it there instead, and 101 MB somebody cannot find is 101 MB they cannot delete.
-            this.chat.Print(this.shadow is { Ok: true } served
-                ? $"[Gubal]Other plugins read the pack too, from {served.Folder}."
-                : $"[Gubal]Other plugins read the game{(char)39}s own text: {this.shadow?.Message ?? "no pack is being served"}.");
-
-            // Otherwise somebody reports a bug about text left untranslated exactly as they asked.
+            // Otherwise somebody reports a bug about text that is English exactly as they asked.
             if (this.Contents().PartsOff(this.config.DisabledSheets) is { Count: > 0 } off)
             {
-                this.chat.Print($"[Gubal]Switched off on purpose, so still the game's own text: {string.Join(", ", off)}.");
+                this.chat.Print($"[Gubal]Switched off on purpose, so still English: {string.Join(", ", off)}.");
             }
 
             return;
         }
 
         this.chat.PrintError(
-            $"[Gubal]No pages served. {pages.Error ?? "no language pack configured."}");
+            $"[Gubal]No pages served — {pages.Error ?? "no language pack configured."}");
     }
 
     /// <summary>Lists the parts of the translation and whether each is being served.</summary>
@@ -445,7 +390,7 @@ public sealed class Plugin : IDalamudPlugin
 
         // In chat as well as the window, because the window is where the person just was and chat is
         // where they will be.
-        this.chat.Print("[Gubal]Language pack installed. RESTART THE CLIENT. The game reads its text once at startup.");
+        this.chat.Print("[Gubal]Language pack installed. RESTART THE CLIENT — the game reads its text once at startup.");
     }
 
     /// <summary>
@@ -678,44 +623,6 @@ public sealed class Plugin : IDalamudPlugin
             this.chat.Print($"[Gubal]Language pack updated to {version} before this session started.");
         }
 
-        // Said here rather than only logged, and once. BOTH OUTCOMES ARE WORTH A LINE, and the
-        // successful one more than the failure: a player who turns this on and later meets an odd
-        // plugin has no reason to connect the two unless somebody told them. Silence on success is
-        // how a helpful feature becomes an unexplained bug report against somebody else's plugin.
-        if (this.shadow is { } state && !this.shadowAnnounced)
-        {
-            this.shadowAnnounced = true;
-            if (!state.Ok)
-            {
-                // ONE MESSAGE. Two red lines in a row read as two things having gone wrong. Consequence
-                // first, then the cause, then the one thing to do about it, with the settings a click
-                // away rather than a path to retype.
-                this.chat.PrintError(new SeStringBuilder()
-                    .AddText($"[Gubal]Nothing is translated this session. {state.Message} To fix it, ")
-                    .Add(this.openConfigLink)
-                    .AddUiForeground(539)
-                    .AddText("open the settings")
-                    .AddUiForegroundOff()
-                    .Add(RawPayload.LinkTerminator)
-                    .AddText(" and choose another folder, then restart the game.")
-                    .Build());
-            }
-            else
-            {
-                // NOT an invitation to switch anything off — there is nothing to switch off, and the
-                // remedy for a plugin that misbehaves is to hear about it. What this line exists for
-                // is the connection: somebody who meets an odd plugin days from now has no reason to
-                // think of a translation unless it was said once, out loud, at the start.
-                this.chat.Print(new SeStringBuilder()
-                    .AddText("[Gubal]Other plugins read the translation too. ")
-                    .AddUiForeground(539)
-                    .AddText("If one of them starts behaving oddly, please say which one")
-                    .AddUiForegroundOff()
-                    .AddText(", that is a bug worth fixing rather than living with.")
-                    .Build());
-            }
-        }
-
         this.Announce(verbose: false);
     }
 
@@ -775,20 +682,8 @@ public sealed class Plugin : IDalamudPlugin
         this.pluginInterface.SavePluginConfig(configuration);
     }
 
-    /// <summary>Opens the settings, on the tab that answers whatever is currently wrong.</summary>
-    /// <remarks>
-    ///     One link, two destinations. When the archive could not be assembled the only useful thing
-    ///     in this window is the folder box, and asking somebody who has just been told their game is
-    ///     untranslated to also find the right tab is one step too many.
-    /// </remarks>
     private void OpenConfig()
     {
-        if (this.shadow is { Ok: false })
-        {
-            this.configWindow.OpenAtAdvanced();
-            return;
-        }
-
         this.configWindow.IsOpen = true;
     }
 }
