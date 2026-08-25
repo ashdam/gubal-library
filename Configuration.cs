@@ -16,8 +16,20 @@ internal sealed class Configuration : IPluginConfiguration
     /// not typed: an archive lands in the plugin directory, a folder source is served where it lies.</summary>
     public string LanguagePackPath { get; set; } = string.Empty;
 
-    /// <summary>Serve the installed pack. Read once in the constructor, so it decides the next start
-    /// rather than now — see <see cref="ExdRedirector" />.</summary>
+    /// <summary>
+    ///     Serve the installed pack. Read once in the constructor, so it decides the next start
+    ///     rather than now — see <see cref="ExdRedirector" />.
+    /// </summary>
+    /// <remarks>
+    ///     <b>The only switch, and there is deliberately no second one.</b> Serving the pack means
+    ///     serving it to the game AND to Dalamud, always: a pack that reaches only the screen leaves
+    ///     every plugin comparing the game's own words against translated ones, and the alternative
+    ///     to keeping them together is a pull request against every plugin that ever wrote a string
+    ///     into its source. A per-plugin switch existed here for a day and was removed on 25 August
+    ///     2026 — it was a way to keep the translation while breaking other people's plugins, which
+    ///     is not a choice worth offering. What CAN be switched off is a part of the pack, and that
+    ///     switches off for both sides at once: see <see cref="DisabledSheets" />.
+    /// </remarks>
     public bool ServeLanguagePack { get; set; }
 
     /// <summary>Fetch a newer pack during startup. Off by default: it spends bandwidth and holds the

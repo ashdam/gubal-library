@@ -65,7 +65,7 @@ internal static class PackParts
     ///     Ordered the way somebody reads down them looking for a thing: the story, the people in it,
     ///     what happens inside content, the windows around all of it, then the two nobody comes here
     ///     for. Close to descending size and not the same rule — the Duty Finder is 751 rows and sits
-    ///     fourth, because it is read beside the content it describes. <b>Every one of the pack's 31
+    ///     fourth, because it is read beside the content it describes. <b>Every one of the pack's 28
     ///     keys is named exactly once below</b>, each measured rather than guessed from its name; the
     ///     evidence is in <c>issues/pack-page-inventory.md</c>.
     /// </remarks>
@@ -235,11 +235,11 @@ internal static class PackParts
                 new TranslationPart(
                     Loc.Localize("Part.DutyFinder.Name", "Duty Finder"),
                     Loc.Localize("Part.DutyFinder.Desc",
-                        "The Duty Finder from top to bottom: the name of every dungeon, trial and "
-                        + "raid in the list, the roulettes and what each one asks of you, including "
-                        + "chocobo racing and ranked PvP, the paragraph down the right when you pick "
-                        + "one, and the briefing a guildhest gives you as it starts."),
-                    ["contentfinderconditiontransient", "contentfindercondition", "contentroulette", "guildorder"]),
+                        "The Duty Finder from top to bottom: the roulettes and what each one asks of "
+                        + "you, including chocobo racing and ranked PvP, the paragraph down the "
+                        + "right when you pick a dungeon, trial or raid, and the briefing a guildhest "
+                        + "gives you as it starts."),
+                    ["contentfinderconditiontransient", "contentroulette", "guildorder"]),
             ],
             Image: "duty"),
 
@@ -253,11 +253,6 @@ internal static class PackParts
                 // venture names, read in a window that IS `addon`. GoldSaucerTextData is an `addon`
                 // for one content area — courses, grades, HUD counters. MainCommand is the main menu,
                 // which had been falling through to the leftovers box under its own sheet name.
-                //
-                // MainCommandCategory rides with MainCommand because it is the same menu: the entries
-                // are one sheet and the seven headings they file under are another, and a checkbox
-                // that turned one on without the other would draw Spanish rows under English
-                // headings, which is exactly the defect that led to extracting it.
                 new TranslationPart(
                     Loc.Localize("Part.Menus.Name", "Menus, buttons and window titles"),
                     Loc.Localize("Part.Menus.Desc",
@@ -268,7 +263,7 @@ internal static class PackParts
                         + "top of a window and the buttons along the bottom."),
                     //`baseparam` is the Character window's attribute names and the sentence each one
                     //shows on hover. Its own box would be a checkbox for half of one panel.
-                    ["addon", "maincommand", "maincommandcategory", "retainertaskrandom", "goldsaucertextdata", "baseparam"],
+                    ["addon", "maincommand", "retainertaskrandom", "goldsaucertextdata", "baseparam"],
                     // The pair is the Character window, which is `addon` and nothing else in this
                     // group; hung off the group it promised its neighbours somebody else's screenshot.
                     Image: "interface"),
@@ -282,9 +277,8 @@ internal static class PackParts
                     Loc.Localize("Part.Shops.Desc",
                         "The title on a vendor's window and the list of shops they offer before you "
                         + "pick one: the tomestone exchanges, the gear sets listed by item level, and "
-                        + "the seasonal event stalls, with the two dropdowns an exchange window sorts "
-                        + "its wares by."),
-                    ["specialshop", "topicselect", "inclusionshopcategory"]),
+                        + "the seasonal event stalls."),
+                    ["specialshop", "topicselect"]),
 
                 // THE NAME UNDER THE CURSOR IS INTERFACE, not scenery: a label the game draws over the
                 // world, and this group's warning — other plugins read these words in English —
