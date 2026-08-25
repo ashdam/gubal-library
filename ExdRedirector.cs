@@ -93,7 +93,7 @@ internal sealed unsafe class ExdRedirector : IDisposable
             "Serving {Count} rebuilt page(s) of '{Pack}' ({Version}) from disk; hook at 0x{Address:X}.",
             pages.Count,
             manifest.DisplayName,
-            manifest.TranslationVersion ?? "no translationVersion, pack predates the stamp",
+            manifest.TranslationVersion ?? "no translationVersion — pack predates the stamp",
             FileThread.Addresses.DoFileJob.Value);
     }
 
@@ -158,7 +158,7 @@ internal sealed unsafe class ExdRedirector : IDisposable
         {
             return (null,
                 $"These pages were built for game {builtFor} but the client is running {running}. "
-                + "Regenerate them; serving them now would put translated text on the wrong rows.");
+                + "Regenerate them; serving them now would put Spanish on the wrong rows.");
         }
 
         if (contents.TooLong > 0)

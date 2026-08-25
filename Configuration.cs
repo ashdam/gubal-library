@@ -16,20 +16,8 @@ internal sealed class Configuration : IPluginConfiguration
     /// not typed: an archive lands in the plugin directory, a folder source is served where it lies.</summary>
     public string LanguagePackPath { get; set; } = string.Empty;
 
-    /// <summary>
-    ///     Serve the installed pack. Read once in the constructor, so it decides the next start
-    ///     rather than now — see <see cref="ExdRedirector" />.
-    /// </summary>
-    /// <remarks>
-    ///     <b>The only switch, and there is deliberately no second one.</b> Serving the pack means
-    ///     serving it to the game AND to Dalamud, always: a pack that reaches only the screen leaves
-    ///     every plugin comparing the game's own words against translated ones, and the alternative
-    ///     to keeping them together is a pull request against every plugin that ever wrote a string
-    ///     into its source. A per-plugin switch existed here for a day and was removed on 25 August
-    ///     2026 — it was a way to keep the translation while breaking other people's plugins, which
-    ///     is not a choice worth offering. What CAN be switched off is a part of the pack, and that
-    ///     switches off for both sides at once: see <see cref="DisabledSheets" />.
-    /// </remarks>
+    /// <summary>Serve the installed pack. Read once in the constructor, so it decides the next start
+    /// rather than now — see <see cref="ExdRedirector" />.</summary>
     public bool ServeLanguagePack { get; set; }
 
     /// <summary>Fetch a newer pack during startup. Off by default: it spends bandwidth and holds the
@@ -41,24 +29,6 @@ internal sealed class Configuration : IPluginConfiguration
     /// before the client's first read belongs to Dalamud's load order, and this is how to check a
     /// patch has not eaten it.</summary>
     public bool ProbeSqPack { get; set; }
-
-    /// <summary>Where the shadow archive is assembled; empty chooses it.</summary>
-    /// <remarks>
-    ///     <para>
-    ///         <b>Chosen rather than asked.</b> The game's archives are linked rather than copied and
-    ///         a hard link cannot cross volumes, so when the game and Dalamud sit on different drives
-    ///         the folder has to be on the game's. Somebody installing a translation should not have
-    ///         to know that, so it is picked, announced, and left changeable — see
-    ///         <see cref="GubalLumina.ChooseFolder" />. Never anywhere inside the game's own directory.
-    ///     </para>
-    ///     <para>
-    ///         <b>A value here that does not work is not fatal.</b> Failing to assemble the archive
-    ///         stops the plugin loading, and a plugin that does not load has no settings window, so a
-    ///         typed-in folder that turns out to be unusable would seal the only door back. The
-    ///         chosen default is tried before giving up: see <see cref="GubalLumina.Resolve" />.
-    ///     </para>
-    /// </remarks>
-    public string SheetShadowPath { get; set; } = string.Empty;
 
     /// <summary>
     ///     The parts switched off. Empty serves everything.
