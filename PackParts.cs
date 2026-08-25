@@ -113,7 +113,7 @@ internal static class PackParts
                 new TranslationPart(
                     Loc.Localize("Part.QuestNames.Name", "Quest names"),
                     Loc.Localize("Part.QuestNames.Desc",
-                        "Only the names of quests, levequests and duties — in the tracker, in the "
+                        "Only the names of quests, levequests and duties: in the tracker, in the "
                         + "Journal, and in the Unending Journey at an inn where you replay "
                         + "cutscenes. Not the text inside them."),
                     ["quest", "completejournal"],
@@ -150,7 +150,7 @@ internal static class PackParts
                     Loc.Localize("Part.AskAbout.Name", "\"Ask about...\" menus and service windows"),
                     Loc.Localize("Part.AskAbout.Desc",
                         "The list of topics an NPC offers when they have several things to tell you, "
-                        + "what they say once you pick one, and the windows you work in afterwards — "
+                        + "what they say once you pick one, and the windows you work in afterwards: "
                         + "the retainer, the aetheryte, the levequest board, linkshells, relic "
                         + "trade-ins and your estate."),
                     ["custom/", "customtalk"]),
@@ -202,7 +202,7 @@ internal static class PackParts
                     Loc.Localize("Part.Objects.Name", "What an object tells you when you use it"),
                     Loc.Localize("Part.Objects.Desc",
                         "The message that comes back when you examine a corpse, pull a lever or open "
-                        + "a panel, and the documents you find and read in full — expedition "
+                        + "a panel, and the documents you find and read in full, such as expedition "
                         + "journals, letters, and the scrawled memos that give away a puzzle's "
                         + "answer."),
                     ["gimmicktalk", "gimmickbill"],
@@ -236,7 +236,7 @@ internal static class PackParts
                     Loc.Localize("Part.DutyFinder.Name", "Duty Finder"),
                     Loc.Localize("Part.DutyFinder.Desc",
                         "The Duty Finder from top to bottom: the roulettes and what each one asks of "
-                        + "you — including chocobo racing and ranked PvP — the paragraph down the "
+                        + "you, including chocobo racing and ranked PvP, the paragraph down the "
                         + "right when you pick a dungeon, trial or raid, and the briefing a guildhest "
                         + "gives you as it starts."),
                     ["contentfinderconditiontransient", "contentroulette", "guildorder"]),
@@ -256,12 +256,14 @@ internal static class PackParts
                 new TranslationPart(
                     Loc.Localize("Part.Menus.Name", "Menus, buttons and window titles"),
                     Loc.Localize("Part.Menus.Desc",
-                        "Everything written on the interface itself — the main menu you open with "
-                        + "Esc, the Character window, the Duty Finder, your inventory, the retainer "
-                        + "windows and their venture list, the Gold Saucer's scoreboards and race "
-                        + "courses, the tabs across the top of a window and the buttons along the "
-                        + "bottom."),
-                    ["addon", "maincommand", "retainertaskrandom", "goldsaucertextdata"],
+                        "Everything written on the interface itself: the main menu you open with "
+                        + "Esc, the Character window with your attributes and what each one does, "
+                        + "the Duty Finder, your inventory, the retainer windows and their venture "
+                        + "list, the Gold Saucer's scoreboards and race courses, the tabs across the "
+                        + "top of a window and the buttons along the bottom."),
+                    //`baseparam` is the Character window's attribute names and the sentence each one
+                    //shows on hover. Its own box would be a checkbox for half of one panel.
+                    ["addon", "maincommand", "retainertaskrandom", "goldsaucertextdata", "baseparam"],
                     // The pair is the Character window, which is `addon` and nothing else in this
                     // group; hung off the group it promised its neighbours somebody else's screenshot.
                     Image: "interface"),
@@ -328,7 +330,7 @@ internal static class PackParts
                     Loc.Localize("Part.ActiveHelp.Desc",
                         "The windows that pop up the first time you do something, the same texts "
                         + "again when you look them up from the main menu afterwards, and the help "
-                        + "behind the question mark in the corner of a window — such as the Duty "
+                        + "behind the question mark in the corner of a window, such as the Duty "
                         + "Finder's pages on registering for a duty and what happens next."),
                     ["howto", "howtopage", "howtocategory", "multiplehelpstring", "multiplehelp"],
                     Image: "help"),
