@@ -100,6 +100,9 @@ internal sealed class ConfigWindow : Window
     /// </remarks>
     private string? restartReason;
 
+    /// <summary>Whether the pack reached Dalamud, or null when none was asked for.</summary>
+    private readonly Func<ShadowState?> shadowState;
+
     /// <param name="version">The plugin's own version, shown in the title bar.</param>
     /// <remarks>
     ///     The window id is pinned with <c>###</c> so the title can carry the version without ImGui
@@ -118,9 +121,11 @@ internal sealed class ConfigWindow : Window
         Action<bool> setAutoUpdate,
         Func<bool?> dalamudWaits,
         Action openDalamudSettings,
+        Func<ShadowState?> shadowState,
         string version)
         : base($"Gubal Library ({version})###GubalLibraryConfig")
     {
+        this.shadowState = shadowState;
         this.config = config;
         this.save = save;
         this.fileDialogs = fileDialogs;
@@ -148,11 +153,11 @@ internal sealed class ConfigWindow : Window
     ///     The restart banner, then the tabs.
     /// </summary>
     /// <remarks>
-    ///     The banner stays above the tab bar because it is not about a tab. <b>A status headline
-    ///     used to sit here and was removed on 23 August 2026:</b> it repeated the pack and version
-    ///     shown inside the tab, and went amber whenever no read had been answered yet — the ordinary
-    ///     state after every hot reload, so the warning colour fired on the common case. The reads
-    ///     counter it existed for is now a number in the pack block rather than an alarm.
+    ///     The banner stays above the tab bar because it is not about a tab. <b>Nothing else belongs
+    ///     up here</b>, and a status headline in particular does not: it would repeat the pack and
+    ///     version already shown inside the tab, and any warning colour keyed on "no read answered
+    ///     yet" fires on the ordinary state after every hot reload. The reads counter is a number in
+    ///     the pack block rather than an alarm, for that reason.
     /// </remarks>
     public override void Draw()
     {
@@ -181,6 +186,7 @@ internal sealed class ConfigWindow : Window
                         this.DrawPartsTab(ref changed);
                     }
                 }
+
             }
         }
 
@@ -650,11 +656,11 @@ internal sealed class ConfigWindow : Window
             var (colour, text) = pages.Error is { Length: > 0 } error
                 ? (Red, error)
 
-                // Three steps, not four. It used to say "tick the box" as well, which is work the
-                // Install button already does — and an instruction that asks for something already
-                // done reads as a step that did not take.
+                // Three steps, not four. Do not add "tick the box": the Install button already does
+                // that, and an instruction asking for something already done reads as a step that
+                // did not take.
                 : (Amber, Loc.Localize("Pack.None",
-                    "NO LANGUAGE PACK LOADED. This plugin ships no translations — put a link or a "
+                    "NO LANGUAGE PACK LOADED. This plugin ships no translations, so put a link or a "
                     + "folder below, press Install, and restart the client."));
 
             Icon(FontAwesomeIcon.ExclamationTriangle, colour);
@@ -673,12 +679,24 @@ internal sealed class ConfigWindow : Window
         using (ImRaii.PushColor(ImGuiCol.Text, Green, clean))
         {
             ImGui.TextUnformatted(clean
-                ? string.Format(Loc.Localize("Pack.UpToDate", "{0} — up to date: {1}"), pack.DisplayName, version)
+                ? string.Format(Loc.Localize("Pack.UpToDate", "{0}, up to date: {1}"), pack.DisplayName, version)
                 : $"{pack.DisplayName} ({version})");
         }
 
         this.DrawCheckButton(pages);
         DrawPackDetail(pack, pages);
+
+        // SAID HERE BECAUSE THIS IS WHERE SOMEBODY LOOKS when the game came up untranslated. The pack
+        // is withheld from the game as well when Dalamud cannot be given it, so the state to report is
+        // "nothing is translated", not "one half of something did not happen".
+        if (this.shadowState() is { Ok: false } failed)
+        {
+            ImGui.Spacing();
+            Icon(FontAwesomeIcon.ExclamationTriangle, Red);
+            ImGui.TextWrapped(Loc.Localize("Pack.NothingServed", "NOTHING IS TRANSLATED THIS SESSION"));
+            ImGui.PopStyleColor();
+            ImGui.TextWrapped(failed.Message);
+        }
 
         // Suppressed once something has been installed, because everything it could say is about the
         // pack that is on its way out. Whether the OLD pack has a newer version published stopped
@@ -795,7 +813,7 @@ internal sealed class ConfigWindow : Window
                 ImGui.TextWrapped(
                     Loc.Localize("Update.Unreachable",
                         "No connection to the language pack update URL. If it persists, this pack "
-                        + "will not update itself — check where you got it from."));
+                        + "will not update itself, so check where you got it from."));
                 ImGui.PopStyleColor();
                 break;
 
@@ -929,7 +947,7 @@ internal sealed class ConfigWindow : Window
             // was moving — the two cases a person most needs told apart from a hang.
             var p = this.progress;
             ImGui.PushStyleColor(ImGuiCol.Text, Green);
-            ImGui.TextUnformatted(p.Detail.Length > 0 ? $"{p.Label} — {p.Detail}" : $"{p.Label}...");
+            ImGui.TextUnformatted(p.Detail.Length > 0 ? $"{p.Label}: {p.Detail}" : $"{p.Label}...");
             ImGui.PopStyleColor();
 
             ImGui.ProgressBar(
@@ -968,7 +986,13 @@ internal sealed class ConfigWindow : Window
                             this.installer.InstalledPath,
                             StringComparison.OrdinalIgnoreCase);
 
-        var auto = this.config.AutoUpdatePack;
+        // WHAT IS HAPPENING, not what is stored. The two part company: this stays in the
+        // configuration after a pack is replaced by a local folder, and the startup path then ignores
+        // it because it checks the same three preconditions. Drawing the stored value put a ticked
+        // box in front of somebody, greyed so they could not untick it, describing a download that
+        // was never going to happen. The setting is kept rather than cleared, so pointing at a link
+        // again brings back what they asked for.
+        var auto = this.config.AutoUpdatePack && available;
         using (ImRaii.Disabled(!available))
         {
             if (ImGui.Checkbox(
@@ -981,7 +1005,7 @@ internal sealed class ConfigWindow : Window
 
         SetTooltip(Loc.Localize("Setup.AutoTip",
             "Checks at every start, and if a newer pack is published, downloads and installs it\n"
-            + "before the game reads its text — so the new translation is live in that session\n"
+            + "before the game reads its text, so the new translation is live in that session\n"
             + "and nothing has to be restarted.\n\n"
             + "The game's start is held while it downloads. Ticking this also turns on Dalamud's\n"
             + "\"wait for plugins\", which is what makes holding it possible."));
@@ -1076,7 +1100,7 @@ internal sealed class ConfigWindow : Window
                 this.restartReason =
                     Loc.Localize("Restart.Installed",
                         "The new language pack is installed but the game will not read it until it "
-                        + "starts again — it loads all of its text once, at startup.");
+                        + "starts again, because it loads all of its text once, at startup.");
 
                 // Lets the plugin drop what it learned about the previous pack's update address, and
                 // say so in chat where somebody who has closed this window will still see it.
@@ -1125,6 +1149,7 @@ internal sealed class ConfigWindow : Window
                 Loc.Localize("Pack.Served", "{0} read(s) answered from disk this session"),
                 pages.ServedCount.ToString("N0")));
         }
+
     }
 
     /// <summary>
@@ -1153,7 +1178,9 @@ internal sealed class ConfigWindow : Window
         SetTooltip(Loc.Localize("Diag.ProbeTip",
             "Writes one line per page to /xllog, redirecting nothing.\n"
             + "Attaches at load, so it takes effect on the next client start."));
+
     }
+
 
     /// <summary>
     ///     Picks a <c>.zip</c> or an already-unpacked folder, and fills the source box with it.
