@@ -87,6 +87,10 @@ internal sealed class ConfigWindow : Window
 
     private readonly Action openDalamudSettings;
 
+    /// <summary>The drive the game is installed on, with its separator: "C:\\". The working folder
+    /// has to be on it, and this window is where that is enforced rather than discovered.</summary>
+    private readonly string gameDrive;
+
     private volatile bool installing;
     private InstallProgress progress;
     private string? installMessage;
@@ -99,6 +103,17 @@ internal sealed class ConfigWindow : Window
     ///     front of somebody who only unticked a checkbox describes something that did not happen.
     /// </remarks>
     private string? restartReason;
+
+    /// <summary>Where the archive other plugins read was assembled, or null when no pack is served.</summary>
+    private readonly Func<ShadowState?> shadowState;
+
+    /// <summary>Set by <see cref="OpenAtAdvanced" />, and true for exactly one frame.</summary>
+    /// <remarks>
+    ///     One frame is what <c>SetSelected</c> needs, and holding it for more would nail the window
+    ///     to that tab: somebody sent there to repair a folder still has to be able to walk away from
+    ///     it afterwards.
+    /// </remarks>
+    private bool showAdvanced;
 
     /// <param name="version">The plugin's own version, shown in the title bar.</param>
     /// <remarks>
@@ -118,9 +133,13 @@ internal sealed class ConfigWindow : Window
         Action<bool> setAutoUpdate,
         Func<bool?> dalamudWaits,
         Action openDalamudSettings,
+        Func<ShadowState?> shadowState,
+        string gameDrive,
         string version)
         : base($"Gubal Library ({version})###GubalLibraryConfig")
     {
+        this.shadowState = shadowState;
+        this.gameDrive = gameDrive;
         this.config = config;
         this.save = save;
         this.fileDialogs = fileDialogs;
@@ -144,15 +163,23 @@ internal sealed class ConfigWindow : Window
         };
     }
 
+    /// <summary>Opens the window on the Advanced tab, for a link whose whole purpose is to send
+    /// somebody to the folder box.</summary>
+    public void OpenAtAdvanced()
+    {
+        this.showAdvanced = true;
+        this.IsOpen = true;
+    }
+
     /// <summary>
     ///     The restart banner, then the tabs.
     /// </summary>
     /// <remarks>
-    ///     The banner stays above the tab bar because it is not about a tab. <b>A status headline
-    ///     used to sit here and was removed on 23 August 2026:</b> it repeated the pack and version
-    ///     shown inside the tab, and went amber whenever no read had been answered yet — the ordinary
-    ///     state after every hot reload, so the warning colour fired on the common case. The reads
-    ///     counter it existed for is now a number in the pack block rather than an alarm.
+    ///     The banner stays above the tab bar because it is not about a tab. <b>Nothing else belongs
+    ///     up here</b>, and a status headline in particular does not: it would repeat the pack and
+    ///     version already shown inside the tab, and any warning colour keyed on "no read answered
+    ///     yet" fires on the ordinary state after every hot reload. The reads counter is a number in
+    ///     the pack block rather than an alarm, for that reason.
     /// </remarks>
     public override void Draw()
     {
@@ -179,6 +206,17 @@ internal sealed class ConfigWindow : Window
                     if (tab)
                     {
                         this.DrawPartsTab(ref changed);
+                    }
+                }
+
+                var advanced = this.showAdvanced ? ImGuiTabItemFlags.SetSelected : ImGuiTabItemFlags.None;
+                this.showAdvanced = false;
+
+                using (var tab = ImRaii.TabItem(Loc.Localize("Tab.Advanced", "Advanced"), advanced))
+                {
+                    if (tab)
+                    {
+                        this.DrawAdvancedTab(ref changed);
                     }
                 }
             }
@@ -650,11 +688,11 @@ internal sealed class ConfigWindow : Window
             var (colour, text) = pages.Error is { Length: > 0 } error
                 ? (Red, error)
 
-                // Three steps, not four. It used to say "tick the box" as well, which is work the
-                // Install button already does — and an instruction that asks for something already
-                // done reads as a step that did not take.
+                // Three steps, not four. Do not add "tick the box": the Install button already does
+                // that, and an instruction asking for something already done reads as a step that
+                // did not take.
                 : (Amber, Loc.Localize("Pack.None",
-                    "NO LANGUAGE PACK LOADED. This plugin ships no translations — put a link or a "
+                    "NO LANGUAGE PACK LOADED. This plugin ships no translations, so put a link or a "
                     + "folder below, press Install, and restart the client."));
 
             Icon(FontAwesomeIcon.ExclamationTriangle, colour);
@@ -673,7 +711,7 @@ internal sealed class ConfigWindow : Window
         using (ImRaii.PushColor(ImGuiCol.Text, Green, clean))
         {
             ImGui.TextUnformatted(clean
-                ? string.Format(Loc.Localize("Pack.UpToDate", "{0} — up to date: {1}"), pack.DisplayName, version)
+                ? string.Format(Loc.Localize("Pack.UpToDate", "{0}, up to date: {1}"), pack.DisplayName, version)
                 : $"{pack.DisplayName} ({version})");
         }
 
@@ -795,7 +833,7 @@ internal sealed class ConfigWindow : Window
                 ImGui.TextWrapped(
                     Loc.Localize("Update.Unreachable",
                         "No connection to the language pack update URL. If it persists, this pack "
-                        + "will not update itself — check where you got it from."));
+                        + "will not update itself, so check where you got it from."));
                 ImGui.PopStyleColor();
                 break;
 
@@ -929,7 +967,7 @@ internal sealed class ConfigWindow : Window
             // was moving — the two cases a person most needs told apart from a hang.
             var p = this.progress;
             ImGui.PushStyleColor(ImGuiCol.Text, Green);
-            ImGui.TextUnformatted(p.Detail.Length > 0 ? $"{p.Label} — {p.Detail}" : $"{p.Label}...");
+            ImGui.TextUnformatted(p.Detail.Length > 0 ? $"{p.Label}: {p.Detail}" : $"{p.Label}...");
             ImGui.PopStyleColor();
 
             ImGui.ProgressBar(
@@ -968,7 +1006,13 @@ internal sealed class ConfigWindow : Window
                             this.installer.InstalledPath,
                             StringComparison.OrdinalIgnoreCase);
 
-        var auto = this.config.AutoUpdatePack;
+        // WHAT IS HAPPENING, not what is stored. The two part company: this stays in the
+        // configuration after a pack is replaced by a local folder, and the startup path then ignores
+        // it because it checks the same three preconditions. Drawing the stored value put a ticked
+        // box in front of somebody, greyed so they could not untick it, describing a download that
+        // was never going to happen. The setting is kept rather than cleared, so pointing at a link
+        // again brings back what they asked for.
+        var auto = this.config.AutoUpdatePack && available;
         using (ImRaii.Disabled(!available))
         {
             if (ImGui.Checkbox(
@@ -981,7 +1025,7 @@ internal sealed class ConfigWindow : Window
 
         SetTooltip(Loc.Localize("Setup.AutoTip",
             "Checks at every start, and if a newer pack is published, downloads and installs it\n"
-            + "before the game reads its text — so the new translation is live in that session\n"
+            + "before the game reads its text, so the new translation is live in that session\n"
             + "and nothing has to be restarted.\n\n"
             + "The game's start is held while it downloads. Ticking this also turns on Dalamud's\n"
             + "\"wait for plugins\", which is what makes holding it possible."));
@@ -1076,7 +1120,7 @@ internal sealed class ConfigWindow : Window
                 this.restartReason =
                     Loc.Localize("Restart.Installed",
                         "The new language pack is installed but the game will not read it until it "
-                        + "starts again — it loads all of its text once, at startup.");
+                        + "starts again, because it loads all of its text once, at startup.");
 
                 // Lets the plugin drop what it learned about the previous pack's update address, and
                 // say so in chat where somebody who has closed this window will still see it.
@@ -1153,6 +1197,176 @@ internal sealed class ConfigWindow : Window
         SetTooltip(Loc.Localize("Diag.ProbeTip",
             "Writes one line per page to /xllog, redirecting nothing.\n"
             + "Attaches at load, so it takes effect on the next client start."));
+
+    }
+
+    /// <summary>
+    ///     Where the archive that other plugins read is assembled.
+    /// </summary>
+    /// <remarks>
+    ///     <para>
+    ///         <b>A tab rather than a corner of Diagnostics, and it is not a promotion.</b> The
+    ///         folder box in it is what repairs a session where nothing could be served, and the chat
+    ///         line about that links straight here. A setting reachable only through a header
+    ///         somebody has to know to expand cannot be what a message points at.
+    ///     </para>
+    ///     <para>
+    ///         <b>No checkbox.</b> The pack goes to the game and to Dalamud together or not at all,
+    ///         so there is nothing here to switch: a per-plugin switch would amount to keeping the
+    ///         translation while breaking other people's plugins.
+    ///     </para>
+    ///     <para>
+    ///         <b>Three lines of text, and no more.</b> A tab that explains hard links, what a
+    ///         working copy is and why Windows misreports the size would be a tab written for its
+    ///         author. What somebody needs is the box, the path in use, and, only when something is
+    ///         wrong, what is wrong. Everything else belongs in the tooltip.
+    ///     </para>
+    /// </remarks>
+    private void DrawAdvancedTab(ref bool changed)
+    {
+        var state = this.shadowState();
+
+        // Only when there is something to say. Naming the drive rather than the default folder is
+        // deliberate: reaching red means the default was tried and failed too, so pointing at it
+        // would send somebody to a folder that does not work either.
+        if (state is { Ok: false })
+        {
+            Icon(FontAwesomeIcon.ExclamationTriangle, Red);
+            ImGui.TextWrapped(state.Message);
+            ImGui.PopStyleColor();
+            ImGui.Spacing();
+        }
+
+        // "Working folder", and the name is the point. Everything else tried — "folder for that
+        // archive", "game files folder" — described what is inside it, which invites somebody to work
+        // out whether they need it. This one says what it is FOR: scratch space the plugin keeps.
+        // Nobody wonders whether they should be managing a working folder.
+        ImGui.AlignTextToFramePadding();
+        ImGui.TextUnformatted(Loc.Localize("Adv.Folder", "Working folder"));
+        ImGui.SameLine();
+
+        var folder = this.config.SheetShadowPath;
+        ImGui.SetNextItemWidth(-120f * ImGuiHelpers.GlobalScale);
+        if (ImGui.InputTextWithHint("##shadowFolder", state?.Folder ?? string.Empty, ref folder, 260))
+        {
+            this.config.SheetShadowPath = folder;
+            changed = true;
+            this.restartReason = Loc.Localize("Adv.FolderChanged",
+                "The game's files will be assembled in the new folder on the next client start.");
+        }
+
+        SetTooltip(Loc.Localize("Adv.FolderTip",
+            "Scratch space. The plugin assembles the game's files here with the translation folded\n"
+            + "in, so other plugins read the same words you do. It is not where the language pack\n"
+            + "goes. That is on the Language pack tab.\n\n"
+            + "It has to be on the same drive as the game. Leave it empty and one is picked.\n\n"
+            + "Windows reports it as very large. Almost all of that is the game's own files under a\n"
+            + "second name, counted twice by a file browser that cannot tell. Deleting the folder\n"
+            + "costs a rebuild and nothing else."));
+
+        ImGui.SameLine();
+        if (ImGui.Button(Loc.Localize("Adv.Browse", "Browse...")))
+        {
+            this.BrowseForShadowFolder();
+        }
+
+        // SAID NOW RATHER THAN AT THE NEXT START. The dialog cannot be restricted to one drive —
+        // Dalamud's takes a starting path and nothing else — and restricting it would not have helped
+        // anyway, because the box can be typed into. Checking the value instead catches both, and
+        // turns "restart, find the game in English, read the red block" into a line under the box.
+        if (this.WrongDrive(folder))
+        {
+            Icon(FontAwesomeIcon.ExclamationTriangle, Red);
+            ImGui.TextWrapped(string.Format(
+                Loc.Localize("Adv.FolderWrongDrive", "This has to be on drive {0}, where the game is."),
+                this.gameDrive.TrimEnd('\\')));
+            ImGui.PopStyleColor();
+
+            // A WHOLE PATH, not a rule to satisfy. "Put it on drive C:" leaves somebody choosing a
+            // folder, and choosing is the part they have no basis for. This is the very path the
+            // plugin would have picked itself, so taking it lands exactly where the default would.
+            var suggested = Path.Combine(this.gameDrive, "GubalLibrary", "sheets");
+            ImGui.AlignTextToFramePadding();
+            ImGui.TextDisabled(suggested);
+            ImGui.SameLine();
+            if (ImGui.Button(Loc.Localize("Adv.UseSuggested", "Use this")))
+            {
+                this.config.SheetShadowPath = suggested;
+                changed = true;
+                this.restartReason = Loc.Localize("Adv.FolderChanged",
+                    "The archive will be assembled in the new folder on the next client start.");
+            }
+        }
+        else
+        {
+            // Permission to stop reading, and one warning that has to be met before the folder is,
+            // not after. It was in the tooltip and that is not good enough: the first person to look
+            // at this folder in Explorer read 63 GB and it startled them, which is what a hover-only
+            // note is worth against a number that size.
+            ImGui.TextDisabled(Loc.Localize("Adv.FolderIdle",
+                "Chosen for you; nothing to do here unless something goes wrong.\n"
+                + "Windows reports this folder as tens of gigabytes. It is not. Almost all of it is "
+                + "the game's own files counted twice."));
+        }
+    }
+
+    /// <summary>Whether a folder is on a drive the game's archives cannot be linked to.</summary>
+    /// <remarks>
+    ///     Empty is not wrong — it means "choose one for me", and what is chosen is always right. A
+    ///     path too short to have a root is somebody halfway through typing, and interrupting them
+    ///     after two characters is worse than saying nothing.
+    /// </remarks>
+    private bool WrongDrive(string folder) =>
+        folder.Length > 2
+        && this.gameDrive.Length > 0
+        && Path.GetPathRoot(folder) is { Length: > 0 } root
+        && !string.Equals(root, this.gameDrive, StringComparison.OrdinalIgnoreCase);
+
+    /// <summary>Picks the folder the shadow archive is assembled in.</summary>
+    /// <remarks>
+    ///     Starts in whatever is set, or in the game's own drive when nothing is — which is where the
+    ///     folder has to end up, so the dialog opens on the answer rather than in the user profile
+    ///     the setting is trying to get away from.
+    /// </remarks>
+    private void BrowseForShadowFolder()
+    {
+        var start = this.config.SheetShadowPath;
+        if (string.IsNullOrWhiteSpace(start) || !Directory.Exists(start))
+        {
+            start = this.shadowState()?.Folder is { Length: > 0 } known && Directory.Exists(known)
+                ? known
+                : string.Empty;
+        }
+
+        // One click to the right drive, since the dialog cannot be held to it.
+        if (this.gameDrive.Length > 0 && !this.fileDialogs.CustomSideBarItems.Any(i => i.Item2 == this.gameDrive))
+        {
+            this.fileDialogs.CustomSideBarItems.Add(
+                (Loc.Localize("Adv.PickerGameDrive", "Game drive"), this.gameDrive, FontAwesomeIcon.Gamepad, 0));
+        }
+
+        this.fileDialogs.OpenFolderDialog(
+            string.Format(
+                Loc.Localize("Adv.PickerTitle", "Pick a folder on drive {0}"), this.gameDrive.TrimEnd('\\')),
+            (confirmed, selected) =>
+            {
+                if (!confirmed || string.IsNullOrWhiteSpace(selected))
+                {
+                    return;
+                }
+
+                // Taken whatever it is, because the box below says immediately whether it will do.
+                // A dialog that closes and changes nothing is indistinguishable from one that did
+                // not register the click; showing the pick with a red line under it is not.
+                this.config.SheetShadowPath = selected;
+                this.save(this.config);
+                this.restartReason = this.WrongDrive(selected)
+                    ? null
+                    : Loc.Localize("Adv.FolderChanged",
+                        "The archive will be assembled in the new folder on the next client start.");
+            },
+            start,
+            false);
     }
 
     /// <summary>
