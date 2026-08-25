@@ -16,11 +16,7 @@ namespace GubalLibrary;
 /// <param name="Description">Where on screen this is and what it covers — the whole tooltip for most parts.</param>
 /// <param name="Sheets">The sheet keys it covers, as <see cref="PackParts.SheetOf" /> produces them.</param>
 /// <param name="Warning">A reason to think twice, for the few parts that have one. Null for most.</param>
-/// <param name="Image">
-///     A before-and-after picture of this part alone. A part inside a group otherwise lets the
-///     group's stand for all of it, which is wrong the moment one of them has a pair that is about
-///     it and not about its neighbours.
-/// </param>
+/// <param name="Image">A before-and-after picture of this part alone, when the group's would mislead.</param>
 internal sealed record TranslationPart(
     string Name, string Description, string[] Sheets, string? Warning = null, string? Image = null);
 
@@ -39,11 +35,8 @@ internal sealed record PartGroup(
 ///     Which parts of a language pack can be switched off, and what each of them is.
 /// </summary>
 /// <remarks>
-///     <b>The plugin owns this table, not the pack.</b> These are the game's own sheets, so the same
-///     table describes a Spanish pack, an Italian one and one not built yet, and published packs keep
-///     working without being rebuilt. A sheet the table does not name is not dropped: it is surfaced
-///     under <see cref="OtherGroupName" />, labelled with the only thing that can honestly be said
-///     about it — its sheet name.
+///     <b>The plugin owns this table, not the pack</b>, so it describes a pack in any language and one
+///     not built yet. A sheet it does not name still shows, under <see cref="OtherGroupName" />.
 /// </remarks>
 internal static class PackParts
 {
@@ -51,32 +44,21 @@ internal static class PackParts
     public static string OtherGroupName =>
         Loc.Localize("Group.Other.Name", "Other text in this pack");
 
-    // A CARVE-OUT LIVED HERE AND WAS REMOVED ON 14 AUGUST 2026. Read this before adding another. The
-    // five retainer conversations were given a key of their own, `custom/retainer`, so a player could
-    // have those windows in English without giving up every NPC menu. It could not: the retainer
-    // WINDOW is drawn from `Addon` (#2377-#2407); the conversations hold what the retainer SAYS. So
-    // the checkbox promised a window and delivered the chatter, which is worse than no checkbox. A
-    // split is only worth it when it matches something the player can point at.
+    // Split a group only where the split matches something the player can point at.
 
     /// <summary>
     ///     The groups, in the order they are drawn.
     /// </summary>
     /// <remarks>
-    ///     Ordered the way somebody reads down them looking for a thing: the story, the people in it,
-    ///     what happens inside content, the windows around all of it, then the two nobody comes here
-    ///     for. Close to descending size and not the same rule — the Duty Finder is 751 rows and sits
-    ///     fourth, because it is read beside the content it describes. <b>Every one of the pack's 28
-    ///     keys is named exactly once below</b>, each measured rather than guessed from its name; the
-    ///     evidence is in <c>issues/pack-page-inventory.md</c>.
+    ///     Ordered the way somebody reads down them looking for a thing, not by size. <b>Every one of
+    ///     the pack's 31 keys is named exactly once below</b>, and matching is exact: a key not listed
+    ///     falls to the leftovers box, so a sheet is never covered by a similarly named neighbour.
     /// </remarks>
     public static PartGroup[] Groups => groups ??= Build();
 
     /// <summary>Built on demand and kept, because every string in it goes through CheapLoc.</summary>
-    /// <remarks>
-    ///     Dropped by <see cref="Invalidate" /> when the language changes. A <c>static readonly</c>
-    ///     array would have been built once, in whatever language was loaded at the time, and would
-    ///     still be in it after somebody switched Dalamud to another one.
-    /// </remarks>
+    /// <remarks>Dropped by <see cref="Invalidate" /> on a language change; a static array would keep
+    /// whichever language was loaded when it was built.</remarks>
     private static PartGroup[]? groups;
 
     /// <summary>Forgets the table so the next reader rebuilds it in the current language.</summary>
@@ -90,8 +72,7 @@ internal static class PackParts
                 "Everything a quest is made of: what people say to you, what you are told to go and "
                 + "do, and the subtitles while a cutscene plays."),
             [
-                // One box for all four kinds of row in quest/: they share a page per quest and cannot
-                // be offered apart.
+                // One box for all four kinds of row in quest/: they share a page and cannot be split.
                 new TranslationPart(
                     Loc.Localize("Part.QuestText.Name", "Quest dialogue, journal and objectives"),
                     Loc.Localize("Part.QuestText.Desc",
@@ -107,9 +88,7 @@ internal static class PackParts
                         "The lines across the bottom of the screen while a cutscene is playing."),
                     ["cut_scene/"]),
 
-                // BOTH TITLE SHEETS: 5,367 of CompleteJournal's 7,598 rows are byte-identical to a
-                // row in Quest, and the Journal shows both at once — which is how the mismatch was
-                // found, «Acechantes en la gruta» on the right and "Lurkers in the Grotto" on the left.
+                // Both title sheets: 5,367 CompleteJournal rows duplicate Quest and the Journal shows both.
                 new TranslationPart(
                     Loc.Localize("Part.QuestNames.Name", "Quest names"),
                     Loc.Localize("Part.QuestNames.Desc",
@@ -129,10 +108,7 @@ internal static class PackParts
             Loc.Localize("Group.People.Desc",
                 "The talk you can walk past without stopping, and the talk you get when you do stop."),
             [
-                // GoldSaucerTalk is here and not in the interface box, where its near-namesake
-                // GoldSaucerTextData went: that one is scoreboards and race courses, this one is the
-                // Mini Cactpot crier working the crowd. The purchase prompt rides along because it is
-                // the same conversation.
+                // GoldSaucerTalk is the Cactpot crier; GoldSaucerTextData is scoreboards, in the interface box.
                 new TranslationPart(
                     Loc.Localize("Part.Talk.Name", "Talking to someone"),
                     Loc.Localize("Part.Talk.Desc",
@@ -141,11 +117,7 @@ internal static class PackParts
                         + "a Cactpot ticket."),
                     ["defaulttalk", "goldsaucertalk"]),
 
-                // HONESTLY TWO THINGS, AND IT SAYS SO. custom/ is 83% people talking, but the service
-                // windows are in there too and cannot be separated: CmnDefRetainerBell_00544 is 785
-                // rows of menu entries and retainer small talk in ONE file. CustomTalk is the list of
-                // verbs picked from before any of it is spoken, and has to travel with custom/ or the
-                // menu and the answer end up in different languages.
+                // custom/ mixes talk and service windows in one file, and CustomTalk must travel with it.
                 new TranslationPart(
                     Loc.Localize("Part.AskAbout.Name", "\"Ask about...\" menus and service windows"),
                     Loc.Localize("Part.AskAbout.Desc",
@@ -155,13 +127,9 @@ internal static class PackParts
                         + "trade-ins and your estate."),
                     ["custom/", "customtalk"]),
 
-                // Two sheets, one checkbox, decided by looking. Balloon leans towards pedlars' cries
-                // and NpcYell towards combat barks, but only by a lean: every lexical probe separates
-                // them by under 3%, 265 strings appear in both word for word, and in testing every
-                // balloon found came from NpcYell.
+                // Balloon and NpcYell separate by under 3% on every probe and share 265 strings word for word.
                 //
-                // THE RED "SEALED OFF" BANNER IS NOT HERE. It is LogMessage#2012-#2013, so it belongs
-                // to the chat log box; zero matches in either of these.
+                // The red "sealed off" banner is LogMessage#2012-#2013, so it belongs to the chat log box.
                 new TranslationPart(
                     Loc.Localize("Part.Balloons.Name", "Shouts and speech balloons"),
                     Loc.Localize("Part.Balloons.Desc",
@@ -173,18 +141,13 @@ internal static class PackParts
                 "By far the largest part of the translation. Switching this off is the biggest "
                 + "single change you can make here.")),
 
-        // FIVE SHEETS IN ONE BOX, WHICH IS A MERGE AND NOT A SHRUG: they are the same kind of sheet,
-        // everything one type of content produces. And NONE OF IT IS AMBIENT, which is where they
-        // nearly went — «Clear the binding lock» is an objective and «Successful catches» a
-        // scoreboard, so filing it as flavour would quietly take objectives off the screen.
+        // Five sheets, one box: everything a type of content produces, and none of it is ambient flavour.
         new PartGroup(
             Loc.Localize("Group.Duties.Name", "Duties, raids and field operations"),
             Loc.Localize("Group.Duties.Desc",
                 "What happens once you are inside a dungeon, a raid, or one of the large field zones."),
             [
-                // VVDVoteRouteLabel travels with ContentTalk because THEY HOLD THE SAME SENTENCE, and
-                // the variant dungeon's voting window reads the VVD one — which is how it came to be
-                // English while the Spanish sat in ContentTalk, translated and never used.
+                // VVDVoteRouteLabel and ContentTalk hold the same sentence; the voting window reads the VVD one.
                 new TranslationPart(
                     Loc.Localize("Part.DutyText.Name", "Dialogue, objectives and on-screen text"),
                     Loc.Localize("Part.DutyText.Desc",
@@ -195,9 +158,7 @@ internal static class PackParts
                     ["instancecontenttextdata", "contenttalk", "publiccontenttextdata",
                      "massivepccontenttextdata", "partycontenttextdata", "vvdvoteroutelabel"]),
 
-                // WHAT THE OBJECT SAYS, NOT WHAT IT IS CALLED — the name under the cursor is EObjName,
-                // in the interface group. The two differ in voice: GimmickTalk narrates at you,
-                // GimmickBill is the document itself with no narrator.
+                // What the object says; what it is called is EObjName, in the interface group.
                 new TranslationPart(
                     Loc.Localize("Part.Objects.Name", "What an object tells you when you use it"),
                     Loc.Localize("Part.Objects.Desc",
@@ -208,9 +169,7 @@ internal static class PackParts
                     ["gimmicktalk", "gimmickbill"],
                     Image: "examine"),
 
-                // Named after the kind of thing rather than after any one duty: the first draft was
-                // "the Occult Crescent's own windows" and would have needed renaming the moment the
-                // deep dungeon sheets were extracted a day later.
+                // Named after the kind of thing, never one duty, so a new content sheet does not force a rename.
                 new TranslationPart(
                     Loc.Localize("Part.DutyItems.Name", "The items, jobs and gear found only inside them"),
                     Loc.Localize("Part.DutyItems.Desc",
@@ -223,10 +182,7 @@ internal static class PackParts
                      "eurekaaetheritem"]),
             ]),
 
-        // One box for the whole window: the roulettes and the duties below them are one list to the
-        // person reading it. GuildOrder rides along because a guildhest's briefing is drawn in the
-        // same panel. Its own group rather than part of the interface, because it is read beside the
-        // content it describes.
+        // One window to the reader: roulettes, the duties below them, and a guildhest's briefing.
         new PartGroup(
             Loc.Localize("Group.DutyFinder.Name", "Duty Finder"),
             Loc.Localize("Group.DutyFinder.Desc",
@@ -235,11 +191,11 @@ internal static class PackParts
                 new TranslationPart(
                     Loc.Localize("Part.DutyFinder.Name", "Duty Finder"),
                     Loc.Localize("Part.DutyFinder.Desc",
-                        "The Duty Finder from top to bottom: the roulettes and what each one asks of "
-                        + "you, including chocobo racing and ranked PvP, the paragraph down the "
-                        + "right when you pick a dungeon, trial or raid, and the briefing a guildhest "
-                        + "gives you as it starts."),
-                    ["contentfinderconditiontransient", "contentroulette", "guildorder"]),
+                        "The Duty Finder from top to bottom: the name of every dungeon, trial and "
+                        + "raid in the list, the roulettes and what each one asks of you, including "
+                        + "chocobo racing and ranked PvP, the paragraph down the right when you pick "
+                        + "one, and the briefing a guildhest gives you as it starts."),
+                    ["contentfinderconditiontransient", "contentfindercondition", "contentroulette", "guildorder"]),
             ],
             Image: "duty"),
 
@@ -249,10 +205,9 @@ internal static class PackParts
                 "The game's own furniture: window titles, tabs, buttons, and the labels next to your "
                 + "numbers."),
             [
-                // THREE SHEETS, AND THE TWO PASSENGERS ARE HERE ON PURPOSE. RetainerTaskRandom is the
-                // venture names, read in a window that IS `addon`. GoldSaucerTextData is an `addon`
-                // for one content area — courses, grades, HUD counters. MainCommand is the main menu,
-                // which had been falling through to the leftovers box under its own sheet name.
+                // RetainerTaskRandom and GoldSaucerTextData are `addon` windows for one area.
+                // MainCommandCategory is the same menu as MainCommand: its seven headings file those
+                // entries, and one without the other draws Spanish rows under English headings.
                 new TranslationPart(
                     Loc.Localize("Part.Menus.Name", "Menus, buttons and window titles"),
                     Loc.Localize("Part.Menus.Desc",
@@ -261,29 +216,22 @@ internal static class PackParts
                         + "the Duty Finder, your inventory, the retainer windows and their venture "
                         + "list, the Gold Saucer's scoreboards and race courses, the tabs across the "
                         + "top of a window and the buttons along the bottom."),
-                    //`baseparam` is the Character window's attribute names and the sentence each one
-                    //shows on hover. Its own box would be a checkbox for half of one panel.
-                    ["addon", "maincommand", "retainertaskrandom", "goldsaucertextdata", "baseparam"],
-                    // The pair is the Character window, which is `addon` and nothing else in this
-                    // group; hung off the group it promised its neighbours somebody else's screenshot.
+                    // `baseparam` is the Character window's attributes and their hover text.
+                    ["addon", "maincommand", "maincommandcategory", "retainertaskrandom", "goldsaucertextdata", "baseparam"],
+                    // The pair is the Character window, which is `addon` alone in this group.
                     Image: "interface"),
 
-                // TWO SHEETS THAT MUST SHARE A BOX, for the VVDVoteRouteLabel reason: THEY HOLD THE
-                // SAME SENTENCE. «Radiant's Gear Augmentation (IL 600)» is SpecialShop#1770447 and
-                // also TopicSelect#3276940, and the vendor's menu reads the TopicSelect one — which
-                // is why translating SpecialShop alone left the window in English.
+                // SpecialShop and TopicSelect hold the same sentence, and the vendor's menu reads TopicSelect.
                 new TranslationPart(
                     Loc.Localize("Part.Shops.Name", "Shop and exchange windows"),
                     Loc.Localize("Part.Shops.Desc",
                         "The title on a vendor's window and the list of shops they offer before you "
                         + "pick one: the tomestone exchanges, the gear sets listed by item level, and "
-                        + "the seasonal event stalls."),
-                    ["specialshop", "topicselect"]),
+                        + "the seasonal event stalls, with the two dropdowns an exchange window sorts "
+                        + "its wares by."),
+                    ["specialshop", "topicselect", "inclusionshopcategory"]),
 
-                // THE NAME UNDER THE CURSOR IS INTERFACE, not scenery: a label the game draws over the
-                // world, and this group's warning — other plugins read these words in English —
-                // applies to it more than to anything else here. 16,146 rows over 4,626 distinct
-                // strings, «destination» alone 3,279 of them.
+                // The name under the cursor is interface, not scenery: a label the game draws over the world.
                 new TranslationPart(
                     Loc.Localize("Part.WorldObjects.Name", "Names of things you can interact with"),
                     Loc.Localize("Part.WorldObjects.Desc",
@@ -291,13 +239,8 @@ internal static class PackParts
                         + "and the destinations they offer, Aethernet shards, aether currents, "
                         + "levers, doors, gathering nodes, the signs and notes you stop to read, and "
                         + "the treasure coffers a duty leaves behind."),
-                    // THREE SHEETS, ONE BOX, BECAUSE THE PLAYER POINTS AT ONE THING. `eobjname` is
-                    // the name of anything with a cursor target; `aetheryte` holds the two the game
-                    // keeps apart — «aetheryte» and «Aethernet shard» — and `treasure` the lettered
-                    // chests a duty leaves, «treasure coffer A» and its B and C. All three were
-                    // found the same way: a sheet was translated, the thing still read English on
-                    // screen, and the word turned out to live somewhere else. Split into separate
-                    // checkboxes they would let somebody translate the coffer and not its letter.
+                    // Three sheets, one thing the player points at: the object's name, the two
+                    // aetheryte kinds the game keeps apart, and the lettered coffers a duty leaves.
                     ["eobjname", "aetheryte", "treasure"],
                     Image: "interactable"),
 
@@ -315,16 +258,12 @@ internal static class PackParts
                 + "the interface you are reading them against. Translating the interface as well "
                 + "leaves those names looking inconsistent until the two are brought in line.")),
 
-        // TWO BOXES, AND THEY USED TO BE ONE. Active Help interrupts you; a content guide is a window
-        // you go and open. DescriptionString alone is 1,576 rows with entries up to 3,258 characters
-        // — the mahjong rulebook, the Bozja briefing — and nobody reads that as a tutorial popup.
+        // Two boxes: Active Help interrupts you, a content guide is a window you go and open.
         new PartGroup(
             Loc.Localize("Group.Guides.Name", "Tutorials and guides"),
             Loc.Localize("Group.Guides.Desc", "The game explaining itself to you."),
             [
-                // MultipleHelpString was given its own box on 16 August and merged the same day: the
-                // trigger differs, what the text IS does not, and 37 rows against 969 is not a split
-                // anybody would go looking for.
+                // MultipleHelpString rides along: the trigger differs, the text does not, 37 rows against 969.
                 new TranslationPart(
                     Loc.Localize("Part.ActiveHelp.Name", "Active Help and window help"),
                     Loc.Localize("Part.ActiveHelp.Desc",
@@ -341,15 +280,14 @@ internal static class PackParts
                         "The written guide a content window opens: the rules of mahjong and Triple "
                         + "Triad, and the briefings for Bozja, deep dungeons, the Island Sanctuary "
                         + "and New Game+."),
-                    // `descriptionstandalonetransient` holds the TITLE above these pages. Leave it
-                    // out and the title reads English over a Spanish page, which is how it was found.
+                    // `descriptionstandalonetransient` is the TITLE above these pages; without it the
+                    // title reads English over a translated page.
                     ["description", "descriptionstring", "descriptionstandalonetransient"],
                     Image: "contentguide"),
             ]),
 
-        // One box for 8,469 rows a player would happily split and cannot. LogKind isolates the battle
-        // log cleanly, but the duty announcements sit in a 4,495-row bucket with party invites and
-        // system notices, so there is no line to cut on. Parked in WORKQUEUE.
+        // One box: LogKind isolates the battle log, but duty announcements share a bucket with party
+        // invites and system notices, so there is no line to cut on.
         new PartGroup(
             Loc.Localize("Group.Log.Name", "Combat log and system messages"),
             Loc.Localize("Group.Log.Desc", "The lines the game writes into your chat log by itself."),
@@ -401,15 +339,13 @@ internal static class PackParts
         var tokens = name.Split('_');
         var end = tokens.Length;
 
-        // A short all-letter tail is the language slot the pack overwrote. Recognised by shape rather
-        // than by value, because a pack may target any of them.
+        // A short all-letter tail is the language slot, read by shape because a pack may target any.
         if (end > 1 && tokens[end - 1].Length <= 4 && tokens[end - 1].All(char.IsAsciiLetter))
         {
             end--;
         }
 
-        // Then the page's first row id. Sheets that are not localised have no language tail and come
-        // straight here.
+        // Then the page's first row id. Unlocalised sheets have no language tail and come straight here.
         if (end > 1 && tokens[end - 1].All(char.IsAsciiDigit))
         {
             end--;
