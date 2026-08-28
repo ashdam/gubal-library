@@ -1,0 +1,87 @@
+# yaml-language-server: $schema=https://json.schemastore.org/github-workflow.json
+name: "Dalamud API level watch"
+
+# The release workflow already refuses to publish at the wrong API level, but it only runs when
+# something is being published. The gap this watches is the opposite one: Dalamud moves, nothing is
+# built for weeks, and every user silently stops being offered updates. repo.json is the store front
+# and it is only rewritten by a release, so nothing else notices.
+#
+# Dependabot covers the other half, a new Dalamud.NET.Sdk appearing on NuGet. That is not the same
+# fact: NuGet is not what players run, and merging the bump changes nothing until a release ships.
+
+on:
+  schedule:
+    # Daily. GitHub delays scheduled runs under load and disables them entirely after 60 days with
+    # no activity in the repository, so this is a safety net rather than something to rely on alone.
+    - cron: "0 7 * * *"
+  workflow_dispatch:
+
+permissions: {}
+
+jobs:
+  compare:
+    name: "Compare repo.json against what Dalamud ships"
+    runs-on: "ubuntu-latest"
+    permissions:
+      contents: "read"
+      issues: "write"
+    steps:
+      - name: "Checkout"
+        uses: "actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1" # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: "Compare"
+        shell: "pwsh"
+        env:
+          GH_TOKEN: "${{ github.token }}"
+        run: |
+          $published = [int] ((Get-Content repo.json -Raw | ConvertFrom-Json)[0].DalamudApiLevel)
+
+          # The release channel is what XIVLauncher installs, so its major is the level users run.
+          # Staging is only logged: its major moves first and is the early warning, but acting on it
+          # would publish a plugin nobody can install yet.
+          $release = (Invoke-RestMethod 'https://goatcorp.github.io/dalamud-distrib/version').AssemblyVersion
+          $staging = (Invoke-RestMethod 'https://goatcorp.github.io/dalamud-distrib/stg/version').AssemblyVersion
+          $live = [int] ($release -split '\.')[0]
+
+          Write-Host "repo.json publishes API $published."
+          Write-Host "Dalamud release $release (API $live), staging $staging."
+
+          if ($published -eq $live) {
+            Write-Host 'Aligned, nothing to do.'
+            exit 0
+          }
+
+          # Matched on the prefix rather than the whole title, so a drift that widens later does not
+          # open a second issue on top of the one already sitting there unread.
+          $prefix = 'Dalamud API level drift'
+          $existing = gh issue list --state open --json title --jq '.[].title'
+          if ($existing | Where-Object { $_.StartsWith($prefix) }) {
+            Write-Host 'An open drift issue already covers this.'
+            exit 0
+          }
+
+          # Built as a list rather than a here-string: the terminator of a PowerShell here-string has
+          # to sit at column 0, which a YAML block scalar makes depend on this step's indentation.
+          $body = @(
+            "``repo.json`` declares ``DalamudApiLevel: $published``. Dalamud $release ships API $live.",
+            '',
+            'Dalamud only offers an update when the two match exactly, so while they disagree no',
+            'installed copy is ever told a newer version exists. Loading is more forgiving than',
+            'updating, so users keep running the old build with nothing on screen to say so.',
+            '',
+            "Staging is at $staging.",
+            '',
+            'To close this:',
+            '',
+            "1. Set ``Dalamud.NET.Sdk`` in ``global.json`` to ``$live.0.0``. Dependabot usually opens that pull request on its own.",
+            '2. Publish a release. `repo.json` is only rewritten when one is published, so merging the bump on its own changes nothing for anyone.'
+          ) -join "`n"
+
+          gh issue create `
+            --title "${prefix}: this repository publishes API $published, Dalamud ships API $live" `
+            --body $body
+
+          # Deliberately exits 0. The issue is the notification; a failed scheduled run on top of it
+          # would be a second alarm for the same fact, and a red cron is easy to start ignoring.
