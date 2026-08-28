@@ -1,0 +1,33 @@
+# yaml-language-server: $schema=https://json.schemastore.org/dependabot-2.0.json
+#
+# Dependabot alerts and version updates are different things. The alerts toggled in the repository
+# settings only report known vulnerabilities; nothing bumps a version until this file exists.
+#
+# The nuget entry is here for one dependency in particular: Dalamud.NET.Sdk, pinned in global.json.
+# Its major is the API level the plugin publishes, and Dalamud only offers an update when the
+# published and installed levels match exactly. Nothing in the build reads the installed Dalamud,
+# so without this the pin sits where it is and updates quietly stop reaching anyone. A new major on
+# NuGet is the earliest signal that the level is about to move, and it arrives as a pull request
+# with the change already made.
+#
+# It is not the whole story: NuGet is not what players run. api-level-watch.yml compares what this
+# repository publishes against what Dalamud actually ships, which is the part Dependabot cannot see.
+
+version: 2
+
+updates:
+  - package-ecosystem: "nuget"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    commit-message:
+      prefix: "deps"
+
+  # The workflows pin every action to a commit sha, which is the reason to have this: a sha never
+  # moves on its own, so without something proposing the bump they stay on old code indefinitely.
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    commit-message:
+      prefix: "ci"
