@@ -69,6 +69,28 @@ jobs:
             throw "Tag '$tag' does not match AssemblyVersion '$($manifest.AssemblyVersion)'. Bump <Version> in the csproj and retag."
           }
 
+      # Dalamud only offers an update when the API levels match exactly, so publishing at the wrong
+      # level publishes something nobody can install -- and nothing in the build notices on its own.
+      # The number in the manifest is a constant inside DalamudPackager, pinned by the Dalamud.NET.Sdk
+      # version, so it stays where it is until someone moves that pin. This is what makes it move.
+      #
+      # Unguarded on purpose, unlike the tag check above: on workflow_dispatch this answers "are we
+      # still aligned with what Dalamud ships", which is worth being able to ask without a tag.
+      - name: "Check the API level matches the released Dalamud"
+        shell: "pwsh"
+        run: |
+          $manifest = Get-Content 'bin\x64\Release\win-x64\GubalLibrary.json' -Raw | ConvertFrom-Json
+
+          # The release channel, not staging: it is what XIVLauncher installs, so it is the level
+          # testers are actually running.
+          $released = (Invoke-RestMethod 'https://goatcorp.github.io/dalamud-distrib/version').AssemblyVersion
+          $level = [int] ($released -split '\.')[0]
+
+          Write-Host "Built against API $($manifest.DalamudApiLevel); Dalamud $released ships API $level."
+          if ($manifest.DalamudApiLevel -ne $level) {
+            throw "API level $($manifest.DalamudApiLevel) does not match the released Dalamud's $level. Move the Dalamud.NET.Sdk pin and rebuild."
+          }
+
       # Hand the two files the later jobs need across as an artifact rather than rebuilding there.
       # Both live in the plugin folder, so the artifact root is that folder: latest.zip and
       # GubalLibrary.json land flat inside it.
