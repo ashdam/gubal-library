@@ -1,0 +1,226 @@
+{
+  "schemaVersion": 1,
+  "_comment": "One entry per checkbox in the settings window. `label` is the checkbox, `tooltip` says more where the label is not enough, `category` is the heading it sits under, and `sheets` lists the sheets it covers with a line saying what each holds. Sheet keys are as PackParts.SheetOf produces them: lowercase, and the nested families keep their trailing slash. A sheet appears under exactly one checkbox.",
+
+  "parts": {
+    "quest-text": {
+      "label": "Quest dialogue, journal and objectives",
+      "tooltip": "The text in the box when you talk to somebody about a quest, the summary written into your Journal as the story advances, the steps listed in the tracker, and the notices a quest posts while you are on it.",
+      "category": "Quests and cutscenes",
+      "sheets": {
+        "quest/": "Quest dialogue, journal entries, tracker objectives and quest notices. One file per quest."
+      }
+    },
+    "cutscenes": {
+      "label": "Cutscene subtitles",
+      "tooltip": "The lines across the bottom of the screen while a cutscene is playing.",
+      "category": "Quests and cutscenes",
+      "sheets": {
+        "cut_scene/": "The voiced cutscenes."
+      }
+    },
+    "quest-names": {
+      "label": "Quest names",
+      "tooltip": "Only the names of quests: in the tracker, in the Journal, and in the Unending Journey at an inn. Not the text inside them.",
+      "category": "Quests and cutscenes",
+      "sheets": {
+        "quest": "Quest titles, as the journal and the quest list show them.",
+        "completejournal": "The Unending Journey and the completed-quest log. Repeats the titles above."
+      }
+    },
+
+    "talk": {
+      "label": "Talking to someone",
+      "tooltip": "The box that opens when you speak to somebody who has nothing to do with a quest, including the Gold Saucer's criers and the attendants who sell you a Cactpot ticket.",
+      "category": "What the people around you say",
+      "sheets": {
+        "defaulttalk": "What an NPC says in the Talk window when there is no quest behind it.",
+        "goldsaucertalk": "The Gold Saucer's barkers and the prompts before a purchase."
+      }
+    },
+    "ask-about": {
+      "label": "\"Ask about...\" menus and service windows",
+      "tooltip": "The list of topics an NPC offers when they have several things to tell you, what they say once you pick one, and the windows you work in afterwards: the retainer, the aetheryte, the levequest board, linkshells and your estate.",
+      "category": "What the people around you say",
+      "sheets": {
+        "custom/": "The dialogue behind the menu.",
+        "customtalk": "The topics themselves. Without it they stay English over translated answers."
+      }
+    },
+    "balloons": {
+      "label": "Shouts and speech balloons",
+      "tooltip": "The balloons that appear over people's heads as you walk past them, and the warnings shouted during a fight.",
+      "category": "What the people around you say",
+      "sheets": {
+        "balloon": "The balloons over people's heads.",
+        "npcyell": "What an NPC shouts, in and out of a fight."
+      }
+    },
+
+    "duty-text": {
+      "label": "Dialogue, objectives and on-screen text",
+      "tooltip": "What bosses and NPCs say while you are inside, the objectives that appear as it goes on, the route your party votes on in a variant dungeon, and the same for the large field zones: Eureka, Bozja, Zadnor, the Occult Crescent, the Ishgardian Restoration and the Diadem.",
+      "category": "Duties, raids and field operations",
+      "sheets": {
+        "instancecontenttextdata": "What bosses and NPCs say inside a dungeon, trial or raid.",
+        "contenttalk": "NPCs you can walk up to and speak to inside a duty.",
+        "publiccontenttextdata": "Dialogue and announcements in open-world content.",
+        "massivepccontenttextdata": "Text from the large group content.",
+        "partycontenttextdata": "Text from party content.",
+        "vvdvoteroutelabel": "The variant dungeon route vote. The voting window reads this and not contenttalk, which holds the same sentence."
+      }
+    },
+    "objects": {
+      "label": "What an object tells you when you use it",
+      "tooltip": "The message that comes back when you examine a corpse, pull a lever or open a panel, and the documents you find and read in full: expedition journals, letters, and the memos that give away a puzzle's answer.",
+      "category": "Duties, raids and field operations",
+      "sheets": {
+        "gimmicktalk": "What an object or mechanism says when you use it.",
+        "gimmickbill": "Signs, notes and puzzle hints read inside a duty."
+      }
+    },
+    "deep-dungeons": {
+      "label": "Deep dungeon items and gear",
+      "tooltip": "The things that exist inside Palace of the Dead, Heaven-on-High and Eureka Orthos and nowhere else.",
+      "category": "Duties, raids and field operations",
+      "sheets": {
+        "deepdungeonitem": "The pomanders, each with the paragraph explaining it.",
+        "deepdungeonequipment": "Aetherpool arm and armour.",
+        "deepdungeonflooreffectui": "The floor effects announced as you descend, and what each does.",
+        "deepdungeondemiclone": "The demiclones and their descriptions.",
+        "eurekaaetheritem": "Eureka's aether items."
+      }
+    },
+    "phantom-jobs": {
+      "label": "Phantom jobs and lore log",
+      "tooltip": "The Occult Crescent's own windows: the job selector, the traits inside it, and the lore log the field fills in as you explore.",
+      "category": "Duties, raids and field operations",
+      "sheets": {
+        "mkdsupportjob": "The job selector: full name, the abbreviation the HUD shows, and the paragraph under each.",
+        "mkdtrait": "The trait list inside the phantom job window.",
+        "mkdlore": "The field's lore log."
+      }
+    },
+
+    "duty-finder": {
+      "label": "Duty Finder",
+      "tooltip": "The Duty Finder from top to bottom: the name of every dungeon, trial and raid in the list, the roulettes and what each one asks of you, the paragraph down the right when you pick one, and the briefing a guildhest gives you as it starts.",
+      "category": "Duty Finder",
+      "sheets": {
+        "contentfindercondition": "The name of every dungeon, guildhest, trial and raid.",
+        "contentfinderconditiontransient": "The description panel, one row per instance.",
+        "contentroulette": "The roulettes, their short names and their descriptions.",
+        "guildorder": "A guildhest's objective and its three tactical hints."
+      }
+    },
+
+    "interface": {
+      "label": "Buttons, tabs and window titles",
+      "tooltip": "Everything written on the interface itself, and the Character window's attributes with the paragraph each one opens. Many other plugins look for these words in English and stop working when they are not.",
+      "category": "Menus and interface",
+      "sheets": {
+        "addon": "Every button, tab, column heading and error the game draws.",
+        "baseparam": "The attributes and their tooltips. The names are also in addon, which draws the column while this draws the tooltip."
+      }
+    },
+    "main-menu": {
+      "label": "Main menu",
+      "tooltip": "The menu the Esc key opens: every entry with its tooltip, and the seven headings they file under.",
+      "category": "Menus and interface",
+      "sheets": {
+        "maincommand": "Every entry, with its tooltip.",
+        "maincommandcategory": "The seven headings. Without it the menu draws translated entries under untranslated headings."
+      }
+    },
+    "interactables": {
+      "label": "Names of things you can interact with",
+      "tooltip": "What the cursor reads when you point at something in the world: aetherytes and the destinations they offer, Aethernet shards, aether currents, levers, doors, gathering nodes, the signs you stop to read, and the coffers a duty leaves behind.",
+      "category": "Menus and interface",
+      "sheets": {
+        "eobjname": "The name of everything the cursor can rest on. Singular and plural, and the game picks by count.",
+        "aetheryte": "Aetherytes and Aethernet shards, which the game keeps apart from other objects.",
+        "treasure": "The coffers a duty leaves behind, and the loot window's own rows."
+      }
+    },
+    "shops": {
+      "label": "Shop and exchange windows",
+      "tooltip": "The title on a vendor's window and the list of shops they offer before you pick one: the tomestone exchanges, the gear sets listed by item level, and the seasonal event stalls, with the two dropdowns an exchange window sorts its wares by.",
+      "category": "Menus and interface",
+      "sheets": {
+        "specialshop": "The name each shop window carries.",
+        "topicselect": "The vendor's list of shops. Holds the same strings as specialshop, and the menu draws this one.",
+        "inclusionshopcategory": "The two dropdowns at the top of an Item Exchange window."
+      }
+    },
+    "retainer-ventures": {
+      "label": "Retainer ventures",
+      "tooltip": "The explorer ventures a retainer is assigned. Gatherer and crafter ventures are named after the item they fetch and stay as they are.",
+      "category": "Menus and interface",
+      "sheets": {
+        "retainertaskrandom": "The venture names."
+      }
+    },
+    "gold-saucer-windows": {
+      "label": "Gold Saucer scoreboards",
+      "tooltip": "The scoreboards and race courses. The criers themselves are under \"Talking to someone\".",
+      "category": "Menus and interface",
+      "sheets": {
+        "goldsaucertextdata": "Scoreboards and race courses."
+      }
+    },
+    "lobby": {
+      "label": "Title screen and character creation",
+      "tooltip": "The screens before you are in the world: logging in, choosing a character, and the races, clans and options you pick from when making one.",
+      "category": "Menus and interface",
+      "sheets": {
+        "lobby": "Title screen and character creation. Drawn before the player logs in."
+      }
+    },
+
+    "active-help": {
+      "label": "Active Help and window help",
+      "tooltip": "The windows that pop up the first time you do something, the same texts again when you look them up from the main menu afterwards, and the help behind the question mark in the corner of a window.",
+      "category": "Tutorials and guides",
+      "sheets": {
+        "howto": "The titles of the journal's How-to tutorials.",
+        "howtopage": "The text of each tutorial page.",
+        "howtocategory": "The headings they file under.",
+        "multiplehelpstring": "The topic in the list and the page it opens.",
+        "multiplehelp": "The titles of those help windows."
+      }
+    },
+    "content-guides": {
+      "label": "Content guides",
+      "tooltip": "The written guide a content window opens: the rules of mahjong and Triple Triad, and the briefings for Bozja, deep dungeons, the Island Sanctuary and New Game+.",
+      "category": "Tutorials and guides",
+      "sheets": {
+        "descriptionstring": "The pages of the guide.",
+        "description": "The window titles above those pages.",
+        "descriptionstandalonetransient": "The names of the guides reached from the main menu instead."
+      }
+    },
+
+    "log": {
+      "label": "Combat log and system messages",
+      "tooltip": "Everything the game writes into your chat log by itself: what you hit and for how much, emotes, gil, party and Free Company notices, gathering, crafting, market board messages, and the announcements a duty makes including the red banner when a zone is sealed off.",
+      "category": "Combat log and system messages",
+      "sheets": {
+        "logmessage": "The whole chat log. One LogKind bucket mixes duty announcements with party invites, so there is no line to cut on."
+      }
+    },
+
+    "item-names": {
+      "label": "Item names",
+      "tooltip": "Every item in the game, as read in your bag, on the Market Board and in a tooltip.",
+      "category": "Item names",
+      "sheets": {
+        "item": "Every item: the singular and plural the <ennoun> macro reads, and the name a tooltip shows."
+      }
+    }
+  },
+
+  "_notInAPack": {
+    "switchtalk": "Conditional talk redirects. Declares no string column.",
+    "tinycustomtalk": "No string columns."
+  }
+}
