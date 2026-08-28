@@ -3,5 +3,19 @@
     "version": "10.0.100",
     "rollForward": "latestMinor",
     "allowPrerelease": false
+  },
+
+  "//": [
+    "Dalamud.NET.Sdk is pinned here rather than on the csproj's Sdk attribute. MSBuild asks for it",
+    "this way when a version is given at all, and Dependabot's nuget updater reads msbuild-sdks,",
+    "so a new Dalamud API level arrives as a pull request instead of as silence.",
+    "",
+    "The major IS the API level the plugin publishes: it is a constant inside DalamudPackager, and",
+    "this pin decides which DalamudPackager runs. Dalamud only offers an update when the installed",
+    "and published levels match exactly, so a stale pin means nobody is ever told there is a newer",
+    "version. The release workflow refuses to publish when this disagrees with what Dalamud ships."
+  ],
+  "msbuild-sdks": {
+    "Dalamud.NET.Sdk": "15.0.0"
   }
 }

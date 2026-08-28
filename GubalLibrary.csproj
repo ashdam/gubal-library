@@ -1,4 +1,14 @@
-<Project Sdk="Dalamud.NET.Sdk/15.0.0">
+<!--
+  No version on the SDK: it lives in global.json under msbuild-sdks. That is where MSBuild wants it
+  ("do not specify a version in your projects if a version is specified in the global.json file"),
+  and it is the only place Dependabot can see it, which is what gets the API level bumped at all.
+
+  The SDK version IS the published API level. DalamudPackager carries it as a constant and the SDK
+  pins which DalamudPackager gets used, so nothing in the build reads the installed Dalamud. Move
+  this pin or the plugin keeps declaring an old level forever, and Dalamud stops offering updates:
+  it requires the levels to match exactly.
+-->
+<Project Sdk="Dalamud.NET.Sdk">
 
   <PropertyGroup>
     <TargetFramework>net10.0-windows</TargetFramework>
