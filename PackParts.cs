@@ -165,8 +165,10 @@ internal static class PackParts
                         "The message that comes back when you examine a corpse, pull a lever or open "
                         + "a panel, and the documents you find and read in full, such as expedition "
                         + "journals, letters, and the scrawled memos that give away a puzzle's "
-                        + "answer."),
-                    ["gimmicktalk", "gimmickbill"],
+                        + "answer, plus the yes-or-no it asks before acting."),
+                    // `gimmickyesno` carries its own Yes and No buttons, so without it the prompt
+                    // reads Spanish over two English buttons.
+                    ["gimmicktalk", "gimmickbill", "gimmickyesno"],
                     Image: "examine"),
 
                 // Named after the kind of thing, never one duty, so a new content sheet does not force a rename.
@@ -216,8 +218,9 @@ internal static class PackParts
                         + "the Duty Finder, your inventory, the retainer windows and their venture "
                         + "list, the Gold Saucer's scoreboards and race courses, the tabs across the "
                         + "top of a window and the buttons along the bottom."),
-                    // `baseparam` is the Character window's attributes and their hover text.
-                    ["addon", "maincommand", "maincommandcategory", "retainertaskrandom", "goldsaucertextdata", "baseparam"],
+                    // `baseparam` is the Character window's attributes and their hover text, and
+                    // `itemspecialbonus` the heading a tooltip puts over a conditional bonus.
+                    ["addon", "maincommand", "maincommandcategory", "retainertaskrandom", "goldsaucertextdata", "baseparam", "itemspecialbonus"],
                     // The pair is the Character window, which is `addon` alone in this group.
                     Image: "interface"),
 
@@ -239,9 +242,10 @@ internal static class PackParts
                         + "and the destinations they offer, Aethernet shards, aether currents, "
                         + "levers, doors, gathering nodes, the signs and notes you stop to read, and "
                         + "the treasure coffers a duty leaves behind."),
-                    // Three sheets, one thing the player points at: the object's name, the two
-                    // aetheryte kinds the game keeps apart, and the lettered coffers a duty leaves.
-                    ["eobjname", "aetheryte", "treasure"],
+                    // Four sheets, one thing the player points at: the object's name, the two
+                    // aetheryte kinds the game keeps apart, the lettered coffers a duty leaves, and
+                    // the travel menu an aetheryte or a ferryman opens with its confirmation.
+                    ["eobjname", "aetheryte", "treasure", "warp"],
                     Image: "interactable"),
 
                 new TranslationPart(

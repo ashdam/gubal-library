@@ -76,7 +76,8 @@
       "category": "Duties, raids and field operations",
       "sheets": {
         "gimmicktalk": "What an object or mechanism says when you use it.",
-        "gimmickbill": "Signs, notes and puzzle hints read inside a duty."
+        "gimmickbill": "Signs, notes and puzzle hints read inside a duty.",
+        "gimmickyesno": "The yes-or-no it asks before acting. Carries its own Yes and No, so without it the prompt reads Spanish over two English buttons."
       }
     },
     "deep-dungeons": {
@@ -120,7 +121,8 @@
       "category": "Menus and interface",
       "sheets": {
         "addon": "Every button, tab, column heading and error the game draws.",
-        "baseparam": "The attributes and their tooltips. The names are also in addon, which draws the column while this draws the tooltip."
+        "baseparam": "The attributes and their tooltips. The names are also in addon, which draws the column while this draws the tooltip.",
+        "itemspecialbonus": "The heading a tooltip puts over an item's conditional bonus. Seven strings."
       }
     },
     "main-menu": {
@@ -139,7 +141,8 @@
       "sheets": {
         "eobjname": "The name of everything the cursor can rest on. Singular and plural, and the game picks by count.",
         "aetheryte": "Aetherytes and Aethernet shards, which the game keeps apart from other objects.",
-        "treasure": "The coffers a duty leaves behind, and the loot window's own rows."
+        "treasure": "The coffers a duty leaves behind, and the loot window's own rows.",
+        "warp": "The travel menu an aetheryte or a ferryman opens, and the confirmation before it."
       }
     },
     "shops": {
