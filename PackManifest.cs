@@ -42,6 +42,13 @@ internal sealed class PackManifest
     /// </remarks>
     [JsonPropertyName("updateUrl")] public string? UpdateUrl { get; init; }
 
+    /// <summary>
+    ///     Where a wrong line in this pack is reported. Optional: missing, the window falls back to
+    ///     <see cref="KnownPacks" /> by language code and then offers nothing. Never the plugin's own
+    ///     tracker, which cannot act on a translation.
+    /// </summary>
+    [JsonPropertyName("issuesUrl")] public string? IssuesUrl { get; init; }
+
     /// <summary>Which generation this is, stamped to the minute at build time.</summary>
     [JsonPropertyName("translationVersion")] public string? TranslationVersion { get; init; }
 
@@ -49,23 +56,8 @@ internal sealed class PackManifest
     [JsonPropertyName("gameVersion")] public string? GameVersion { get; init; }
 
 
-    [JsonPropertyName("pages")] public int Pages { get; init; }
-
-    /// <summary>Rows carrying a translation.</summary>
-    [JsonPropertyName("lines")] public int Lines { get; init; }
-
-    /// <summary>Rows in the rebuilt pages, translated or not — the denominator for <see cref="Lines" />.</summary>
-    [JsonPropertyName("rows")] public int Rows { get; init; }
-
     /// <summary>Display name, falling back through what the pack actually filled in.</summary>
     public string DisplayName => this.Name ?? this.LanguageName ?? this.Language ?? "Unnamed language pack";
-
-    /// <summary>Share of the OPENED sheets that carries a translation, 0 before the count existed.</summary>
-    /// <remarks>
-    ///     Not "share of the game": a sheet nobody has started on is absent from both sides, which
-    ///     flatters the number, so the window says which denominator this is.
-    /// </remarks>
-    public double TranslatedFraction => this.Rows > 0 ? (double)this.Lines / this.Rows : 0d;
 
     /// <summary>Reads the manifest out of a page directory, or says why it could not.</summary>
     /// <remarks>

@@ -122,6 +122,23 @@ public sealed class Plugin : IDalamudPlugin
 
         this.config = pluginInterface.GetPluginConfig() as Configuration ?? new Configuration();
 
+        // Configs written before the field: nothing but installing wrote either, so the recorded
+        // source is the one it came from.
+        if (this.config.LanguagePackPath.Length > 0 && this.config.InstalledFrom.Length == 0)
+        {
+            this.config.InstalledFrom = this.config.PackSource;
+        }
+
+        // Same, for the folder that used to share PackSource. A source that is neither a link nor an
+        // archive is a folder somebody pointed at.
+        if (this.config.OwnPackFolder.Length == 0
+            && this.config.PackSource.Length > 0
+            && !PackInstaller.IsRemote(this.config.PackSource)
+            && !this.config.PackSource.Trim().EndsWith(".zip", StringComparison.OrdinalIgnoreCase))
+        {
+            this.config.OwnPackFolder = this.config.PackSource;
+        }
+
         Directory.CreateDirectory(pluginInterface.GetPluginConfigDirectory());
 
         // First, because what it measures is how early this plugin runs: anything queued ahead of it
@@ -321,8 +338,7 @@ public sealed class Plugin : IDalamudPlugin
         {
             this.chat.Print($"[Gubal]{pack.DisplayName} ({pack.TranslationVersion ?? "unversioned"})");
             this.chat.Print(
-                $"[Gubal]{pack.Lines:N0} of {pack.Rows:N0} line(s) translated across {pages.PageCount:N0} page(s), "
-                + $"built for game {pack.GameVersion ?? "unknown"}.");
+                $"[Gubal]{pages.PageCount:N0} page(s), built for game {pack.GameVersion ?? "unknown"}.");
 
             // The number that separates "loaded" from "working": a route installed too late to matter
             // reports the two lines above identically.

@@ -17,6 +17,20 @@ internal sealed class Configuration : IPluginConfiguration
     public string LanguagePackPath { get; set; } = string.Empty;
 
     /// <summary>
+    ///     Where the installed pack came from, as opposed to <see cref="PackSource" />, which is
+    ///     where the next install would. Comparing the two is the only way to tell "check this pack
+    ///     for updates" from "install a different one": the installed folder is one fixed path.
+    /// </summary>
+    public string InstalledFrom { get; set; } = string.Empty;
+
+    /// <summary>
+    ///     The folder behind "a pack of your own", kept whether or not it is the one being served.
+    ///     Its own field rather than <see cref="PackSource" />, which a published language overwrites:
+    ///     sharing one slot lost the path every time somebody tried the published pack.
+    /// </summary>
+    public string OwnPackFolder { get; set; } = string.Empty;
+
+    /// <summary>
     ///     Serve the installed pack. Read once in the constructor, so it decides the next start
     ///     rather than now — see <see cref="ExdRedirector" />.
     /// </summary>

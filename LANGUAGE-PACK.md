@@ -60,11 +60,9 @@ manifest as described here and selective serving works.
   "languageName": "Español (España)",
   "author": "ashdam",
   "updateUrl": "https://example.org/packs/es/latest.json",
+  "issuesUrl": "https://github.com/you/your-pack/issues",
   "translationVersion": "2026.08.08.1756",
-  "gameVersion": "2026.08.05.0000.0000",
-  "pages": 3414,
-  "lines": 95628,
-  "rows": 405771
+  "gameVersion": "2026.08.05.0000.0000"
 }
 ```
 
@@ -74,13 +72,27 @@ manifest as described here and selective serving works.
 | `translationVersion` | yes | Which generation of the translation this is. Compared as text, so any format that sorts correctly works; a stamp like `yyyy.MM.dd.HHmm` does. |
 | `name`, `language`, `languageName`, `author` | no | Shown in the settings window. |
 | `updateUrl` | no | Where to fetch a copy of the newest manifest. See below. |
-| `pages`, `lines`, `rows` | no | Shown as a coverage line: `lines` of `rows` translated across `pages` pages. |
+| `issuesUrl` | no | Where the settings window sends somebody who found a wrong line. |
+
+Anything else in the file is ignored. **There is deliberately no coverage figure**: how much of your
+pack is translated is yours to publish where you can explain what it is a percentage of, and a second
+copy inside the manifest is one that can disagree with it.
 
 **`gameVersion` is the one that matters and it is a refusal, not a warning.** Rows shift between
 patches. Serving pages built against the previous patch to a client running the next one puts text on
 the wrong rows, and it does it silently — every line is well-formed and simply belongs to something
 else. Losing the translation until somebody rebuilds is enormously preferable, so that is what
 happens.
+
+## Where a wrong line is reported
+
+`issuesUrl` is the translation's own tracker. The settings window offers it as **Report a
+mistranslation**, beside the language chooser, and never merges it with the plugin's own: nobody
+working on the plugin can change a sentence.
+
+Leave it out and a pack listed in the chooser falls back to the address recorded there; one the
+plugin has never heard of gets no link at all. The manifest wins when both exist, so moving your
+tracker between releases carries your readers along.
 
 ## Updates
 
