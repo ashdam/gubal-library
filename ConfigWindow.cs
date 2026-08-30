@@ -925,7 +925,7 @@ internal sealed class ConfigWindow : Window
                 // Only with something installed: this plugin never offers a language of its own.
                 if (this.config.LanguagePackPath.Length > 0)
                 {
-                    if (ImGui.Selectable(ChoiceLabel(English), chosen == English))
+                    if (ImGui.Selectable(ChoiceLabel(English), chosen == English) && chosen != English)
                     {
                         this.config.ServeLanguagePack = false;
                         this.NoteServing();
@@ -948,11 +948,21 @@ internal sealed class ConfigWindow : Window
                         continue;
                     }
 
+                    var switching = i != chosen;
                     this.chosenPack = i;
                     this.ServeAgain();
+
                     if (pack.Source is { } source)
                     {
                         this.config.PackSource = source;
+
+                        // Only a language with a pack behind it, and only with one installed: a
+                        // language nobody has built changes nothing, and neither does choosing one
+                        // before anything has been installed to replace.
+                        if (switching && this.config.LanguagePackPath.Length > 0)
+                        {
+                            this.NoteServing();
+                        }
                     }
 
                     changed = true;
