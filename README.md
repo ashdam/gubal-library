@@ -28,6 +28,24 @@ changes nothing until a language pack is installed.
 
 - **Want to build a language pack for your language?** → [LANGUAGE-PACK.md](LANGUAGE-PACK.md)
 
+## Language packs
+
+The settings window lists these and fills the address in for you. Nothing is bundled here and nothing
+is downloaded until you press **Install**. A language with no pack is listed too, so that it is known
+to be missing rather than unsupported.
+
+| Language | Pack | A wrong line goes to |
+|---|---|---|
+| Español | [Eorzea en español](https://eorzea-in-spanish.ashdam.workers.dev/) · [repository](https://github.com/ashdam/ffxiv-language-pack-es) | [its issues](https://github.com/ashdam/ffxiv-language-pack-es/issues) |
+| Italiano | none published yet | — |
+| Português | none published yet | — |
+| Any other | [build one](LANGUAGE-PACK.md) | — |
+
+**Want yours on that list?** A pack is translated text and nothing else: no programming, no change to
+this plugin, no permission needed. Start at [LANGUAGE-PACK.md](LANGUAGE-PACK.md) and ask on
+[Discussions](https://github.com/ashdam/gubal-library/discussions). The plugin does not host packs
+and does not want to: an entry is an address, and the people who translated it keep it.
+
 ## Examples
 
 The live game with a Spanish language pack installed. None of it is a mock-up or an overlay: the game
@@ -57,8 +75,9 @@ A testing build, so expect rough edges. It needs XIVLauncher/Dalamud.
 2. **Install the plugin.** `/xlplugins` → search for **Gubal Library** → **Install**.
 
 3. **Install a language pack.** The step that actually matters — everything in the game stays as it
-   was until you do. `/gubal` → put a link, a `.zip` or an already-unpacked folder in *Language pack*
-   → **Install**. Nothing is downloaded until you press it.
+   was until you do. `/gubal` → pick yours under *Language* → **Install**. Nothing is downloaded
+   until you press it. Building one yourself? Pick *a pack of your own* instead and point it at the
+   folder your build writes: nothing is copied, the pages are served where they lie.
 
 4. **Restart the client.** Not optional, and not a rough edge: the game reads its text once, a couple
    of seconds into startup, and keeps it for the whole session. A pack switched on mid-game changes
@@ -70,8 +89,10 @@ looks identical to a working one on every other indicator.
 
 **Staying current.** The plugin asks the address inside your pack whether a newer one is published —
 a couple of kilobytes, once, each time it loads — and says so in chat when you log in. Nothing is
-downloaded unless you press **Update**. The settings window has a **Check for updates** button, and
-`/gubal check` does the same from chat, for when a pack is published while you are already playing.
+downloaded unless you ask for it. Beside the language chooser is one button that is whichever of
+three things applies: **Install** for a pack that is not the one installed, **Check for updates** for
+the one that is, and **Install new version** once a check has found one. `/gubal check` asks from
+chat, for when a pack is published while you are already playing.
 
 **Fetching it by itself.** Tick *Fetch a newer pack while the game starts* and you never press
 anything: the check, the download and the install all happen during startup, **before** the game
@@ -83,12 +104,13 @@ than risking it. Off by default, and only offered for a pack installed from a li
 taken from a file has no address to ask. Unticking it leaves Dalamud's setting where it is — that one
 is yours, and it lives in `/xlsettings`.
 
-**Reporting a problem.** Open an [issue](https://github.com/ashdam/gubal-library/issues) with what you
-expected and what you got (a screenshot beats a description) and the output of `/gubal status`. If the
-game closed, add the most recent `crash-<date>.tspack` from `%AppData%\XIVLauncher\`.
-
-If a line is simply not translated, that is the pack rather than the plugin — take it to whoever
-maintains it.
+**Reporting a problem.** Two trackers, and which one depends on what went wrong. A line that reads
+wrong or is still English belongs to the pack, and only the people who translated it can change it:
+*Report a mistranslation*, beside the language chooser, goes to whoever publishes the one you
+installed. Nothing translated, a pack that will not install or a refusal at startup belongs
+[here](https://github.com/ashdam/gubal-library/issues): say what you expected and what you got (a
+screenshot beats a description) and paste `/gubal status`. If the game closed, add the most recent
+`crash-<date>.tspack` from `%AppData%\XIVLauncher\`.
 
 **Uninstalling.** `/xlplugins` → **Gubal Library** → **Uninstall**. To drop the repository too,
 `/xlsettings` → **Experimental** → the bin icon on that URL's row.
@@ -118,6 +140,9 @@ game's English interface and log messages and stop working when they cannot find
 *Menus and interface* and *Combat log and system messages* untranslated keeps them working while the
 story stays translated. Like everything else here, it takes effect at the next start. `/gubal parts`
 lists the same thing in chat.
+
+**All of it at once is a language, not a checkbox.** The chooser's *English (no localization)* stops
+serving the pack from the next start and leaves it installed, so switching back downloads nothing.
 
 Two things do not work this way, and both are inherent:
 
@@ -168,9 +193,9 @@ at a local zip or a folder and it never touches the network at all.
 | `/gubal status` | The installed pack, its version, coverage, and how many reads have been answered this session |
 | `/gubal parts` | Which parts of the translation are switched on, by group |
 | `/gubal check` | Ask now whether a newer language pack is published, and say either way |
-| `/gubal usepack` | Turn the pack on or off from the next start — a way back when the settings window is not reachable |
+| `/gubal usepack` | Switch between the pack and the game's own English from the next start, the same as the chooser's *English (no localization)* — a way back when the settings window is not reachable |
 | `/gubal autoupdate` | Turn the startup fetch on or off, along with Dalamud's wait for plugins |
-| `/gubal probesqpack` | Diagnostic: log every Excel page the game reads, redirecting nothing |
+| `/gubal probesqpack` | Diagnostic: log every Excel page the game reads, redirecting nothing. Chat only; there is no checkbox for it |
 
 `probesqpack` attaches when the plugin loads and only then, so it takes effect at the next client
 start. It exists to check that the plugin still attaches before the game's first read, which is the

@@ -229,9 +229,10 @@
 
   "Tab.Pack": { "message": "Language pack", "description": "Tab label." },
   "Tab.Parts": { "message": "Parti tradotte", "description": "Tab label." },
+  "Tab.Help": { "message": "Aiuto e contatti", "description": "Tab label." },
 
   "Parts.Empty": {
-    "message": "Non c'è ancora niente da elencare. Installa un language pack nell'altra scheda e le sue parti compariranno qui.",
+    "message": "Non c'è ancora niente da elencare. Installa un language pack nella scheda Language pack e le sue parti compariranno qui.",
     "description": "Shown in the parts tab when no pack is installed."
   },
   "Parts.Intro": {
@@ -257,19 +258,28 @@
     "description": "Banner reason after an install."
   },
 
+  "Restart.Serving": {
+    "message": "Hai cambiato lingua. Il gioco legge tutto il suo testo una volta, all'avvio, quindi questo ha effetto al prossimo avvio.",
+    "description": "Banner reason after switching the translation on or off."
+  },
+
   "Pack.None": {
-    "message": "NESSUN LANGUAGE PACK CARICATO. Questo plugin non include traduzioni: metti qui sotto un link o una cartella, premi Installa e riavvia il client.",
+    "message": "Nessun language pack installato. Scegli una lingua qui sotto e premi Installa.",
     "description": "Shown when nothing is installed."
+  },
+  "Pack.Pending": {
+    "message": "C'è un language pack installato ma non è ancora in uso. Riavvia il client.",
+    "description": "Installed and wanted, but not served this session."
+  },
+  "Pack.Off": {
+    "message": "Il gioco sta mostrando il suo testo originale. Il language pack installato è disattivato.",
+    "description": "Installed and deliberately switched off."
   },
   "Pack.UpToDate": { "message": "{0} — aggiornato: {1}", "description": "Pack name and version after a clean check." },
   "Pack.Unversioned": { "message": "senza versione", "description": "Stands in for a missing version." },
   "Pack.UnknownLanguage": { "message": "lingua sconosciuta", "description": "Stands in for a missing language." },
   "Pack.UnknownVersion": { "message": "sconosciuta", "description": "Stands in for a missing game version." },
   "Pack.LanguageByAuthor": { "message": "{0}, di {1}", "description": "Language and author of the pack." },
-  "Pack.Lines": {
-    "message": "{0} di {1} righe tradotte ({2}) su {3} pagina/e, fra i fogli che il language pack copre",
-    "description": "Translated, total, percentage, pages."
-  },
   "Pack.BuiltFor": { "message": "Costruito per la versione {0} del gioco", "description": "Game patch the pack was built from." },
   "Pack.Served": { "message": "{0} lettura/e servite da disco in questa sessione", "description": "Proves the redirection is working." },
 
@@ -285,7 +295,11 @@
   "Update.Checking": { "message": "Controllo se è pubblicato un language pack più recente...", "description": "While the check runs." },
   "Update.Available": { "message": "È pubblicato un language pack più recente: {0}", "description": "{0} is the new version." },
   "Update.BuiltForGame": { "message": ", costruito per la versione {0} del gioco", "description": "Appended to the line above." },
-  "Update.Install": { "message": "Aggiorna", "description": "Button that installs the newer pack." },
+  "Update.InstallNew": { "message": "Installa la versione {0}", "description": "Button that installs the newer pack. {0} is its version." },
+  "Update.RestartFirstTip": {
+    "message": "Riavvia prima il client.",
+    "description": "Tooltip while a restart is owed."
+  },
   "Update.Unreachable": {
     "message": "Nessuna connessione all'indirizzo di aggiornamento del language pack. Se continua così, questo language pack non si aggiornerà da solo: controlla da dove l'hai preso.",
     "description": "The declared address did not answer."
@@ -295,34 +309,56 @@
     "description": "The pack declares no address."
   },
 
-  "Setup.PathLabel": { "message": "Language pack", "description": "Label of the source box." },
-  "Setup.PathTip": {
-    "message": "Uno .zip, un link a uno, o una cartella già estratta.\nQualunque cosa sia deve contenere gubal-manifest.json, che dice\nche language pack è e per quale versione del gioco è stato costruito.",
-    "description": "Tooltip of the source box."
+  "Setup.LanguageLabel": { "message": "Lingua", "description": "Label of the language chooser." },
+  "Setup.LanguageNone": { "message": "Scegline una", "description": "Chooser preview before anything is picked." },
+  "Setup.LanguageOwn": { "message": "Un language pack tuo", "description": "Chooser entry for an address nobody publishes." },
+  "Setup.LanguageUnbuilt": { "message": "{0} (ancora nessun language pack)", "description": "Chooser entry for a language nobody has built." },
+  "Setup.LanguageTip": {
+    "message": "Non viene scaricato niente finché non premi Installa.",
+    "description": "Tooltip of the language chooser."
   },
+  "Setup.Website": { "message": "Sito web", "description": "Link beside the chooser, to the pack's own site." },
+  "Setup.Report": { "message": "Segnala un errore", "description": "Link beside the chooser, to the pack's issue tracker." },
+  "Setup.OwnLabel": { "message": "La tua cartella del language pack", "description": "Label of the developer folder box." },
+  "Setup.OwnEmpty": {
+    "message": "La cartella che contiene gubal-manifest.json.",
+    "description": "Shown under an empty folder box."
+  },
+  "Setup.OwnNoFolder": { "message": "Nessuna cartella in «{0}».", "description": "The path does not exist." },
+  "Setup.OwnReady": { "message": "{0} ({1}), costruito per questa patch.", "description": "Pack name and translation version." },
+  "Setup.OwnWrongPatch": {
+    "message": "{0}, costruito per la versione {1} del gioco. Il client è alla {2}, quindi verrà rifiutato all'avvio invece di essere servito. Ricostruiscilo.",
+    "description": "Pack name, the patch it was built for, the running patch."
+  },
+  "Setup.UseFolder": { "message": "Usa questa cartella", "description": "Button that adopts the folder." },
+  "Setup.UseFolderTip": {
+    "message": "Serve le pagine dove stanno, dal prossimo avvio.\nNon copia e non scarica niente. Premilo di nuovo dopo una ricostruzione.",
+    "description": "Tooltip of the adopt button."
+  },
+  "Setup.Unbuilt": {
+    "message": "Language pack non disponibile. Vuoi collaborare alla sua traduzione?",
+    "description": "Shown in place of the action button for a language nobody has built."
+  },
+  "Setup.UnbuiltFormat": { "message": "Come si costruisce un language pack", "description": "Button that opens LANGUAGE-PACK.md." },
+
   "Setup.Browse": { "message": "Sfoglia...", "description": "Button that opens the file picker." },
   "Setup.Install": { "message": "Installa", "description": "Button." },
   "Setup.InstallTip": {
     "message": "Lo scarica e lo estrae se serve, poi lo serve dal prossimo avvio.\nNon viene scaricato niente se non premi questo.",
     "description": "Tooltip of the install button."
   },
-  "Setup.Serve": { "message": "Usa questo language pack dal prossimo avvio", "description": "Checkbox." },
-  "Setup.ServeTip": {
-    "message": "Dà al gioco il testo del language pack al posto del suo.\nHa effetto al prossimo avvio del client: il gioco legge il suo testo una volta\nall'avvio e lo tiene per tutta la sessione, quindi non si può attivare a metà partita.",
-    "description": "Tooltip of the serve checkbox."
+  "Setup.LanguageEnglish": { "message": "Inglese (nessuna traduzione)", "description": "Chooser entry that stops serving the pack." },
+  "Setup.EnglishNote": {
+    "message": "Il testo originale del gioco dal prossimo avvio. Il language pack resta installato e non c'è da scaricare niente per rimetterlo.",
+    "description": "Shown under the chooser when the pack is switched off."
   },
-  "Setup.Auto": { "message": "Scarica un language pack più recente mentre il gioco parte", "description": "Checkbox." },
-  "Setup.AutoTip": {
-    "message": "Controlla a ogni avvio e, se è pubblicato un language pack più recente, lo scarica e lo installa\nprima che il gioco legga il suo testo, così la nuova traduzione è attiva già in quella sessione\ne non c'è niente da riavviare.\n\nL'avvio del gioco viene trattenuto durante il download. Spuntare questo attiva anche\nl'opzione «wait for plugins» di Dalamud, che è ciò che rende possibile trattenerlo.",
-    "description": "Tooltip of the auto-update checkbox. The Dalamud setting keeps its English name."
-  },
+  "Setup.Auto": { "message": "Aggiorna da solo all'avvio", "description": "Checkbox." },
   "Setup.AutoUnavailable": {
     "message": "Disponibile per un language pack installato da un link. Un language pack preso da un file, o usato dov'è, non ha un indirizzo a cui chiedere.",
     "description": "Why the auto-update box is greyed out."
   },
-  "Setup.PickerTitle": { "message": "Scegli un language pack (.zip) o una cartella estratta", "description": "File dialog title." },
+  "Setup.PickerTitle": { "message": "Scegli la cartella in cui è stato costruito il tuo language pack", "description": "Folder dialog title." },
 
-  "Boot.Waiting": { "message": "Dalamud tratterrà l'avvio del gioco finché l'aggiornamento non è finito.", "description": "Reassurance." },
   "Boot.NotWaiting": {
     "message": "Dalamud non è impostato per aspettare i plugin prima di caricare il gioco, quindi all'avvio non verrà scaricato niente: il gioco leggerebbe il suo testo mentre il download è ancora in corso. Gli aggiornamenti vengono proposti qui sopra.",
     "description": "Warning when the boot wait is off."
@@ -335,10 +371,17 @@
 
   "Install.Done": { "message": "Installato {0} ({1}).", "description": "Pack name and version." },
 
-  "Diag.Header": { "message": "Diagnostica", "description": "Collapsing header." },
-  "Diag.Probe": { "message": "Registra ogni pagina Excel che il gioco legge", "description": "Checkbox." },
-  "Diag.ProbeTip": {
-    "message": "Scrive una riga per pagina in /xllog, senza redirigere niente.\nSi aggancia al caricamento, quindi ha effetto al prossimo avvio del client.",
-    "description": "Tooltip of the probe checkbox."
-  }
+  "Recruit.Title": { "message": "Vuoi il gioco nella tua lingua?", "description": "Heading of the recruiting block." },
+  "Recruit.Body": {
+    "message": "Se ti interessa, usa i link qui sotto per collaborare con la tua comunità.",
+    "description": "Body of the recruiting block."
+  },
+  "Recruit.Format": { "message": "Come si costruisce un language pack", "description": "Link to LANGUAGE-PACK.md." },
+  "Recruit.Ask": { "message": "Chiedi su GitHub Discussions", "description": "Link to the repository's discussions." },
+
+  "Contact.Title": { "message": "Contatti", "description": "Heading of the contact block." },
+  "Contact.Discord": { "message": "Discord", "description": "Label before the handle." },
+  "Contact.Copy": { "message": "Clicca per copiarlo.", "description": "Tooltip on the handle." },
+
+  "Pack.NothingServed": { "message": "QUESTA SESSIONE NON HA NIENTE DI TRADOTTO", "description": "Shown when the pack reached neither the game nor Dalamud." }
 }

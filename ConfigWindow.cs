@@ -8,6 +8,7 @@ using Dalamud.Interface.Utility;
 using Dalamud.Interface.Utility.Raii;
 using Dalamud.Interface.Windowing;
 using Dalamud.Plugin.Services;
+using Dalamud.Utility;
 
 namespace GubalLibrary;
 
@@ -43,6 +44,15 @@ internal sealed class ConfigWindow : Window
     ///     2.4 and did not — drawn at 283 from 560, their text went to nothing.
     /// </remarks>
     private const float PanoramicRatio = 2.2f;
+
+    /// <summary>Chooser entry for an address that is nobody's published pack: a zip, a folder, a link.</summary>
+    private const int OwnPack = -1;
+
+    /// <summary>Chooser entry for a fresh install, where the source box is still empty.</summary>
+    private const int NoChoice = -2;
+
+    /// <summary>Chooser entry for the game's own text: a pack installed and deliberately not served.</summary>
+    private const int English = -3;
 
     private readonly Configuration config;
     private readonly FileDialogManager fileDialogs;
@@ -86,6 +96,17 @@ internal sealed class ConfigWindow : Window
     private readonly Func<bool?> dalamudWaits;
 
     private readonly Action openDalamudSettings;
+
+    /// <summary>Which language chooser entry is showing. Null re-reads it from the source box.</summary>
+    private int? chosenPack;
+
+    /// <summary>The path <see cref="checkedPack" /> describes. Null before anything has been looked at.</summary>
+    private string? checkedPath;
+
+    private (PackManifest? Manifest, string? Error) checkedPack;
+
+    /// <summary>The running patch, read once. Empty rather than null once it has been asked for.</summary>
+    private string? runningGame;
 
     private volatile bool installing;
     private InstallProgress progress;
@@ -187,6 +208,13 @@ internal sealed class ConfigWindow : Window
                     }
                 }
 
+                using (var tab = ImRaii.TabItem(Loc.Localize("Tab.Help", "Help and contact")))
+                {
+                    if (tab)
+                    {
+                        DrawHelpTab();
+                    }
+                }
             }
         }
 
@@ -196,7 +224,7 @@ internal sealed class ConfigWindow : Window
         }
     }
 
-    /// <summary>Where the pack comes from and how it keeps itself current. All of the old window.</summary>
+    /// <summary>Which language is installed, and how it keeps itself current.</summary>
     private void DrawSetupTab(PageStatus pages, ref bool changed)
     {
         // The installed pack first: what is loaded, what it holds, and — on the same line as its
@@ -205,10 +233,7 @@ internal sealed class ConfigWindow : Window
         this.DrawInstalledPack(pages);
 
         ImGui.Separator();
-        this.DrawLanguagePackRow(ref changed);
-
-        ImGui.Separator();
-        this.DrawDiagnostics(ref changed);
+        this.DrawLanguagePackRow(pages, ref changed);
     }
 
     /// <summary>
@@ -229,7 +254,7 @@ internal sealed class ConfigWindow : Window
         if (pack.Layout.Count == 0)
         {
             ImGui.TextWrapped(Loc.Localize("Parts.Empty",
-                "Nothing to list yet. Install a language pack on the other tab and its parts appear here."));
+                "Nothing to list yet. Install a language pack on the Language pack tab and its parts appear here."));
             return;
         }
 
@@ -651,19 +676,21 @@ internal sealed class ConfigWindow : Window
     {
         if (pages.Manifest is not { } pack)
         {
-            // The refusal, when there is one, is the whole story: it is the plugin declining to serve
-            // pages it has, and it says why. Otherwise nobody has installed anything yet.
-            var (colour, text) = pages.Error is { Length: > 0 } error
-                ? (Red, error)
+            // Nothing is being served, which is four different situations. A refusal says why itself;
+            // the rest differ in whether a pack is installed and whether it was asked for, and
+            // telling somebody to install one they already have reads as a step that did not take.
+            var (icon, colour, text) = pages.Error is { Length: > 0 } error
+                ? (FontAwesomeIcon.ExclamationTriangle, Red, error)
+                : this.config.LanguagePackPath.Length == 0
+                    ? (FontAwesomeIcon.InfoCircle, Amber, Loc.Localize("Pack.None",
+                        "No language pack installed. Choose a language below and press Install."))
+                    : this.config.ServeLanguagePack
+                        ? (FontAwesomeIcon.Hourglass, Amber, Loc.Localize("Pack.Pending",
+                            "A language pack is installed but not in use yet. Restart the client."))
+                        : (FontAwesomeIcon.InfoCircle, Grey, Loc.Localize("Pack.Off",
+                            "The game is showing its own text. The installed language pack is switched off."));
 
-                // Three steps, not four. Do not add "tick the box": the Install button already does
-                // that, and an instruction asking for something already done reads as a step that
-                // did not take.
-                : (Amber, Loc.Localize("Pack.None",
-                    "NO LANGUAGE PACK LOADED. This plugin ships no translations, so put a link or a "
-                    + "folder below, press Install, and restart the client."));
-
-            Icon(FontAwesomeIcon.ExclamationTriangle, colour);
+            Icon(icon, colour);
             ImGui.TextWrapped(text);
             ImGui.PopStyleColor();
             return;
@@ -683,7 +710,6 @@ internal sealed class ConfigWindow : Window
                 : $"{pack.DisplayName} ({version})");
         }
 
-        this.DrawCheckButton(pages);
         DrawPackDetail(pack, pages);
 
         // SAID HERE BECAUSE THIS IS WHERE SOMEBODY LOOKS when the game came up untranslated. The pack
@@ -705,41 +731,6 @@ internal sealed class ConfigWindow : Window
         {
             this.DrawUpdateNotice(pages);
         }
-    }
-
-    /// <summary>
-    ///     <em>Check for updates</em>, at the right-hand end of the line the pack is named on.
-    /// </summary>
-    /// <remarks>
-    ///     Disabled rather than hidden when the pack declares no update address. A button that
-    ///     vanishes leaves the reader wondering whether this build has one; a greyed one with a
-    ///     sentence on hover answers the question where it was asked.
-    /// </remarks>
-    private void DrawCheckButton(PageStatus pages)
-    {
-        var label = Loc.Localize("Update.Check", "Check for updates");
-
-        var width = ImGui.CalcTextSize(label).X + (ImGui.GetStyle().FramePadding.X * 2);
-        ImGui.SameLine(ImGui.GetContentRegionMax().X - width);
-
-        var declared = pages.Update.State != UpdateState.NotDeclared;
-        var busy = this.installing || pages.Update.State == UpdateState.Checking;
-
-        using (ImRaii.Disabled(busy || !declared))
-        {
-            if (ImGui.Button($"{label}##pack"))
-            {
-                this.checkForUpdate();
-            }
-        }
-
-        SetTooltip(declared
-            ? Loc.Localize("Update.CheckTip",
-                "Asks the address inside the installed pack whether a newer one is published.\n"
-                + "A couple of kilobytes; nothing is downloaded or changed by asking.\n"
-                + "This also runs by itself each time the plugin loads.")
-            : Loc.Localize("Update.NoAddressTip",
-                "This language pack carries no update address, so there is nothing to ask."));
     }
 
     /// <summary>
@@ -785,17 +776,7 @@ internal sealed class ConfigWindow : Window
                         : string.Empty));
                 ImGui.PopStyleColor();
 
-                using (ImRaii.Disabled(this.installing || this.config.PackSource.Trim().Length == 0))
-                {
-                    // Reinstalls from where this one came from. There is no address in the manifest
-                    // to prefer, on purpose: the pack does not repeat a fact the user already
-                    // supplied, and successive versions are expected at a stable address.
-                    if (ImGui.Button($"{Loc.Localize("Update.Install", "Update")}##pack"))
-                    {
-                        this.Install(this.config.PackSource);
-                    }
-                }
-
+                // No button here: taking it is the chooser's action button, which names the version.
                 break;
 
             // No line of its own: a clean check is said by the pack's own name line turning green.
@@ -870,7 +851,7 @@ internal sealed class ConfigWindow : Window
     }
 
     /// <summary>
-    ///     Where the language pack is, and the switch that turns it on.
+    ///     Which language, where its pack comes from, and the switch that turns it on.
     /// </summary>
     /// <remarks>
     ///     <b>"Language pack", never "pages".</b> A page is an <c>.exd</c> file, which is this
@@ -879,64 +860,24 @@ internal sealed class ConfigWindow : Window
     ///     its sheets seconds into startup and caches them, so this decides the <em>next</em> start —
     ///     and a Serve button that changed nothing visible read, correctly, as broken.
     /// </remarks>
-    private void DrawLanguagePackRow(ref bool changed)
+    private void DrawLanguagePackRow(PageStatus pages, ref bool changed)
     {
-        var source = this.config.PackSource;
+        var chosen = this.DrawLanguageChooser(pages, ref changed);
 
-        // Aligned to the frame padding, not drawn at the raw cursor: text placed beside an input box
-        // sits at the top of it otherwise, a couple of pixels above the text inside the box.
-        ImGui.AlignTextToFramePadding();
-        ImGui.TextDisabled(Loc.Localize("Setup.PathLabel", "Language pack"));
-        ImGui.SameLine();
-
-        // Negative width, so the box gives back a fixed strip to the buttons on its right and takes
-        // whatever is left of the row. Both ends stay put as the window resizes.
-        ImGui.SetNextItemWidth(-150f * ImGuiHelpers.GlobalScale);
-        if (ImGui.InputText("##packSource", ref source, 2048))
+        if (chosen == English)
         {
-            this.config.PackSource = source;
-            changed = true;
+            ImGui.TextDisabled(Loc.Localize("Setup.EnglishNote",
+                "The game's own text from the next start. The language pack stays installed and "
+                + "nothing is downloaded again to bring it back."));
         }
-
-        SetTooltip(Loc.Localize("Setup.PathTip",
-            "A .zip, a link to one, or a folder that has already been unpacked.\n"
-            + "Whatever it is must contain gubal-manifest.json, which says what the\n"
-            + "pack is and which game version it was built for."));
-
-        ImGui.SameLine();
-        if (ImGui.Button($"{Loc.Localize("Setup.Browse", "Browse...")}##packSource"))
+        else if (chosen >= 0 && KnownPacks.All[chosen].Source is null)
         {
-            this.BrowseForLanguagePack();
+            DrawUnbuiltLanguage();
         }
-
-        ImGui.SameLine();
-        using (ImRaii.Disabled(this.installing || this.config.PackSource.Trim().Length == 0))
+        else if (chosen == OwnPack)
         {
-            if (ImGui.Button($"{Loc.Localize("Setup.Install", "Install")}##packSource"))
-            {
-                this.Install(this.config.PackSource);
-            }
+            this.DrawOwnPack(ref changed);
         }
-
-        SetTooltip(Loc.Localize("Setup.InstallTip",
-            "Downloads and unpacks it if it needs it, then serves it from the next start.\n"
-            + "Nothing is fetched unless you press this."));
-
-        var serve = this.config.ServeLanguagePack;
-        using (ImRaii.Disabled(this.config.LanguagePackPath.Length == 0))
-        {
-            if (ImGui.Checkbox(
-                    Loc.Localize("Setup.Serve", "Use this language pack from the next start"), ref serve))
-            {
-                this.config.ServeLanguagePack = serve;
-                changed = true;
-            }
-        }
-
-        SetTooltip(Loc.Localize("Setup.ServeTip",
-            "Gives the game the pack's text instead of its own.\n"
-            + "Takes effect when the client next starts: the game reads its text once\n"
-            + "at startup and keeps it for the session, so this cannot be switched on mid-game."));
 
         this.DrawAutoUpdateRow();
 
@@ -961,6 +902,371 @@ internal sealed class ConfigWindow : Window
             ImGui.TextWrapped(message);
             ImGui.PopStyleColor();
         }
+    }
+
+    /// <summary>
+    ///     The list of language packs the community publishes. Returns which entry is showing.
+    /// </summary>
+    /// <remarks>Fills the address in and stops: nothing is fetched until the button beside it.</remarks>
+    private int DrawLanguageChooser(PageStatus pages, ref bool changed)
+    {
+        var chosen = this.Chosen();
+
+        ImGui.AlignTextToFramePadding();
+        ImGui.TextDisabled(Loc.Localize("Setup.LanguageLabel", "Language"));
+        ImGui.SameLine();
+
+        // Fixed width: stretched to the edge it leaves nowhere for the button and links beside it.
+        ImGui.SetNextItemWidth(220f * ImGuiHelpers.GlobalScale);
+        using (var combo = ImRaii.Combo("##packLanguage", ChoiceLabel(chosen)))
+        {
+            if (combo)
+            {
+                // Only with something installed: this plugin never offers a language of its own.
+                if (this.config.LanguagePackPath.Length > 0)
+                {
+                    if (ImGui.Selectable(ChoiceLabel(English), chosen == English))
+                    {
+                        this.config.ServeLanguagePack = false;
+                        this.NoteServing();
+                        changed = true;
+                    }
+
+                    ImGui.Separator();
+                }
+
+                for (var i = 0; i < KnownPacks.All.Length; i++)
+                {
+                    var pack = KnownPacks.All[i];
+
+                    var label = pack.Source is null
+                        ? string.Format(Loc.Localize("Setup.LanguageUnbuilt", "{0} (no pack yet)"), pack.Name)
+                        : pack.Name;
+
+                    if (!ImGui.Selectable(label, i == chosen))
+                    {
+                        continue;
+                    }
+
+                    this.chosenPack = i;
+                    this.ServeAgain();
+                    if (pack.Source is { } source)
+                    {
+                        this.config.PackSource = source;
+                    }
+
+                    changed = true;
+                }
+
+                // Not a language: sets no address, and opens the folder row instead.
+                ImGui.Separator();
+                if (ImGui.Selectable(ChoiceLabel(OwnPack), chosen == OwnPack))
+                {
+                    this.chosenPack = OwnPack;
+                    this.ServeAgain();
+                    changed = true;
+                }
+            }
+        }
+
+        SetTooltip(Loc.Localize("Setup.LanguageTip",
+            "Nothing is downloaded until you press Install."));
+
+        // Nothing to press for a language nobody has built, or for the game's own English.
+        if (chosen != English && (chosen < 0 || KnownPacks.All[chosen].Source is not null))
+        {
+            ImGui.SameLine();
+            this.DrawPackAction(pages, chosen);
+        }
+
+        if (chosen >= 0 && KnownPacks.All[chosen].Site is { Length: > 0 } site)
+        {
+            LinkAfter(Loc.Localize("Setup.Website", "Website"), site);
+        }
+
+        if (PackTracker(pages, chosen) is { Length: > 0 } tracker)
+        {
+            LinkAfter(Loc.Localize("Setup.Report", "Report a localization issue"), tracker);
+        }
+
+        return chosen;
+    }
+
+    /// <summary>
+    ///     The one thing to press about the pack, which is a different thing in three states.
+    /// </summary>
+    /// <remarks>One button: at any moment there is one useful thing to do to a pack.</remarks>
+    private void DrawPackAction(PageStatus pages, int chosen)
+    {
+        var source = this.config.PackSource.Trim();
+        var busy = this.installing || pages.Update.State == UpdateState.Checking;
+
+        // A folder never offers updates, and stays pressable once adopted: pressing it again after a
+        // rebuild is the development loop.
+        if (chosen == OwnPack)
+        {
+            var folder = this.config.OwnPackFolder.Trim();
+
+            ActionButton(
+                Loc.Localize("Setup.UseFolder", "Use this folder"),
+                Loc.Localize("Setup.UseFolderTip",
+                    "Serves the pages where they lie, from the next start.\n"
+                    + "Nothing is copied and nothing is downloaded. Press it again after a rebuild."),
+                busy || folder.Length == 0 || this.FolderPack().Manifest is null,
+                () =>
+                {
+                    // The rest of the window works off PackSource, so adopting is what moves the
+                    // folder into it. Kept in its own field as well, so a language chosen later does
+                    // not take the path with it.
+                    this.config.PackSource = folder;
+                    this.Install(folder);
+                });
+            return;
+        }
+
+        // Installed FROM THIS SOURCE, not "something is installed": another language chosen leaves a
+        // pack loaded that this must offer to replace rather than to check.
+        var current = pages.Manifest is not null
+                      && source.Length > 0
+                      && string.Equals(source, this.config.InstalledFrom, StringComparison.OrdinalIgnoreCase);
+
+        if (current && pages.Update is { State: UpdateState.Available, Published: { } published })
+        {
+            // Reinstalls from where this one came from: the manifest carries no download address, so
+            // successive versions are expected at a stable one.
+            ActionButton(
+                string.Format(
+                    Loc.Localize("Update.InstallNew", "Install new version {0}"),
+                    published.TranslationVersion ?? Loc.Localize("Pack.Unversioned", "unversioned")),
+                Loc.Localize("Setup.InstallTip",
+                    "Downloads and unpacks it if it needs it, then serves it from the next start.\n"
+                    + "Nothing is fetched unless you press this."),
+                busy,
+                () => this.Install(this.config.PackSource));
+            return;
+        }
+
+        if (current)
+        {
+            var declared = pages.Update.State != UpdateState.NotDeclared;
+
+            ActionButton(
+                Loc.Localize("Update.Check", "Check for updates"),
+
+                // Before the restart a check compares against the pack still being served, which is
+                // the previous one, and offers to install what was just installed.
+                this.restartReason is not null
+                    ? Loc.Localize("Update.RestartFirstTip", "Restart the client first.")
+                    : declared
+                    ? Loc.Localize("Update.CheckTip",
+                        "Asks the address inside the installed pack whether a newer one is published.\n"
+                        + "A couple of kilobytes; nothing is downloaded or changed by asking.\n"
+                        + "This also runs by itself each time the plugin loads.")
+                    : Loc.Localize("Update.NoAddressTip",
+                        "This language pack carries no update address, so there is nothing to ask."),
+                busy || !declared,
+                this.checkForUpdate);
+            return;
+        }
+
+        ActionButton(
+            Loc.Localize("Setup.Install", "Install"),
+            Loc.Localize("Setup.InstallTip",
+                "Downloads and unpacks it if it needs it, then serves it from the next start.\n"
+                + "Nothing is fetched unless you press this."),
+            busy || source.Length == 0,
+            () => this.Install(this.config.PackSource));
+    }
+
+    /// <summary>One button with one id, so that changing its label does not make it a new widget.</summary>
+    private static void ActionButton(string label, string tooltip, bool disabled, Action press)
+    {
+        using (ImRaii.Disabled(disabled))
+        {
+            if (ImGui.Button($"{label}##packAction"))
+            {
+                press();
+            }
+        }
+
+        SetTooltip(tooltip);
+    }
+
+    /// <summary>
+    ///     The folder a pack was built into, and what this build makes of what is in it.
+    /// </summary>
+    /// <remarks>
+    ///     Drawn only while the chooser is on it. A folder is never copied: the pages are served
+    ///     where they lie, so adopting one is reading the manifest and writing the path down.
+    /// </remarks>
+    private void DrawOwnPack(ref bool changed)
+    {
+        var folder = this.config.OwnPackFolder;
+
+        ImGui.AlignTextToFramePadding();
+        ImGui.TextDisabled(Loc.Localize("Setup.OwnLabel", "Your language pack directory"));
+        ImGui.SameLine();
+
+        ImGui.SetNextItemWidth(-90f * ImGuiHelpers.GlobalScale);
+        if (ImGui.InputText("##packSource", ref folder, 2048))
+        {
+            this.config.OwnPackFolder = folder;
+            changed = true;
+        }
+
+        ImGui.SameLine();
+        if (ImGui.Button($"{Loc.Localize("Setup.Browse", "Browse...")}##packSource"))
+        {
+            this.BrowseForLanguagePack();
+        }
+
+        this.DrawFolderVerdict();
+
+        Link(Loc.Localize("Setup.UnbuiltFormat", "How a language pack is built"), KnownPacks.Format);
+    }
+
+    /// <summary>
+    ///     Whether what is in that folder is a pack this client can be given, said before it is.
+    /// </summary>
+    /// <remarks>
+    ///     The patch gate is the one worth seeing early: a pack built against another patch adopts
+    ///     cleanly and is refused at the next start.
+    /// </remarks>
+    private void DrawFolderVerdict()
+    {
+        if (this.config.OwnPackFolder.Trim().Length == 0)
+        {
+            ImGui.TextDisabled(Loc.Localize("Setup.OwnEmpty",
+                "The folder holding gubal-manifest.json."));
+            return;
+        }
+
+        var (manifest, error) = this.FolderPack();
+
+        if (manifest is null)
+        {
+            Icon(FontAwesomeIcon.ExclamationTriangle, Red);
+            ImGui.TextWrapped(error ?? string.Empty);
+            ImGui.PopStyleColor();
+            return;
+        }
+
+        var built = manifest.GameVersion;
+        var running = this.RunningGame();
+
+        if (built is { Length: > 0 } && running is { Length: > 0 } && !string.Equals(built, running, StringComparison.Ordinal))
+        {
+            Icon(FontAwesomeIcon.ExclamationTriangle, Amber);
+            ImGui.TextWrapped(string.Format(
+                Loc.Localize("Setup.OwnWrongPatch",
+                    "{0}, built for game {1}. The client is running {2}, so it will be refused at "
+                    + "startup rather than served. Rebuild it."),
+                manifest.DisplayName,
+                built,
+                running));
+            ImGui.PopStyleColor();
+            return;
+        }
+
+        Icon(FontAwesomeIcon.Check, Green);
+        ImGui.TextWrapped(string.Format(
+            Loc.Localize("Setup.OwnReady", "{0} ({1}), built for this patch."),
+            manifest.DisplayName,
+            manifest.TranslationVersion ?? Loc.Localize("Pack.Unversioned", "unversioned")));
+        ImGui.PopStyleColor();
+    }
+
+    /// <summary>What is in the folder now, re-read only when the path in the box changes.</summary>
+    /// <remarks>
+    ///     Memoised: this is a disk read and the caller is a draw loop. It does not notice a rebuild
+    ///     under an unchanged path, which is what "Use this folder" is for.
+    /// </remarks>
+    private (PackManifest? Manifest, string? Error) FolderPack()
+    {
+        var folder = this.config.OwnPackFolder.Trim();
+        if (string.Equals(this.checkedPath, folder, StringComparison.OrdinalIgnoreCase))
+        {
+            return this.checkedPack;
+        }
+
+        this.checkedPath = folder;
+        this.checkedPack = Directory.Exists(folder)
+            ? PackManifest.Read(folder)
+            : (null, string.Format(Loc.Localize("Setup.OwnNoFolder", "No folder at '{0}'."), folder));
+
+        return this.checkedPack;
+    }
+
+    /// <summary>The patch the client is running, read once. It cannot change while it is running.</summary>
+    private string? RunningGame() => this.runningGame ??= ExdRedirector.RunningGameVersion() ?? string.Empty;
+
+    /// <summary>Said in place of the action button for a language nobody publishes a pack for.</summary>
+    private static void DrawUnbuiltLanguage()
+    {
+        ImGui.TextWrapped(Loc.Localize("Setup.Unbuilt",
+            "No language pack available. Want to help translate it?"));
+
+        Link(Loc.Localize("Recruit.Ask", "Ask on GitHub Discussions"), KnownPacks.Discussions);
+        Link(Loc.Localize("Setup.UnbuiltFormat", "How a language pack is built"), KnownPacks.Format);
+    }
+
+    /// <summary>The chooser entry the stored source resolves to, worked out once and then remembered.</summary>
+    /// <remarks>
+    ///     <see cref="Array.FindIndex{T}(T[], Predicate{T})" /> answers -1 for an address that is
+    ///     nobody's published pack, which is <see cref="OwnPack" /> by construction.
+    /// </remarks>
+    private int Chosen()
+    {
+        // Derived every frame, not remembered: /gubal usepack flips it from chat.
+        if (this.config.LanguagePackPath.Length > 0 && !this.config.ServeLanguagePack)
+        {
+            return English;
+        }
+
+        if (this.chosenPack is { } already)
+        {
+            return already;
+        }
+
+        var source = this.config.PackSource.Trim();
+        var index = source.Length == 0
+            ? NoChoice
+            : Array.FindIndex(
+                KnownPacks.All,
+                p => p.Source is { } s && string.Equals(s, source, StringComparison.OrdinalIgnoreCase));
+
+        this.chosenPack = index;
+        return index;
+    }
+
+    private static string ChoiceLabel(int chosen) => chosen switch
+    {
+        English => Loc.Localize("Setup.LanguageEnglish", "English (no localization)"),
+        OwnPack => Loc.Localize("Setup.LanguageOwn", "A pack of your own"),
+        NoChoice => Loc.Localize("Setup.LanguageNone", "Choose one"),
+        _ => KnownPacks.All[chosen].Name,
+    };
+
+    /// <summary>Serves the installed pack again, when the chooser was showing the game's English.</summary>
+    /// <remarks>Only then: re-picking the language already showing must raise no banner.</remarks>
+    private void ServeAgain()
+    {
+        if (this.config.ServeLanguagePack)
+        {
+            return;
+        }
+
+        this.config.ServeLanguagePack = true;
+        this.NoteServing();
+    }
+
+    /// <summary>Raises the restart banner for switching the translation on or off.</summary>
+    private void NoteServing()
+    {
+        this.restartReason ??=
+            Loc.Localize("Restart.Serving",
+                "You changed the language. The game reads all of its text once, at startup, so this "
+                + "takes effect the next time it starts.");
     }
 
     /// <summary>
@@ -996,19 +1302,12 @@ internal sealed class ConfigWindow : Window
         using (ImRaii.Disabled(!available))
         {
             if (ImGui.Checkbox(
-                    Loc.Localize("Setup.Auto", "Fetch a newer pack while the game starts"), ref auto))
+                    Loc.Localize("Setup.Auto", "Auto-update at start"), ref auto))
             {
                 // Saves itself: it writes Dalamud's configuration as well as this one.
                 this.setAutoUpdate(auto);
             }
         }
-
-        SetTooltip(Loc.Localize("Setup.AutoTip",
-            "Checks at every start, and if a newer pack is published, downloads and installs it\n"
-            + "before the game reads its text, so the new translation is live in that session\n"
-            + "and nothing has to be restarted.\n\n"
-            + "The game's start is held while it downloads. Ticking this also turns on Dalamud's\n"
-            + "\"wait for plugins\", which is what makes holding it possible."));
 
         ImGui.Indent();
 
@@ -1037,8 +1336,6 @@ internal sealed class ConfigWindow : Window
     {
         if (this.dalamudWaits() is true)
         {
-            ImGui.TextDisabled(Loc.Localize("Boot.Waiting",
-                "Dalamud will hold the game's start until the update has finished."));
             return;
         }
 
@@ -1085,6 +1382,7 @@ internal sealed class ConfigWindow : Window
             if (result.Success)
             {
                 this.config.LanguagePackPath = result.Path;
+                this.config.InstalledFrom = source;
                 this.config.ServeLanguagePack = true;
                 this.save(this.config);
 
@@ -1116,28 +1414,13 @@ internal sealed class ConfigWindow : Window
         });
     }
 
-    /// <summary>What the loaded pack is, who made it, and how much of it is translated.</summary>
+    /// <summary>What the loaded pack is, who made it, and whether it is reaching the game.</summary>
     private static void DrawPackDetail(PackManifest pack, PageStatus pages)
     {
         var language = pack.LanguageName ?? pack.Language ?? Loc.Localize("Pack.UnknownLanguage", "unknown language");
         ImGui.TextDisabled(pack.Author is { Length: > 0 } author
             ? string.Format(Loc.Localize("Pack.LanguageByAuthor", "{0} by {1}"), language, author)
             : language);
-
-        // Reported as a fraction with its denominator named, not as a bare percentage. The
-        // denominator counts only sheets the corpus has opened at all, so a sheet nobody has started
-        // on is missing from both sides and the ratio flatters the pack — "of the game" would be a
-        // materially different and much smaller number.
-        if (pack.Rows > 0)
-        {
-            ImGui.TextDisabled(string.Format(
-                Loc.Localize("Pack.Lines",
-                    "{0} of {1} lines translated ({2}) across {3} page(s), in the sheets the pack covers"),
-                pack.Lines.ToString("N0"),
-                pack.Rows.ToString("N0"),
-                pack.TranslatedFraction.ToString("P1"),
-                pack.Pages.ToString("N0")));
-        }
 
         ImGui.TextDisabled(string.Format(
             Loc.Localize("Pack.BuiltFor", "Built for game {0}"),
@@ -1161,36 +1444,124 @@ internal sealed class ConfigWindow : Window
     ///     eaten the margin this plugin needs to attach before the client's boot reads — and no cost
     ///     anybody should pay by accident.
     /// </remarks>
-    private void DrawDiagnostics(ref bool changed)
+
+    /// <summary>
+    ///     The ask, and where to find a person. Nothing about using the plugin.
+    /// </summary>
+    private static void DrawHelpTab()
     {
-        if (!ImGui.CollapsingHeader(Loc.Localize("Diag.Header", "Diagnostics")))
+        Icon(FontAwesomeIcon.Globe, Blue);
+        ImGui.TextWrapped(Loc.Localize("Recruit.Title", "Want the game in your language?"));
+        ImGui.PopStyleColor();
+
+        ImGui.Indent();
+        ImGui.TextWrapped(Loc.Localize("Recruit.Body",
+            "If you are interested, use the links below to collaborate with your community."));
+
+        Link(Loc.Localize("Recruit.Format", "How a language pack is built"), KnownPacks.Format);
+        Link(Loc.Localize("Recruit.Ask", "Ask on GitHub Discussions"), KnownPacks.Discussions);
+
+        ImGui.Unindent();
+
+        ImGui.Spacing();
+        ImGui.Separator();
+        ImGui.Spacing();
+
+        Icon(FontAwesomeIcon.Comments, Blue);
+        ImGui.TextWrapped(Loc.Localize("Contact.Title", "Contact"));
+        ImGui.PopStyleColor();
+
+        ImGui.Indent();
+        ImGui.TextDisabled(Loc.Localize("Contact.Discord", "Discord"));
+        ImGui.SameLine();
+
+        // Selectable rather than text: a handle has to be copyable to be worth anything.
+        if (ImGui.Selectable(KnownPacks.Discord, false, ImGuiSelectableFlags.None,
+                ImGui.CalcTextSize(KnownPacks.Discord)))
+        {
+            ImGui.SetClipboardText(KnownPacks.Discord);
+        }
+
+        SetTooltip(Loc.Localize("Contact.Copy", "Click to copy."));
+        ImGui.Unindent();
+    }
+
+    /// <summary>Where a wrong line in the chosen pack is reported, or null when nowhere is known.</summary>
+    /// <remarks>
+    ///     The installed manifest wins, but only when it is the chosen language: otherwise a report
+    ///     about Italian would go to whoever maintains Spanish.
+    /// </remarks>
+    private static string? PackTracker(PageStatus pages, int chosen)
+    {
+        var manifest = pages.Manifest;
+        var known = chosen >= 0 ? KnownPacks.All[chosen] : KnownPacks.ForCode(manifest?.Language);
+
+        if (known is not { } pack)
+        {
+            return manifest?.IssuesUrl;
+        }
+
+        return string.Equals(pack.Code, manifest?.Language, StringComparison.OrdinalIgnoreCase)
+            ? manifest?.IssuesUrl ?? pack.Issues
+            : pack.Issues;
+    }
+
+    /// <summary>A link continuing the row above, or starting its own when the row is full.</summary>
+    /// <remarks>
+    ///     <c>SameLine</c> on a full row clips rather than wraps, and a combo, a button and two links
+    ///     do not fit at the minimum window width. Each link asks for its width first.
+    /// </remarks>
+    private static void LinkAfter(string label, string url)
+    {
+        var needed = ImGui.CalcTextSize(label).X + (ImGui.GetStyle().ItemSpacing.X * 2);
+
+        if (ImGui.GetItemRectMax().X + needed <= ImGui.GetWindowPos().X + ImGui.GetContentRegionMax().X)
+        {
+            ImGui.SameLine();
+
+            // Vertically centred against whatever it followed: plain text sits at the top of a row a
+            // frame tall otherwise.
+            ImGui.AlignTextToFramePadding();
+        }
+
+        Link(label, url);
+    }
+
+    /// <summary>Text that opens a page in the browser. Never drawn for an address we lack.</summary>
+    /// <remarks>
+    ///     Underlined on hover and never otherwise: this window is full of coloured text that does
+    ///     nothing, so colour alone does not mark a link. The address goes in the tooltip.
+    /// </remarks>
+    private static void Link(string label, string url)
+    {
+        using (ImRaii.PushColor(ImGuiCol.Text, Blue))
+        {
+            ImGui.TextUnformatted(label);
+        }
+
+        if (!ImGui.IsItemHovered())
         {
             return;
         }
 
-        var probe = this.config.ProbeSqPack;
-        if (ImGui.Checkbox(Loc.Localize("Diag.Probe", "Log every Excel page the game reads"), ref probe))
+        var min = ImGui.GetItemRectMin();
+        var max = ImGui.GetItemRectMax();
+        ImGui.GetWindowDrawList()
+            .AddLine(new Vector2(min.X, max.Y), new Vector2(max.X, max.Y), ImGui.GetColorU32(Blue));
+
+        ImGui.SetMouseCursor(ImGuiMouseCursor.Hand);
+        SetTooltip(url);
+
+        if (ImGui.IsMouseClicked(ImGuiMouseButton.Left))
         {
-            this.config.ProbeSqPack = probe;
-            changed = true;
+            Util.OpenLink(url);
         }
-
-        SetTooltip(Loc.Localize("Diag.ProbeTip",
-            "Writes one line per page to /xllog, redirecting nothing.\n"
-            + "Attaches at load, so it takes effect on the next client start."));
-
     }
 
-
     /// <summary>
-    ///     Picks a <c>.zip</c> or an already-unpacked folder, and fills the source box with it.
+    ///     Picks the folder a pack was built into, and fills the box with it.
     /// </summary>
-    /// <remarks>
-    ///     A file dialog rather than a folder one, with a filter admitting both: restricting it to
-    ///     folders would leave the commonest local case — a freshly downloaded zip — unhelped. Fills
-    ///     the box and stops there, because installing on the click would unpack thousands of files
-    ///     before the person has read what they picked.
-    /// </remarks>
+    /// <remarks>Fills the box and stops there, so the verdict under it can be read first.</remarks>
     private void BrowseForLanguagePack()
     {
         var startPath = this.config.LanguagePackPath;
@@ -1199,21 +1570,20 @@ internal sealed class ConfigWindow : Window
             startPath = string.Empty;
         }
 
-        this.fileDialogs.OpenFileDialog(
-            Loc.Localize("Setup.PickerTitle", "Select a language pack (.zip) or an unpacked folder"),
-            ".zip,.*",
+        this.fileDialogs.OpenFolderDialog(
+            Loc.Localize("Setup.PickerTitle", "Select the folder your language pack was built into"),
             (confirmed, selected) =>
             {
-                if (!confirmed || selected.Count == 0 || string.IsNullOrWhiteSpace(selected[0]))
+                if (!confirmed || string.IsNullOrWhiteSpace(selected))
                 {
                     return;
                 }
 
-                this.config.PackSource = selected[0];
+                this.config.OwnPackFolder = selected;
                 this.save(this.config);
             },
-            selectionCountMax: 1,
-            startPath);
+            startPath,
+            isModal: false);
     }
 
     /// <summary>
