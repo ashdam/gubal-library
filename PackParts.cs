@@ -88,6 +88,14 @@ internal static class PackParts
                         "The lines across the bottom of the screen while a cutscene is playing."),
                     ["cut_scene/"]),
 
+                // The scene before the player has a quest at all, so it belongs with the story
+                // rather than with the city NPCs who say the same kind of thing afterwards.
+                new TranslationPart(
+                    Loc.Localize("Part.Opening.Name", "The opening scene of your starting city"),
+                    Loc.Localize("Part.Opening.Desc",
+                        "What the first NPC says to a brand new character, before the first quest."),
+                    ["opening/"]),
+
                 // Both title sheets: 5,367 CompleteJournal rows duplicate Quest and the Journal shows both.
                 new TranslationPart(
                     Loc.Localize("Part.QuestNames.Name", "Quest names"),
@@ -127,6 +135,24 @@ internal static class PackParts
                         + "trade-ins and your estate."),
                     ["custom/", "customtalk"]),
 
+                // The inn menu is split across custom/ and warp/, and transport/ is the same window
+                // one destination further out. Three families, one thing to a player.
+                new TranslationPart(
+                    Loc.Localize("Part.InnsAndTravel.Name", "Inns, aetherytes and chocobo porters"),
+                    Loc.Localize("Part.InnsAndTravel.Desc",
+                        "The attendant who greets you at an inn and the menu they open, the aethernet "
+                        + "list you pick a shard from, the chocobo porter stands, the rental stables "
+                        + "and the wedding desk."),
+                    ["warp/", "transport/"]),
+
+                // The levemete's own window, not the leve text: that is in the quest group.
+                new TranslationPart(
+                    Loc.Localize("Part.Counters.Name", "Levemete and exchange counters"),
+                    Loc.Localize("Part.Counters.Desc",
+                        "The window a levemete opens when you hand work in, and the titles and "
+                        + "buttons of the counters where you exchange tokens for something else."),
+                    ["leve/", "shop/"]),
+
                 // Balloon and NpcYell separate by under 3% on every probe and share 265 strings word for word.
                 //
                 // The red "sealed off" banner is LogMessage#2012-#2013, so it belongs to the chat log box.
@@ -156,7 +182,19 @@ internal static class PackParts
                         + "same for the large field zones and the big group content: Eureka, Bozja, "
                         + "Zadnor, the Occult Crescent, the Ishgardian Restoration and the Diadem."),
                     ["instancecontenttextdata", "contenttalk", "publiccontenttextdata",
-                     "massivepccontenttextdata", "partycontenttextdata", "vvdvoteroutelabel"]),
+                     "massivepccontenttextdata", "partycontenttextdata", "vvdvoteroutelabel",
+                     // dungeon/ is boss voices, not menus: «We are Calcabrina! Adorable dolls!»
+                     "dungeon/"]),
+
+                // The NPC standing outside, not the one inside: raid/ meets you at the entrance and
+                // content/ is the deep dungeons' own cast.
+                new TranslationPart(
+                    Loc.Localize("Part.DutyGuides.Name", "The guides who wait outside them"),
+                    Loc.Localize("Part.DutyGuides.Desc",
+                        "The NPC at a raid entrance who explains what lies beyond and the menu they "
+                        + "open, the cast that stands at the bottom of the deep dungeons, and the "
+                        + "guildhest guide's window."),
+                    ["raid/", "content/", "guild_order/"]),
 
                 // What the object says; what it is called is EObjName, in the interface group.
                 new TranslationPart(
@@ -305,6 +343,15 @@ internal static class PackParts
                         + "a duty makes including the red banner when a zone is sealed off, and every "
                         + "\"unable to\" the game answers with."),
                     ["logmessage"]),
+
+                // A prompt, not a log line, but the same kind of thing to a player: the world
+                // stopping you and asking. `story/` is one row and the game itself says to delete it.
+                new TranslationPart(
+                    Loc.Localize("Part.WorldPrompts.Name", "What the world asks before it lets you pass"),
+                    Loc.Localize("Part.WorldPrompts.Desc",
+                        "The prompt that stops you at a boundary and its buttons, such as being asked "
+                        + "to dismount before going further."),
+                    ["system/", "story/"]),
             ],
             Loc.Localize("Group.Log.Warning",
                 "Combat parsers and several plugins read these lines in English and will not "
