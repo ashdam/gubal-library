@@ -87,19 +87,21 @@ it: the pack replaces the game's own English, so that English is what comes back
 
 ## Commands
 
+The last three take no argument: each one flips what it names.
+
 | Command | Effect |
 |---|---|
 | `/gubal` | Open the settings window |
 | `/gubal status` | The installed pack, its version, coverage, and reads answered this session |
 | `/gubal parts` | Which parts of the translation are switched on, by group |
-| `/gubal check` | Ask now whether a newer pack is published |
-| `/gubal usepack` | Switch between the pack and the game's own English from the next start |
-| `/gubal autoupdate` | Turn the startup fetch on or off, with Dalamud's wait for plugins |
-| `/gubal probesqpack` | Diagnostic: log every Excel page the game reads, redirecting nothing |
+| `/gubal check` | Ask now whether a newer pack is published, and say either way |
+| `/gubal usepack` | Toggle: the pack or the game's own English, from the next start. The way back when the settings window cannot be reached |
+| `/gubal autoupdate` | Toggle: the startup fetch, along with Dalamud's wait for plugins |
+| `/gubal probesqpack` | Toggle: log every Excel page the game reads, redirecting nothing. Chat only, there is no checkbox |
 
-`probesqpack` attaches when the plugin loads, so it takes effect at the next client start. It checks
-that the plugin still attaches before the game's first read, which is the one property this whole
-approach depends on.
+`probesqpack` attaches when the plugin loads and only then, so it takes effect at the next client
+start. It exists to check that the plugin still attaches before the game's first read, which is the
+one property this whole approach depends on.
 
 ## Contributors
 
