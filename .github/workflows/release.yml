@@ -127,16 +127,16 @@ jobs:
           generate_release_notes: true
 
   # repo.json is the store front: Dalamud polls it and compares AssemblyVersion against what the
-  # tester has installed. Publishing a release without updating it means nobody is ever told.
+  # player has installed. Publishing a release without updating it means nobody is ever told.
   # The download links point at /releases/latest/ and never change, so only the version and the
   # metadata copied from the built manifest need rewriting.
   update-repo-json:
-    name: "Update repo.json on main"
+    name: "Push the new repo.json to a branch"
     if: "startsWith(github.ref, 'refs/tags/')"
     needs: ["publish-github-release"]
     runs-on: "ubuntu-latest"
-    # This job does keep its credentials -- pushing to main is the whole point of it -- but it is
-    # the only job that does, and it builds nothing and runs no third-party action.
+    # This job keeps its credentials -- pushing the branch is the whole point of it -- but it is the
+    # only job that does, and it builds nothing and runs no third-party action.
     permissions:
       contents: "write"
     steps:
@@ -185,21 +185,35 @@ jobs:
           }
           Write-Host "repo.json validated: $($parsed.Count) entry(s), $($parsed[0].InternalName) $($parsed[0].AssemblyVersion)"
 
-      - name: "Commit and push"
+      # A branch, not main: main requires a pull request and rejects a direct push with GH013. The
+      # branch is what the maintainer opens the pull request from, and merging it is what makes
+      # Dalamud offer the new version.
+      - name: "Commit and push a branch"
         shell: "pwsh"
         run: |
           git config user.name  'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git add repo.json
 
-          # --quiet exits 1 when there is something staged, which is the normal path here. Swallow the
-          # code deliberately: pwsh steps fail on a non-zero $LASTEXITCODE left behind at the end.
+          # --quiet exits 1 when something is staged, which is the normal path. Read at once so the
+          # commands below can fail the job: an unconditional `exit 0` here reported success over a
+          # rejected push, and repo.json stayed two releases behind for four days.
           git diff --cached --quiet
-          if ($LASTEXITCODE -ne 0) {
-            $manifest = Get-Content 'assets/GubalLibrary.json' -Raw | ConvertFrom-Json
-            git commit -m "repo.json: $($manifest.AssemblyVersion)"
-            git push origin main
-          } else {
-            Write-Host 'repo.json already current, nothing to commit.'
+          $staged = $LASTEXITCODE -ne 0
+
+          if (-not $staged) {
+            Write-Host 'repo.json already current, nothing to do.'
+            exit 0
           }
-          exit 0
+
+          $manifest = Get-Content 'assets/GubalLibrary.json' -Raw | ConvertFrom-Json
+          $version = $manifest.AssemblyVersion
+          $branch = "repo-json/$version"
+
+          git commit -m "repo.json: $version"
+          if ($LASTEXITCODE -ne 0) { throw 'git commit failed.' }
+
+          git push --force origin "HEAD:refs/heads/$branch"
+          if ($LASTEXITCODE -ne 0) { throw "pushing $branch failed: repo.json is not published." }
+
+          Write-Host "Pushed $branch. Open a pull request from it and merge it to publish $version."
