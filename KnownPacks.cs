@@ -25,7 +25,7 @@ internal readonly record struct KnownPack(
 internal static class KnownPacks
 {
     /// <summary>Where the pack format is documented, for a language nobody has built yet.</summary>
-    public const string Format = "https://github.com/ashdam/gubal-library/blob/main/LANGUAGE-PACK.md";
+    public const string Format = "https://eorzea-in-spanish.ashdam.workers.dev/localize/en.html";
 
     /// <summary>The plugin's own tracker. Not for a wrong line: see <see cref="KnownPack.Issues" />.</summary>
     public const string PluginIssues = "https://github.com/ashdam/gubal-library/issues";
@@ -62,15 +62,13 @@ internal static class KnownPacks
             "Português (Brasil)",
             "https://github.com/ashdam/ffxiv-language-pack-pt-br/releases/latest/download/ffxiv-language-pack-pt-br.zip",
             "https://eorzea-in-spanish.ashdam.workers.dev/pt-br/",
-            "https://github.com/ashdam/ffxiv-language-pack-pt-br/issues",
-            Published: false),
+            "https://github.com/ashdam/ffxiv-language-pack-pt-br/issues"),
         new(
             "pl",
             "Polski",
             "https://github.com/ashdam/ffxiv-language-pack-pl/releases/latest/download/ffxiv-language-pack-pl.zip",
             "https://eorzea-in-spanish.ashdam.workers.dev/pl/",
-            "https://github.com/ashdam/ffxiv-language-pack-pl/issues",
-            Published: false),
+            "https://github.com/ashdam/ffxiv-language-pack-pl/issues"),
     ];
 
     /// <summary>

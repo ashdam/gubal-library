@@ -355,7 +355,7 @@
     "message": "Language pack no disponible. ¿Quieres colaborar en su traducción?",
     "description": "Shown in place of the action button for a language nobody has built."
   },
-  "Setup.UnbuiltFormat": { "message": "Cómo se construye un language pack", "description": "Button that opens LANGUAGE-PACK.md." },
+  "Setup.UnbuiltFormat": { "message": "Cómo se construye un language pack", "description": "Button that opens the localization site." },
   "Setup.UnbuiltTutorial": { "message": "Cómo traducir este idioma", "description": "Link to the per-language localize page." },
 
   "Setup.Browse": { "message": "Examinar...", "description": "Button that opens the file picker." },
@@ -385,7 +385,7 @@
     "message": "Si te interesa, usa los enlaces de abajo para colaborar con tu comunidad.",
     "description": "Body of the recruiting block."
   },
-  "Recruit.Format": { "message": "Cómo se construye un language pack", "description": "Link to LANGUAGE-PACK.md." },
+  "Recruit.Format": { "message": "Cómo se construye un language pack", "description": "Link to the localization site." },
   "Recruit.Ask": { "message": "Pregunta en GitHub Discussions", "description": "Link to the repository's discussions." },
 
   "Contact.Title": { "message": "Contacto", "description": "Heading of the contact block." },

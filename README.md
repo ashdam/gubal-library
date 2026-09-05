@@ -10,21 +10,12 @@ Named for the Great Gubal Library, Sharlayan's repository of all written knowled
 
 The plugin lists the packs the community publishes, and downloads the one you pick from the address its own maintainers gave. Any language works.
 
-Want to build a pack for your language? → **[LANGUAGE-PACK.md](LANGUAGE-PACK.md)**
-
 ## Language packs
 
+**Players:** pick your language at **[eorzea-in-spanish.ashdam.workers.dev](https://eorzea-in-spanish.ashdam.workers.dev/)**. Each language has its own page with the install steps, the coverage and where to report a wrong line.
 
-| Language | Pack | Github Releases | Support |
-|---|---|---| --- |
-| Español | [Eorzea en español](https://eorzea-in-spanish.ashdam.workers.dev/es/) | [Releases](https://github.com/ashdam/ffxiv-language-pack-es-es/releases) | [Issues](https://github.com/ashdam/ffxiv-language-pack-es-es/issues) |
-| Italiano | [Eorzea in italiano](https://eorzea-in-spanish.ashdam.workers.dev/it/) | [Releases](https://github.com/ashdam/ffxiv-language-pack-it/releases) | [Issues](https://github.com/ashdam/ffxiv-language-pack-it/issues) |
-| Português (Brasil) | [Eorzea em português](https://eorzea-in-spanish.ashdam.workers.dev/pt-br/) | none published yet | [Issues](https://github.com/ashdam/ffxiv-language-pack-pt-br/issues) |
-| Polski | [Eorzea po polsku](https://eorzea-in-spanish.ashdam.workers.dev/pl/) | none published yet | [Issues](https://github.com/ashdam/ffxiv-language-pack-pl/issues) |
-| Any other | [build one](LANGUAGE-PACK.md) | — | — |
+**Translators:** the **[localization guide](https://eorzea-in-spanish.ashdam.workers.dev/localize/en.html)** explains how a pack is built, for a language that has one and for one that does not yet. Questions go to [Discussions](https://github.com/ashdam/gubal-library/discussions).
 
-**Want yours on that list?**. Start at [LANGUAGE-PACK.md](LANGUAGE-PACK.md) and ask on
-[Discussions](https://github.com/ashdam/gubal-library/discussions).
 ## Examples
 
 The live game with a Spanish pack installed. Not a mock-up and not an overlay: the game read those
