@@ -356,6 +356,7 @@
     "description": "Shown in place of the action button for a language nobody has built."
   },
   "Setup.UnbuiltFormat": { "message": "Cómo se construye un language pack", "description": "Button that opens LANGUAGE-PACK.md." },
+  "Setup.UnbuiltTutorial": { "message": "Cómo traducir este idioma", "description": "Link to the per-language localize page." },
 
   "Setup.Browse": { "message": "Examinar...", "description": "Button that opens the file picker." },
   "Setup.Install": { "message": "Instalar", "description": "Button." },

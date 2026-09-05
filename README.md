@@ -17,10 +17,11 @@ Want to build a pack for your language? → **[LANGUAGE-PACK.md](LANGUAGE-PACK.m
 
 | Language | Pack | Github Releases | Support |
 |---|---|---| --- |
-| Español | [Eorzea en español](https://eorzea-in-spanish.ashdam.workers.dev/) | [Releases](https://github.com/ashdam/ffxiv-language-pack-es/releases) | [Issues](https://github.com/ashdam/ffxiv-language-pack-es/issues) |
-| Italiano | [ffxiv-language-pack-it](https://github.com/ashdam/ffxiv-language-pack-it) | [Releases](https://github.com/ashdam/ffxiv-language-pack-it/releases) | [Issues](https://github.com/ashdam/ffxiv-language-pack-it/issues) |
-| Português | none published yet | — |
-| Any other | [build one](LANGUAGE-PACK.md) | — |
+| Español | [Eorzea en español](https://eorzea-in-spanish.ashdam.workers.dev/es/) | [Releases](https://github.com/ashdam/ffxiv-language-pack-es-es/releases) | [Issues](https://github.com/ashdam/ffxiv-language-pack-es-es/issues) |
+| Italiano | [Eorzea in italiano](https://eorzea-in-spanish.ashdam.workers.dev/it/) | [Releases](https://github.com/ashdam/ffxiv-language-pack-it/releases) | [Issues](https://github.com/ashdam/ffxiv-language-pack-it/issues) |
+| Português (Brasil) | [Eorzea em português](https://eorzea-in-spanish.ashdam.workers.dev/pt-br/) | none published yet | [Issues](https://github.com/ashdam/ffxiv-language-pack-pt-br/issues) |
+| Polski | [Eorzea po polsku](https://eorzea-in-spanish.ashdam.workers.dev/pl/) | none published yet | [Issues](https://github.com/ashdam/ffxiv-language-pack-pl/issues) |
+| Any other | [build one](LANGUAGE-PACK.md) | — | — |
 
 **Want yours on that list?**. Start at [LANGUAGE-PACK.md](LANGUAGE-PACK.md) and ask on
 [Discussions](https://github.com/ashdam/gubal-library/discussions).

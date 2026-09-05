@@ -40,32 +40,35 @@ internal static class KnownPacks
     /// <summary>Where a language's translators are pointed: one tutorial page per language.</summary>
     private const string Tutorial = "https://eorzea-in-spanish.ashdam.workers.dev/localize/";
 
+    /// <summary>The page that walks a translator through building the pack for one language.</summary>
+    public static string TutorialFor(string code) => Tutorial + code.ToLowerInvariant() + ".html";
+
     public static readonly KnownPack[] All =
     [
         new(
             "es-ES",
             "Español",
             "https://github.com/ashdam/ffxiv-language-pack-es-es/releases/latest/download/ffxiv-language-pack-es-es.zip",
-            "https://eorzea-in-spanish.ashdam.workers.dev/",
+            "https://eorzea-in-spanish.ashdam.workers.dev/es/",
             "https://github.com/ashdam/ffxiv-language-pack-es-es/issues"),
         new(
             "it",
             "Italiano",
             "https://github.com/ashdam/ffxiv-language-pack-it/releases/latest/download/ffxiv-language-pack-it.zip",
-            Tutorial + "it.html",
+            "https://eorzea-in-spanish.ashdam.workers.dev/it/",
             "https://github.com/ashdam/ffxiv-language-pack-it/issues"),
         new(
             "pt-BR",
             "Português (Brasil)",
             "https://github.com/ashdam/ffxiv-language-pack-pt-br/releases/latest/download/ffxiv-language-pack-pt-br.zip",
-            Tutorial + "pt-br.html",
+            "https://eorzea-in-spanish.ashdam.workers.dev/pt-br/",
             "https://github.com/ashdam/ffxiv-language-pack-pt-br/issues",
             Published: false),
         new(
             "pl",
             "Polski",
             "https://github.com/ashdam/ffxiv-language-pack-pl/releases/latest/download/ffxiv-language-pack-pl.zip",
-            Tutorial + "pl.html",
+            "https://eorzea-in-spanish.ashdam.workers.dev/pl/",
             "https://github.com/ashdam/ffxiv-language-pack-pl/issues",
             Published: false),
     ];

@@ -907,7 +907,7 @@ internal sealed class ConfigWindow : Window
 
         if (chosen >= 0 && !KnownPacks.All[chosen].Published)
         {
-            DrawUnbuiltLanguage();
+            DrawUnbuiltLanguage(KnownPacks.All[chosen]);
         }
         else if (chosen == OwnPack)
         {
@@ -1277,11 +1277,12 @@ internal sealed class ConfigWindow : Window
     private string? RunningGame() => this.runningGame ??= ExdRedirector.RunningGameVersion() ?? string.Empty;
 
     /// <summary>Said in place of the action button for a language nobody publishes a pack for.</summary>
-    private static void DrawUnbuiltLanguage()
+    private static void DrawUnbuiltLanguage(KnownPack pack)
     {
         ImGui.TextWrapped(Loc.Localize("Setup.Unbuilt",
             "No language pack available. Want to help translate it?"));
 
+        Link(Loc.Localize("Setup.UnbuiltTutorial", "How to translate this language"), KnownPacks.TutorialFor(pack.Code));
         Link(Loc.Localize("Recruit.Ask", "Ask on GitHub Discussions"), KnownPacks.Discussions);
         Link(Loc.Localize("Setup.UnbuiltFormat", "How a language pack is built"), KnownPacks.Format);
     }
@@ -1517,7 +1518,6 @@ internal sealed class ConfigWindow : Window
             ImGui.TextDisabled(string.Format(
                 Loc.Localize("Pack.Served", "{0} read(s) answered from disk this session"),
                 pages.ServedCount.ToString("N0")));
-        }
 
             // Show the fonts only when the pack has some. Show served against registered: the
             // client reads the fonts once at boot, so "registered, not served" is the fault to find.
@@ -1528,6 +1528,7 @@ internal sealed class ConfigWindow : Window
                     pages.FontsServedCount.ToString("N0"),
                     pages.FontCount.ToString("N0")));
             }
+        }
 
     }
 
@@ -1698,9 +1699,9 @@ internal sealed class ConfigWindow : Window
 /// <param name="Active">The redirection is installed and holding pages.</param>
 /// <param name="PageCount">How many pages it would answer for.</param>
 /// <param name="ServedCount">How many reads it has actually answered — the number that proves it.</param>
-/// <param name="Error">Why it is not installed, when it is not. Null when it is, or when nobody asked.</param>
 /// <param name="FontCount">Font files the pack registered. Zero for most packs.</param>
 /// <param name="FontsServedCount">Font reads answered from disk. Zero with fonts registered means the client read them before the hook.</param>
+/// <param name="Error">Why it is not installed, when it is not. Null when it is, or when nobody asked.</param>
 /// <param name="Manifest">What the loaded pack says about itself. Null when none loaded.</param>
 /// <param name="Update">What the background check made of the pack's declared update address.</param>
 internal readonly record struct PageStatus(
