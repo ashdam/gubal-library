@@ -347,8 +347,14 @@ internal sealed class ConfigWindow : Window
         // On the heading itself as well as on the marker beside it. Hovering the words is what
         // people do; hanging everything off a small icon left two groups with no explanation at
         // all — and, because the picture rides along with the tooltip, no picture either.
+        // A group with no text and no picture gets no tooltip and no marker.
         var explain = ExplainGroup(group);
-        this.Tip(explain, group.Image);
+        var tells = explain.Length > 0 || group.Image is not null;
+
+        if (tells)
+        {
+            this.Tip(explain, group.Image);
+        }
 
         if (off > 0)
         {
@@ -357,9 +363,10 @@ internal sealed class ConfigWindow : Window
                 Loc.Localize("Parts.Count", "{0} of {1} on"), group.Parts.Length - off, group.Parts.Length));
         }
 
-        // Every group gets one. A row with no marker at all reads as a row with nothing to say,
-        // which was wrong for four of the six.
-        this.Marker(explain, group.Image);
+        if (tells)
+        {
+            this.Marker(explain, group.Image);
+        }
 
         if (!node)
         {
@@ -368,11 +375,8 @@ internal sealed class ConfigWindow : Window
 
         foreach (var part in group.Parts)
         {
-            // The group's own picture stays on the group's marker rather than being repeated on
-            // every row underneath it. A part that has one of its own still shows it: the pair for
-            // the Duty Finder is a photograph of that window and says nothing about the retainer
-            // bell or the title screen sharing its group.
-            this.DrawPart(part, part.Part.Name, part.Part.Warning, part.Part.Image, ref changed);
+            // The group's picture and warning stay on the heading; Explain adds the part's own.
+            this.DrawPart(part, part.Part.Name, null, part.Part.Image, ref changed);
         }
     }
 
@@ -440,22 +444,12 @@ internal sealed class ConfigWindow : Window
     ///     part of the tooltip that cannot drift from what is served.
     /// </remarks>
     /// <param name="groupWarning">The group's caveat, when a group has collapsed into this one part.</param>
-    private static string Explain(PartView view, string? groupWarning)
-    {
-        var text = view.Part.Description;
+    private static string Explain(PartView view, string? groupWarning) =>
+        Paragraphs(view.Part.Description, view.Part.Warning, groupWarning);
 
-        if (view.Part.Warning is { Length: > 0 } own)
-        {
-            text += "\n\n" + own;
-        }
-
-        if (groupWarning is { Length: > 0 } group)
-        {
-            text += "\n\n" + group;
-        }
-
-        return text;
-    }
+    /// <summary>The texts that are there, a blank line between each. A text left out leaves no gap.</summary>
+    private static string Paragraphs(params string?[] texts) =>
+        string.Join("\n\n", texts.Where(t => t is { Length: > 0 }));
 
     /// <summary>An amber "!" that carries the same words as the control beside it.</summary>
     /// <remarks>
@@ -476,23 +470,8 @@ internal sealed class ConfigWindow : Window
         this.Tip(tooltip, image, sheets);
     }
 
-    /// <summary>What a group's tooltip says: its caveat if it has one, then what is inside it.</summary>
-    /// <remarks>
-    ///     Naming the parts matters more than it looks. "Duty descriptions" is not a phrase anybody
-    ///     has met before; "Duty Finder descriptions, Guildhest briefings, Gold Saucer" is three
-    ///     things they have seen on screen.
-    /// </remarks>
-    private static string ExplainGroup(GroupView group)
-    {
-        var text = group.Description;
-
-        if (group.Warning is { Length: > 0 } warning)
-        {
-            text += "\n\n" + warning;
-        }
-
-        return text + "\n\nIn this group: " + string.Join(", ", group.Parts.Select(p => p.Part.Name)) + ".";
-    }
+    /// <summary>A group's tooltip: its description, then its warning if it has one.</summary>
+    private static string ExplainGroup(GroupView group) => Paragraphs(group.Description, group.Warning);
 
     /// <summary>
     ///     A tooltip that can carry a picture of what the setting does.

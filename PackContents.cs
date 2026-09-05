@@ -255,7 +255,7 @@ internal sealed class PackContents
         {
             groups.Add(new GroupView(
                 PackParts.OtherGroupName,
-                Loc.Localize("Group.Other.Desc",
+                Loc.Localize("Group.Other.Tooltip",
                     "Text this pack translates that this build of the plugin has no name for, listed "
                     + "under the game's own name for it. A pack in another language may well cover "
                     + "things this one does not."),

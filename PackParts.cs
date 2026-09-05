@@ -37,6 +37,7 @@ internal sealed record PartGroup(
 /// <remarks>
 ///     <b>The plugin owns this table, not the pack</b>, so it describes a pack in any language and one
 ///     not built yet. A sheet it does not name still shows, under <see cref="OtherGroupName" />.
+///     The English is the fallback beside each key; the other languages are <c>loc/&lt;code&gt;.json</c>.
 /// </remarks>
 internal static class PackParts
 {
@@ -44,15 +45,12 @@ internal static class PackParts
     public static string OtherGroupName =>
         Loc.Localize("Group.Other.Name", "Other text in this pack");
 
-    // Split a group only where the split matches something the player can point at.
-
     /// <summary>
     ///     The groups, in the order they are drawn.
     /// </summary>
     /// <remarks>
-    ///     Ordered the way somebody reads down them looking for a thing, not by size. <b>Every one of
-    ///     the pack's 31 keys is named exactly once below</b>, and matching is exact: a key not listed
-    ///     falls to the leftovers box, so a sheet is never covered by a similarly named neighbour.
+    ///     Matching is exact: a key not listed falls to the leftovers box, so a sheet is never
+    ///     covered by a similarly named neighbour. A sheet appears under exactly one part.
     /// </remarks>
     public static PartGroup[] Groups => groups ??= Build();
 
@@ -67,301 +65,279 @@ internal static class PackParts
     private static PartGroup[] Build() =>
     [
         new PartGroup(
-            Loc.Localize("Group.Story.Name", "Quests and cutscenes"),
-            Loc.Localize("Group.Story.Desc",
-                "Everything a quest is made of: what people say to you, what you are told to go and "
-                + "do, and the subtitles while a cutscene plays."),
+            Loc.Localize("Group.Story.Name", "Quests and story"),
+            Loc.Localize("Group.Story.Tooltip", "Text of the main scenario, side quests and cutscenes."),
             [
-                // One box for all four kinds of row in quest/: they share a page and cannot be split.
                 new TranslationPart(
                     Loc.Localize("Part.QuestText.Name", "Quest dialogue, journal and objectives"),
-                    Loc.Localize("Part.QuestText.Desc",
-                        "The text in the box when you talk to somebody about a quest, the summary "
-                        + "written into your Journal as the story advances, the steps listed in the "
-                        + "tracker down the right of the screen, and the notices a quest posts while "
-                        + "you are on it."),
-                    ["quest/"]),
+                    Loc.Localize("Part.QuestText.Tooltip",
+                        "Shows the text when you talk to NPCs about a quest, the story summaries in the "
+                        + "journal, the list of steps in the tracker and the quest pop-up notices."),
+                    [
+                        "quest/",   // Quest dialogue, journal entries, tracker objectives and quest notices. One file per quest.
+                        "leve/",    // Levequest dialogue and the levemete window.
+                        "opening/", // Dialogue of the first NPC a new character meets.
+                    ],
+                    Image: "story"),
 
                 new TranslationPart(
                     Loc.Localize("Part.Cutscenes.Name", "Cutscene subtitles"),
-                    Loc.Localize("Part.Cutscenes.Desc",
-                        "The lines across the bottom of the screen while a cutscene is playing."),
-                    ["cut_scene/"]),
+                    Loc.Localize("Part.Cutscenes.Tooltip",
+                        "Translates the subtitle lines at the bottom of the screen during voiced cutscenes."),
+                    [
+                        "cut_scene/", // The voiced cutscenes.
+                    ]),
 
-                // The scene before the player has a quest at all, so it belongs with the story
-                // rather than with the city NPCs who say the same kind of thing afterwards.
-                new TranslationPart(
-                    Loc.Localize("Part.Opening.Name", "The opening scene of your starting city"),
-                    Loc.Localize("Part.Opening.Desc",
-                        "What the first NPC says to a brand new character, before the first quest."),
-                    ["opening/"]),
-
-                // Both title sheets: 5,367 CompleteJournal rows duplicate Quest and the Journal shows both.
                 new TranslationPart(
                     Loc.Localize("Part.QuestNames.Name", "Quest names"),
-                    Loc.Localize("Part.QuestNames.Desc",
-                        "Only the names of quests, levequests and duties: in the tracker, in the "
-                        + "Journal, and in the Unending Journey at an inn where you replay "
-                        + "cutscenes. Not the text inside them."),
-                    ["quest", "completejournal"],
+                    Loc.Localize("Part.QuestNames.Tooltip",
+                        "Translates only the quest titles (in the tracker, the journal and the Unending Journey)."),
+                    [
+                        "quest",           // Quest titles, as the journal and the quest list show them.
+                        "completejournal", // The Unending Journey and the completed-quest log. Repeats the titles above.
+                    ],
                     Loc.Localize("Part.QuestNames.Warning",
-                        "The names and the text are separate boxes, so switching one and not the "
-                        + "other gives you English titles over translated objectives, or the other "
-                        + "way round.")),
-            ],
-            Image: "story"),
-
-        new PartGroup(
-            Loc.Localize("Group.People.Name", "What the people around you say"),
-            Loc.Localize("Group.People.Desc",
-                "The talk you can walk past without stopping, and the talk you get when you do stop."),
-            [
-                // GoldSaucerTalk is the Cactpot crier; GoldSaucerTextData is scoreboards, in the interface box.
-                new TranslationPart(
-                    Loc.Localize("Part.Talk.Name", "Talking to someone"),
-                    Loc.Localize("Part.Talk.Desc",
-                        "The box that opens when you speak to somebody who has nothing to do with a "
-                        + "quest, including the Gold Saucer's criers and the attendants who sell you "
-                        + "a Cactpot ticket."),
-                    ["defaulttalk", "goldsaucertalk"]),
-
-                // custom/ mixes talk and service windows in one file, and CustomTalk must travel with it.
-                new TranslationPart(
-                    Loc.Localize("Part.AskAbout.Name", "\"Ask about...\" menus and service windows"),
-                    Loc.Localize("Part.AskAbout.Desc",
-                        "The list of topics an NPC offers when they have several things to tell you, "
-                        + "what they say once you pick one, and the windows you work in afterwards: "
-                        + "the retainer, the aetheryte, the levequest board, linkshells, relic "
-                        + "trade-ins and your estate."),
-                    ["custom/", "customtalk"]),
-
-                // The inn menu is split across custom/ and warp/, and transport/ is the same window
-                // one destination further out. Three families, one thing to a player.
-                new TranslationPart(
-                    Loc.Localize("Part.InnsAndTravel.Name", "Inns, aetherytes and chocobo porters"),
-                    Loc.Localize("Part.InnsAndTravel.Desc",
-                        "The attendant who greets you at an inn and the menu they open, the aethernet "
-                        + "list you pick a shard from, the chocobo porter stands, the rental stables "
-                        + "and the wedding desk."),
-                    ["warp/", "transport/"]),
-
-                // The levemete's own window, not the leve text: that is in the quest group.
-                new TranslationPart(
-                    Loc.Localize("Part.Counters.Name", "Levemete and exchange counters"),
-                    Loc.Localize("Part.Counters.Desc",
-                        "The window a levemete opens when you hand work in, and the titles and "
-                        + "buttons of the counters where you exchange tokens for something else."),
-                    ["leve/", "shop/"]),
-
-                // Balloon and NpcYell separate by under 3% on every probe and share 265 strings word for word.
-                //
-                // The red "sealed off" banner is LogMessage#2012-#2013, so it belongs to the chat log box.
-                new TranslationPart(
-                    Loc.Localize("Part.Balloons.Name", "Shouts and speech balloons"),
-                    Loc.Localize("Part.Balloons.Desc",
-                        "The balloons that appear over people's heads as you walk past them, and the "
-                        + "warnings shouted during a fight."),
-                    ["balloon", "npcyell"]),
-            ],
-            Loc.Localize("Group.People.Warning",
-                "By far the largest part of the translation. Switching this off is the biggest "
-                + "single change you can make here.")),
-
-        // Five sheets, one box: everything a type of content produces, and none of it is ambient flavour.
-        new PartGroup(
-            Loc.Localize("Group.Duties.Name", "Duties, raids and field operations"),
-            Loc.Localize("Group.Duties.Desc",
-                "What happens once you are inside a dungeon, a raid, or one of the large field zones."),
-            [
-                // VVDVoteRouteLabel and ContentTalk hold the same sentence; the voting window reads the VVD one.
-                new TranslationPart(
-                    Loc.Localize("Part.DutyText.Name", "Dialogue, objectives and on-screen text"),
-                    Loc.Localize("Part.DutyText.Desc",
-                        "What bosses and NPCs say while you are inside, the objectives that appear as "
-                        + "it goes on, the route your party votes on in a variant dungeon, and the "
-                        + "same for the large field zones and the big group content: Eureka, Bozja, "
-                        + "Zadnor, the Occult Crescent, the Ishgardian Restoration and the Diadem."),
-                    ["instancecontenttextdata", "contenttalk", "publiccontenttextdata",
-                     "massivepccontenttextdata", "partycontenttextdata", "vvdvoteroutelabel",
-                     // dungeon/ is boss voices, not menus: «We are Calcabrina! Adorable dolls!»
-                     "dungeon/"]),
-
-                // The NPC standing outside, not the one inside: raid/ meets you at the entrance and
-                // content/ is the deep dungeons' own cast.
-                new TranslationPart(
-                    Loc.Localize("Part.DutyGuides.Name", "The guides who wait outside them"),
-                    Loc.Localize("Part.DutyGuides.Desc",
-                        "The NPC at a raid entrance who explains what lies beyond and the menu they "
-                        + "open, the cast that stands at the bottom of the deep dungeons, and the "
-                        + "guildhest guide's window."),
-                    ["raid/", "content/", "guild_order/"]),
-
-                // What the object says; what it is called is EObjName, in the interface group.
-                new TranslationPart(
-                    Loc.Localize("Part.Objects.Name", "What an object tells you when you use it"),
-                    Loc.Localize("Part.Objects.Desc",
-                        "The message that comes back when you examine a corpse, pull a lever or open "
-                        + "a panel, and the documents you find and read in full, such as expedition "
-                        + "journals, letters, and the scrawled memos that give away a puzzle's "
-                        + "answer, plus the yes-or-no it asks before acting."),
-                    // `gimmickyesno` carries its own Yes and No buttons, so without it the prompt
-                    // reads Spanish over two English buttons.
-                    ["gimmicktalk", "gimmickbill", "gimmickyesno"],
-                    Image: "examine"),
-
-                // Named after the kind of thing, never one duty, so a new content sheet does not force a rename.
-                new TranslationPart(
-                    Loc.Localize("Part.DutyItems.Name", "The items, jobs and gear found only inside them"),
-                    Loc.Localize("Part.DutyItems.Desc",
-                        "The things that exist in one piece of content and nowhere else: the "
-                        + "pomanders and aetherpool weapons of the deep dungeons, the floor effects "
-                        + "announced as you descend, and the Occult Crescent's phantom jobs, their "
-                        + "traits, and the lore log it fills in as you explore."),
-                    ["mkdsupportjob", "mkdtrait", "mkdlore", "deepdungeonitem",
-                     "deepdungeonequipment", "deepdungeonflooreffectui", "deepdungeondemiclone",
-                     "eurekaaetheritem"]),
+                        "Names and text are separate parts. With only one of them on, titles and "
+                        + "objectives are shown in different languages.")),
             ]),
 
-        // One window to the reader: roulettes, the duties below them, and a guildhest's briefing.
         new PartGroup(
-            Loc.Localize("Group.DutyFinder.Name", "Duty Finder"),
-            Loc.Localize("Group.DutyFinder.Desc",
-                "The blurbs that tell you what something is before you go into it."),
+            Loc.Localize("Group.People.Name", "Ambient dialogue and the world"),
+            Loc.Localize("Group.People.Tooltip", "Casual conversations and flavour text around the map."),
             [
                 new TranslationPart(
-                    Loc.Localize("Part.DutyFinder.Name", "Duty Finder"),
-                    Loc.Localize("Part.DutyFinder.Desc",
-                        "The Duty Finder from top to bottom: the name of every dungeon, trial and "
-                        + "raid in the list, the roulettes and what each one asks of you, including "
-                        + "chocobo racing and ranked PvP, the paragraph down the right when you pick "
-                        + "one, and the briefing a guildhest gives you as it starts."),
-                    ["contentfinderconditiontransient", "contentfindercondition", "contentroulette", "guildorder"]),
+                    Loc.Localize("Part.Talk.Name", "Talking to someone"),
+                    Loc.Localize("Part.Talk.Tooltip",
+                        "The text window that opens when you talk to NPCs with no quest (including "
+                        + "Gold Saucer criers and vendors)."),
+                    [
+                        "defaulttalk",    // NPC dialogue in the Talk window with no quest behind it.
+                        "goldsaucertalk", // Gold Saucer criers and the prompts before a purchase.
+                    ]),
+
+                new TranslationPart(
+                    Loc.Localize("Part.AskAbout.Name", "\"Ask about...\" menus and information windows"),
+                    Loc.Localize("Part.AskAbout.Tooltip",
+                        "The dialogue options an NPC offers when you ask about several topics, and "
+                        + "the explanatory text of each option."),
+                    [
+                        "custom/",    // The dialogue behind the menu, and the service windows it opens.
+                        "customtalk", // The topics themselves. Without it they stay English over translated answers.
+                    ]),
+
+                new TranslationPart(
+                    Loc.Localize("Part.Balloons.Name", "Speech balloons and shouts"),
+                    Loc.Localize("Part.Balloons.Tooltip",
+                        "Text balloons over characters' heads as you walk by, and warnings shouted in combat."),
+                    [
+                        "balloon", // The balloons over NPC heads.
+                        "npcyell", // NPC shouts, in and out of combat.
+                    ]),
             ],
-            Image: "duty"),
+            Loc.Localize("Group.People.Warning", "This is the largest part of the translation.")),
 
         new PartGroup(
-            Loc.Localize("Group.Interface.Name", "Menus and interface"),
-            Loc.Localize("Group.Interface.Desc",
-                "The game's own furniture: window titles, tabs, buttons, and the labels next to your "
-                + "numbers."),
+            Loc.Localize("Group.Duties.Name", "Dungeons, raids and special zones"),
+            Loc.Localize("Group.Duties.Tooltip",
+                "Everything that happens inside combat instances and large-scale content zones."),
             [
-                // RetainerTaskRandom and GoldSaucerTextData are `addon` windows for one area.
-                // MainCommandCategory is the same menu as MainCommand: its seven headings file those
-                // entries, and one without the other draws Spanish rows under English headings.
                 new TranslationPart(
-                    Loc.Localize("Part.Menus.Name", "Menus, buttons and window titles"),
-                    Loc.Localize("Part.Menus.Desc",
-                        "Everything written on the interface itself: the main menu you open with "
-                        + "Esc, the Character window with your attributes and what each one does, "
-                        + "the Duty Finder, your inventory, the retainer windows and their venture "
-                        + "list, the Gold Saucer's scoreboards and race courses, the tabs across the "
-                        + "top of a window and the buttons along the bottom."),
-                    // `baseparam` is the Character window's attributes and their hover text, and
-                    // `itemspecialbonus` the heading a tooltip puts over a conditional bonus.
-                    ["addon", "maincommand", "maincommandcategory", "retainertaskrandom", "goldsaucertextdata", "baseparam", "itemspecialbonus"],
-                    // The pair is the Character window, which is `addon` alone in this group.
-                    Image: "interface"),
-
-                // SpecialShop and TopicSelect hold the same sentence, and the vendor's menu reads TopicSelect.
-                new TranslationPart(
-                    Loc.Localize("Part.Shops.Name", "Shop and exchange windows"),
-                    Loc.Localize("Part.Shops.Desc",
-                        "The title on a vendor's window and the list of shops they offer before you "
-                        + "pick one: the tomestone exchanges, the gear sets listed by item level, and "
-                        + "the seasonal event stalls, with the two dropdowns an exchange window sorts "
-                        + "its wares by."),
-                    ["specialshop", "topicselect", "inclusionshopcategory"],
-                    Image: "itemexchange"),
-
-                // The name under the cursor is interface, not scenery: a label the game draws over the world.
-                new TranslationPart(
-                    Loc.Localize("Part.WorldObjects.Name", "Names of things you can interact with"),
-                    Loc.Localize("Part.WorldObjects.Desc",
-                        "What the cursor reads when you point at something in the world: aetherytes "
-                        + "and the destinations they offer, Aethernet shards, aether currents, "
-                        + "levers, doors, gathering nodes, the signs and notes you stop to read, and "
-                        + "the treasure coffers a duty leaves behind."),
-                    // Four sheets, one thing the player points at: the object's name, the two
-                    // aetheryte kinds the game keeps apart, the lettered coffers a duty leaves, and
-                    // the travel menu an aetheryte or a ferryman opens with its confirmation.
-                    ["eobjname", "aetheryte", "treasure", "warp"],
-                    Image: "interactable"),
+                    Loc.Localize("Part.DutyText.Name", "Text and interactions inside content (Duties)"),
+                    Loc.Localize("Part.DutyText.Tooltip",
+                        "What bosses and NPCs say inside a dungeon or raid, on-screen objectives, route "
+                        + "votes in Variant Dungeons and the records of zones such as Eureka, Bozja or "
+                        + "the Occult Crescent."),
+                    [
+                        "instancecontenttextdata",  // Boss and NPC dialogue inside a dungeon, trial or raid.
+                        "contenttalk",              // NPCs the player can speak to inside a duty.
+                        "publiccontenttextdata",    // Dialogue and announcements in open-world content.
+                        "massivepccontenttextdata", // Text from the large group content.
+                        "partycontenttextdata",     // Text from party content.
+                        "vvdvoteroutelabel",        // The variant dungeon route vote. The voting window reads this, not contenttalk.
+                        "vvdnotebookcontents",      // The variant dungeon record entries.
+                        "vvdnotebookseries",        // The headings of those entries.
+                        "dungeon/",                 // Boss voices inside a dungeon.
+                        "raid/",                    // The NPC at a raid entrance and the menu it opens.
+                        "content/",                 // The NPCs at the bottom of the deep dungeons.
+                    ]),
 
                 new TranslationPart(
-                    Loc.Localize("Part.Lobby.Name", "Title screen and character creation"),
-                    Loc.Localize("Part.Lobby.Desc",
-                        "The screens before you are in the world: logging in, choosing a character, "
-                        + "and the races, clans and options you pick from when making one."),
-                    ["lobby"],
-                    Image: "lobby"),
-            ],
-            Loc.Localize("Group.Interface.Warning",
-                "Many other Dalamud plugins and combat parsers look for these words in English and "
-                + "stop working when they are not. This is the usual reason to switch something off "
-                + "here.\n\nTranslations also keep proper names in English inside sentences, to match "
-                + "the interface you are reading them against. Translating the interface as well "
-                + "leaves those names looking inconsistent until the two are brought in line.")),
+                    Loc.Localize("Part.Objects.Name", "Objects and information in the world"),
+                    Loc.Localize("Part.Objects.Tooltip",
+                        "What a mechanism or lever tells you when used, plus documents, letters, signs "
+                        + "and puzzle hints."),
+                    [
+                        "gimmicktalk", // The message an object or mechanism gives when used.
+                        "gimmickbill", // Signs, notes and puzzle hints read inside a duty.
+                    ],
+                    Image: "examine"),
 
-        // Two boxes: Active Help interrupts you, a content guide is a window you go and open.
+                new TranslationPart(
+                    Loc.Localize("Part.DeepDungeons.Name", "Deep Dungeon systems and unique content"),
+                    Loc.Localize("Part.DeepDungeons.Tooltip",
+                        "Elements exclusive to Palace of the Dead, Heaven-on-High and Eureka Orthos "
+                        + "(pomanders, floor effects, demiclones) together with the field lore log."),
+                    [
+                        "deepdungeonitem",          // The pomanders and their descriptions.
+                        "deepdungeonequipment",     // Aetherpool arm and armour.
+                        "deepdungeonflooreffectui", // The floor effects and their descriptions.
+                        "deepdungeondemiclone",     // The demiclones and their descriptions.
+                        "eurekaaetheritem",         // Eureka aether items.
+                        "mkdsupportjob",            // The Occult Crescent job selector: full name, HUD abbreviation and description.
+                        "mkdtrait",                 // The trait list inside the phantom job window.
+                        "mkdlore",                  // The field lore log.
+                    ]),
+            ]),
+
         new PartGroup(
-            Loc.Localize("Group.Guides.Name", "Tutorials and guides"),
-            Loc.Localize("Group.Guides.Desc", "The game explaining itself to you."),
+            Loc.Localize("Group.Finder.Name", "Finder and guides (Duty Finder and tutorials)"),
+            Loc.Localize("Group.Finder.Tooltip", "Instance names and in-game explanations."),
             [
-                // MultipleHelpString rides along: the trigger differs, the text does not, 37 rows against 969.
                 new TranslationPart(
-                    Loc.Localize("Part.ActiveHelp.Name", "Active Help and window help"),
-                    Loc.Localize("Part.ActiveHelp.Desc",
-                        "The windows that pop up the first time you do something, the same texts "
-                        + "again when you look them up from the main menu afterwards, and the help "
-                        + "behind the question mark in the corner of a window, such as the Duty "
-                        + "Finder's pages on registering for a duty and what happens next."),
-                    ["howto", "howtopage", "howtocategory", "multiplehelpstring", "multiplehelp"],
+                    Loc.Localize("Part.DutyFinder.Name", "Content finder (Duty Finder)"),
+                    Loc.Localize("Part.DutyFinder.Tooltip",
+                        "The name of every dungeon, hunt, trial and raid in the list, the roulette "
+                        + "explanations and the short guildhest tactics."),
+                    [
+                        "contentfindercondition",          // The name of every dungeon, guildhest, trial and raid.
+                        "contentfinderconditiontransient", // The description panel, one row per instance.
+                        "contentroulette",                 // The roulettes, their short names and their descriptions.
+                        "guildorder",                      // The guildhest objective and its three tactical hints.
+                        "guild_order/",                    // The guildhest guide window.
+                    ],
+                    Image: "duty"),
+
+                new TranslationPart(
+                    Loc.Localize("Part.ActiveHelp.Name", "Tutorials and Active Help"),
+                    Loc.Localize("Part.ActiveHelp.Tooltip",
+                        "The help pop-ups when you do something for the first time, and the journal tutorials."),
+                    [
+                        "howto",                // The titles of the journal How-to tutorials.
+                        "howtopage",            // The text of each tutorial page.
+                        "howtocategory",        // The headings of those tutorials.
+                        "eventtutorial",        // The titles of the tutorials an event opens.
+                        "eventtutorialpage",    // The text of those tutorial pages.
+                        "contentstutorial",     // The titles of the tutorials a content window opens.
+                        "contentstutorialpage", // The text of those tutorial pages.
+                        "multiplehelpstring",   // The topic in the list and the page it opens.
+                        "multiplehelp",         // The titles of those help windows.
+                    ],
                     Image: "help"),
 
                 new TranslationPart(
-                    Loc.Localize("Part.ContentGuides.Name", "Content guides"),
-                    Loc.Localize("Part.ContentGuides.Desc",
-                        "The written guide a content window opens: the rules of mahjong and Triple "
-                        + "Triad, and the briefings for Bozja, deep dungeons, the Island Sanctuary "
-                        + "and New Game+."),
-                    // `descriptionstandalonetransient` is the TITLE above these pages; without it the
-                    // title reads English over a translated page.
-                    ["description", "descriptionstring", "descriptionstandalonetransient"],
+                    Loc.Localize("Part.ContentGuides.Name", "Built-in content guides"),
+                    Loc.Localize("Part.ContentGuides.Tooltip",
+                        "Built-in manuals such as the rules of Mahjong, Triple Triad and the Island Sanctuary."),
+                    [
+                        "descriptionstring",              // The pages of the guide.
+                        "description",                    // The window titles above those pages.
+                        "descriptionstandalonetransient", // The names of the guides opened from the main menu.
+                    ],
                     Image: "contentguide"),
             ]),
 
-        // One box: LogKind isolates the battle log, but duty announcements share a bucket with party
-        // invites and system notices, so there is no line to cut on.
         new PartGroup(
-            Loc.Localize("Group.Log.Name", "Combat log and system messages"),
-            Loc.Localize("Group.Log.Desc", "The lines the game writes into your chat log by itself."),
+            Loc.Localize("Group.Navigation.Name", "Navigation and compatibility"),
+            Loc.Localize("Group.Navigation.Tooltip", "Names of aetherytes, Aethernet shards, ferries and travel menus."),
             [
                 new TranslationPart(
-                    Loc.Localize("Part.Log.Name", "Combat log and system messages"),
-                    Loc.Localize("Part.Log.Desc",
-                        "Everything the game writes into your chat log by itself: what you hit and "
-                        + "for how much, emotes, gil spent and earned, party and Free Company "
-                        + "notices, gathering and crafting, market board messages, the announcements "
-                        + "a duty makes including the red banner when a zone is sealed off, and every "
-                        + "\"unable to\" the game answers with."),
-                    ["logmessage"]),
-
-                // A prompt, not a log line, but the same kind of thing to a player: the world
-                // stopping you and asking. `story/` is one row and the game itself says to delete it.
-                new TranslationPart(
-                    Loc.Localize("Part.WorldPrompts.Name", "What the world asks before it lets you pass"),
-                    Loc.Localize("Part.WorldPrompts.Desc",
-                        "The prompt that stops you at a boundary and its buttons, such as being asked "
-                        + "to dismount before going further."),
-                    ["system/", "story/"]),
+                    Loc.Localize("Part.Travel.Name", "Transport, aetherytes and travel names"),
+                    Loc.Localize("Part.Travel.Tooltip",
+                        "Names of aetherytes, Aethernet shards, ferries and travel menus. Lifestream "
+                        + "looks these names up in English to know where to teleport you. Translated, "
+                        + "navigation fails."),
+                    [
+                        "aetheryte",  // Aetherytes and Aethernet shards.
+                        "transport/", // Ferries, chocobo porters and rental stables.
+                        "warp/",      // The travel menu an aetheryte or an inn attendant opens.
+                        "warp",       // The confirmation before a travel menu acts.
+                        "eobjname",   // The name of every object the cursor can rest on. Singular and plural; the game picks by count.
+                    ],
+                    Image: "interactable"),
             ],
-            Loc.Localize("Group.Log.Warning",
-                "Combat parsers and several plugins read these lines in English and will not "
-                + "recognise them translated.")),
+            Loc.Localize("Group.Navigation.Warning",
+                "If you translate this, the related plugins stop working (example: Lifestream).")),
+
+        new PartGroup(
+            Loc.Localize("Group.SafeInterface.Name", "Safe interface and settings"),
+            Loc.Localize("Group.SafeInterface.Tooltip", "General visual elements that break no script."),
+            [
+                new TranslationPart(
+                    Loc.Localize("Part.MainMenu.Name", "Main menu and start screen"),
+                    Loc.Localize("Part.MainMenu.Tooltip",
+                        "The options of the menu that opens with Esc, the title screen when the game "
+                        + "opens, and character creation."),
+                    [
+                        "maincommand",         // Every entry of the main menu, with its tooltip.
+                        "maincommandcategory", // The seven headings of that menu.
+                        "retainertaskrandom",  // The explorer venture names.
+                        "goldsaucertextdata",  // Scoreboards and race courses.
+                        "lobby",               // Title screen and character creation. Drawn before the player logs in.
+                    ],
+                    Image: "mainmenus"),
+            ]),
+
+        new PartGroup(
+            Loc.Localize("Group.Interface.Name", "Interface critical for addons"),
+            Loc.Localize("Group.Interface.Tooltip",
+                "Window titles, buttons, confirmations, shop windows and loot windows."),
+            [
+                new TranslationPart(
+                    Loc.Localize("Part.Interface.Name", "Buttons, windows and interface (UI)"),
+                    Loc.Localize("Part.Interface.Tooltip",
+                        "Window titles, buttons, \"Yes/No\" confirmations, tomestone and exchange shop "
+                        + "menus, and loot and coffer windows. Several plugins read the windows and "
+                        + "buttons in English to interact with the interface. Translating them stops "
+                        + "them from detecting those options."),
+                    [
+                        "addon",                 // Every button, tab, column heading and error the game draws.
+                        "gimmickyesno",          // The Yes/No prompt an object shows before it acts.
+                        "specialshop",           // The name of each shop window.
+                        "topicselect",           // The vendor list of shops. Same strings as specialshop; the menu draws this one.
+                        "inclusionshopcategory", // The two dropdowns at the top of an Item Exchange window.
+                        "treasure",              // The coffers a duty leaves behind, and the loot window rows.
+                        "shop/",                 // The titles and buttons of the exchange counters.
+                    ],
+                    Image: "interface"),
+            ],
+            Loc.Localize("Group.Interface.Warning",
+                "If you translate this, the related plugins stop working (examples: Yes Already, "
+                + "AutoRetainer, Pandora, LazyLoot, Deliveroo).")),
+
+        new PartGroup(
+            Loc.Localize("Group.Chat.Name", "Chat, messages and items"),
+            Loc.Localize("Group.Chat.Tooltip", "On-screen logs and inventory information."),
+            [
+                new TranslationPart(
+                    Loc.Localize("Part.Log.Name", "Combat and system log"),
+                    Loc.Localize("Part.Log.Tooltip",
+                        "Everything that appears in the chat window (damage, emotes, gil notices, "
+                        + "system errors, zone announcements)."),
+                    [
+                        "logmessage", // The whole chat log. One LogKind bucket mixes duty announcements with party invites.
+                        "error",      // The system errors.
+                        "system/",    // The prompt shown at a boundary and its buttons.
+                        "story/",     // One boundary prompt.
+                    ],
+                    Loc.Localize("Part.Log.Warning",
+                        "Combat parsers and several plugins read these lines in English.")),
+
+                new TranslationPart(
+                    Loc.Localize("Part.Items.Name", "Items and character attributes"),
+                    Loc.Localize("Part.Items.Tooltip",
+                        "The names of every item in the bags and on the market board, and the names "
+                        + "and descriptions of attributes (Strength, Critical Hit, etc.)."),
+                    [
+                        "item",             // Every item: the singular and plural the <ennoun> macro reads, and the tooltip name.
+                        "baseparam",        // The attributes and their tooltips. The names are also in addon, which draws the column.
+                        "itemspecialbonus", // The heading a tooltip puts over a conditional bonus.
+                    ]),
+            ]),
     ];
 
+    // Sheets with no string column, so never in a pack: switchtalk, tinycustomtalk.
+
     /// <summary>Every sheet key the table names, for telling the known from the unknown.</summary>
-    /// <remarks>Built once and never invalidated: sheet keys are the game's, and no language moves them.</remarks>
     private static readonly HashSet<string> Known =
         new(Groups.SelectMany(g => g.Parts).SelectMany(p => p.Sheets), StringComparer.OrdinalIgnoreCase);
 
