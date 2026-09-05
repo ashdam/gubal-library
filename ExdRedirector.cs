@@ -157,7 +157,7 @@ internal sealed unsafe class ExdRedirector : IDisposable
         if (!string.Equals(builtFor, running, StringComparison.Ordinal))
         {
             return (null,
-                $"These pages were built for game {builtFor} but the client is running {running}. "
+                $"These pages were built for game {builtFor} but the game is running {running}. "
                 + "Regenerate them; serving them now would put translated text on the wrong rows.");
         }
 

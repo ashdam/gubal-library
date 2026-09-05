@@ -18,7 +18,7 @@ Want to build a pack for your language? → **[LANGUAGE-PACK.md](LANGUAGE-PACK.m
 | Language | Pack | Github Releases | Support |
 |---|---|---| --- |
 | Español | [Eorzea en español](https://eorzea-in-spanish.ashdam.workers.dev/) | [Releases](https://github.com/ashdam/ffxiv-language-pack-es/releases) | [Issues](https://github.com/ashdam/ffxiv-language-pack-es/issues) |
-| Italiano | none published yet | — |
+| Italiano | [ffxiv-language-pack-it](https://github.com/ashdam/ffxiv-language-pack-it) | [Releases](https://github.com/ashdam/ffxiv-language-pack-it/releases) | [Issues](https://github.com/ashdam/ffxiv-language-pack-it/issues) |
 | Português | none published yet | — |
 | Any other | [build one](LANGUAGE-PACK.md) | — |
 

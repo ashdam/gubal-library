@@ -16,7 +16,7 @@
     <Platforms>x64</Platforms>
     <AssemblyName>GubalLibrary</AssemblyName>
     <RootNamespace>GubalLibrary</RootNamespace>
-    <Version>0.5.0.1</Version>
+    <Version>0.5.1.0</Version>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
@@ -60,6 +60,7 @@
 
   <ItemGroup>
     <EmbeddedResource Include="images\tooltips\*.png" />
+    <EmbeddedResource Include="images\flags\*.png" />
   </ItemGroup>
 
   <!--

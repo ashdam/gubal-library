@@ -320,7 +320,7 @@ public sealed class Plugin : IDalamudPlugin
                 this.config.ProbeSqPack = !this.config.ProbeSqPack;
                 this.SaveConfig(this.config);
                 this.chat.Print(this.config.ProbeSqPack
-                    ? "[Gubal]SqPack probe ON. Restart the client, because it attaches at load and only then."
+                    ? "[Gubal]SqPack probe ON. Restart the game, because it attaches at load and only then."
                     : "[Gubal]SqPack probe OFF from the next load.");
                 break;
 
@@ -449,7 +449,7 @@ public sealed class Plugin : IDalamudPlugin
 
         // In chat as well as the window, because the window is where the person just was and chat is
         // where they will be.
-        this.chat.Print("[Gubal]Language pack installed. RESTART THE CLIENT. The game reads its text once at startup.");
+        this.chat.Print("[Gubal]Language pack installed. RESTART THE GAME. The game reads its text once at startup.");
     }
 
     /// <summary>
@@ -740,7 +740,7 @@ public sealed class Plugin : IDalamudPlugin
             .AddText("Open the settings")
             .AddUiForegroundOff()
             .Add(RawPayload.LinkTerminator)
-            .AddText(" or type /gubal to install it. The client has to restart afterwards.")
+            .AddText(" or type /gubal to install it. The game has to restart afterwards.")
             .Build();
     }
 

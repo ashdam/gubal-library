@@ -270,7 +270,8 @@ internal static class PackParts
                         + "pick one: the tomestone exchanges, the gear sets listed by item level, and "
                         + "the seasonal event stalls, with the two dropdowns an exchange window sorts "
                         + "its wares by."),
-                    ["specialshop", "topicselect", "inclusionshopcategory"]),
+                    ["specialshop", "topicselect", "inclusionshopcategory"],
+                    Image: "itemexchange"),
 
                 // The name under the cursor is interface, not scenery: a label the game draws over the world.
                 new TranslationPart(
@@ -291,7 +292,8 @@ internal static class PackParts
                     Loc.Localize("Part.Lobby.Desc",
                         "The screens before you are in the world: logging in, choosing a character, "
                         + "and the races, clans and options you pick from when making one."),
-                    ["lobby"]),
+                    ["lobby"],
+                    Image: "lobby"),
             ],
             Loc.Localize("Group.Interface.Warning",
                 "Many other Dalamud plugins and combat parsers look for these words in English and "

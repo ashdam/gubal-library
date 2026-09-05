@@ -111,6 +111,32 @@
     "description": "Part description. Pomander, aetherpool, deep dungeon and phantom job stay English."
   },
 
+  "Part.Opening.Name": { "message": "La scena iniziale della tua città di partenza", "description": "Part label." },
+  "Part.Opening.Desc": {
+    "message": "Quello che il primo NPC dice a un personaggio appena creato, prima della prima missione.",
+    "description": "Part description."
+  },
+  "Part.InnsAndTravel.Name": { "message": "Locande, aetheryte e portatori di chocobo", "description": "Part label. Aetheryte stays English." },
+  "Part.InnsAndTravel.Desc": {
+    "message": "L'addetto che ti accoglie in una locanda e il menù che apre, l'elenco dell'aethernet da cui scegli uno shard, le postazioni dei portatori di chocobo, le stalle a noleggio e il banco dei matrimoni.",
+    "description": "Part description. Aethernet and shard stay English."
+  },
+  "Part.Counters.Name": { "message": "Banchi del levemete e di scambio", "description": "Part label. Levemete stays English." },
+  "Part.Counters.Desc": {
+    "message": "La finestra che un levemete apre quando consegni il lavoro, e i titoli e i pulsanti dei banchi dove scambi gettoni con qualcos'altro.",
+    "description": "Part description."
+  },
+  "Part.DutyGuides.Name": { "message": "Le guide che aspettano all'ingresso", "description": "Part label." },
+  "Part.DutyGuides.Desc": {
+    "message": "L'NPC all'ingresso di una raid che spiega cosa c'è oltre e il menù che apre, il cast che aspetta in fondo alle deep dungeon, e la finestra della guida del guildhest.",
+    "description": "Part description. Raid, deep dungeon and guildhest stay English."
+  },
+  "Part.WorldPrompts.Name": { "message": "Quello che il mondo ti chiede prima di lasciarti passare", "description": "Part label." },
+  "Part.WorldPrompts.Desc": {
+    "message": "L'avviso che ti ferma a un confine e i suoi pulsanti, come quando ti chiede di smontare prima di proseguire.",
+    "description": "Part description."
+  },
+
   "Group.DutyFinder.Name": {
     "message": "Duty Finder",
     "description": "Group heading. The window's English name."
@@ -232,15 +258,15 @@
   "Tab.Help": { "message": "Aiuto e contatti", "description": "Tab label." },
 
   "Parts.Empty": {
-    "message": "Non c'è ancora niente da elencare. Installa un language pack nella scheda Language pack e le sue parti compariranno qui.",
+    "message": "Nessun language pack installato.",
     "description": "Shown in the parts tab when no pack is installed."
   },
   "Parts.Intro": {
-    "message": "Scegli quanta parte del gioco traduce questo language pack. Ogni casella qui sotto è una parte del testo del gioco: se la togli, quella parte torna nella lingua con cui il gioco è uscito, mentre tutto ciò che resta spuntato rimane tradotto. Passa il mouse su una casella per vedere cosa copre.",
+    "message": "Togli la spunta a una parte e torna in inglese al prossimo avvio. Passa il mouse su una casella per vedere cosa copre.",
     "description": "Opening line of the parts tab."
   },
   "Parts.NextStart": {
-    "message": "Le modifiche fatte qui hanno effetto al prossimo avvio del client.",
+    "message": "Le modifiche fatte qui hanno effetto al prossimo avvio del gioco.",
     "description": "Body text under the intro."
   },
   "Parts.Count": { "message": "{0} di {1} attive", "description": "How many parts are on. {0} on, {1} total." },
@@ -248,7 +274,7 @@
   "Parts.On": { "message": "Attivata", "description": "Caption over the translated half of a screenshot pair." },
   "Parts.Off": { "message": "Disattivata", "description": "Caption over the untranslated half." },
 
-  "Restart.Title": { "message": "RIAVVIA IL CLIENT", "description": "Banner heading." },
+  "Restart.Title": { "message": "RIAVVIA IL GIOCO", "description": "Banner heading." },
   "Restart.Parts": {
     "message": "Hai cambiato quali parti vengono tradotte. Il gioco legge tutto il suo testo una sola volta, all'avvio, quindi questo avrà effetto la prossima volta che parte.",
     "description": "Banner reason after a parts change."
@@ -268,7 +294,7 @@
     "description": "Shown when nothing is installed."
   },
   "Pack.Pending": {
-    "message": "C'è un language pack installato ma non è ancora in uso. Riavvia il client.",
+    "message": "C'è un language pack installato ma non è ancora in uso. Riavvia il gioco.",
     "description": "Installed and wanted, but not served this session."
   },
   "Pack.Off": {
@@ -284,21 +310,14 @@
   "Pack.Served": { "message": "{0} lettura/e servite da disco in questa sessione", "description": "Proves the redirection is working." },
 
   "Update.Check": { "message": "Cerca aggiornamenti", "description": "Button." },
-  "Update.CheckTip": {
-    "message": "Chiede all'indirizzo contenuto nel language pack installato se ne è stato pubblicato uno più recente.\nUn paio di kilobyte; chiedere non scarica e non cambia niente.\nSuccede anche da solo a ogni caricamento del plugin.",
-    "description": "Tooltip of the check button."
-  },
-  "Update.NoAddressTip": {
-    "message": "Questo language pack non contiene alcun indirizzo di aggiornamento, quindi non c'è nessuno a cui chiedere.",
-    "description": "Tooltip when the button is disabled."
-  },
   "Update.Checking": { "message": "Controllo se è pubblicato un language pack più recente...", "description": "While the check runs." },
   "Update.Available": { "message": "È pubblicato un language pack più recente: {0}", "description": "{0} is the new version." },
   "Update.BuiltForGame": { "message": ", costruito per la versione {0} del gioco", "description": "Appended to the line above." },
   "Update.InstallNew": { "message": "Installa la versione {0}", "description": "Button that installs the newer pack. {0} is its version." },
-  "Update.RestartFirstTip": {
-    "message": "Riavvia prima il client.",
-    "description": "Tooltip while a restart is owed."
+  "Update.Move": { "message": "Reinstalla dal nuovo indirizzo", "description": "Button when the listed address differs from the installed one." },
+  "Update.MoveTip": {
+    "message": "Il pack si è spostato. Reinstalla dal nuovo indirizzo per continuare a ricevere aggiornamenti.",
+    "description": "Tooltip of the move button."
   },
   "Update.Unreachable": {
     "message": "Nessuna connessione all'indirizzo di aggiornamento del language pack. Se continua così, questo language pack non si aggiornerà da solo: controlla da dove l'hai preso.",
@@ -313,13 +332,9 @@
   "Setup.LanguageNone": { "message": "Scegline una", "description": "Chooser preview before anything is picked." },
   "Setup.LanguageOwn": { "message": "Un language pack tuo", "description": "Chooser entry for an address nobody publishes." },
   "Setup.LanguageUnbuilt": { "message": "{0} (ancora nessun language pack)", "description": "Chooser entry for a language nobody has built." },
-  "Setup.LanguageTip": {
-    "message": "Non viene scaricato niente finché non premi Installa.",
-    "description": "Tooltip of the language chooser."
-  },
   "Setup.Website": { "message": "Sito web", "description": "Link beside the chooser, to the pack's own site." },
   "Setup.Report": { "message": "Segnala un errore", "description": "Link beside the chooser, to the pack's issue tracker." },
-  "Setup.OwnLabel": { "message": "La tua cartella del language pack", "description": "Label of the developer folder box." },
+  "Setup.OwnLabel": { "message": "Cartella del language pack personalizzato", "description": "Label of the developer folder box." },
   "Setup.OwnEmpty": {
     "message": "La cartella che contiene gubal-manifest.json.",
     "description": "Shown under an empty folder box."
@@ -327,12 +342,12 @@
   "Setup.OwnNoFolder": { "message": "Nessuna cartella in «{0}».", "description": "The path does not exist." },
   "Setup.OwnReady": { "message": "{0} ({1}), costruito per questa patch.", "description": "Pack name and translation version." },
   "Setup.OwnWrongPatch": {
-    "message": "{0}, costruito per la versione {1} del gioco. Il client è alla {2}, quindi verrà rifiutato all'avvio invece di essere servito. Ricostruiscilo.",
+    "message": "{0}, costruito per la versione {1} del gioco. Il gioco è alla {2}, quindi verrà rifiutato all'avvio invece di essere servito. Ricostruiscilo.",
     "description": "Pack name, the patch it was built for, the running patch."
   },
   "Setup.UseFolder": { "message": "Usa questa cartella", "description": "Button that adopts the folder." },
   "Setup.UseFolderTip": {
-    "message": "Serve le pagine dove stanno, dal prossimo avvio.\nNon copia e non scarica niente. Premilo di nuovo dopo una ricostruzione.",
+    "message": "Serve la cartella dov'è. Premilo di nuovo dopo una ricostruzione.",
     "description": "Tooltip of the adopt button."
   },
   "Setup.Unbuilt": {
@@ -343,24 +358,16 @@
 
   "Setup.Browse": { "message": "Sfoglia...", "description": "Button that opens the file picker." },
   "Setup.Install": { "message": "Installa", "description": "Button." },
-  "Setup.InstallTip": {
-    "message": "Lo scarica e lo estrae se serve, poi lo serve dal prossimo avvio.\nNon viene scaricato niente se non premi questo.",
-    "description": "Tooltip of the install button."
-  },
   "Setup.LanguageEnglish": { "message": "Inglese (nessuna traduzione)", "description": "Chooser entry that stops serving the pack." },
-  "Setup.EnglishNote": {
-    "message": "Il testo originale del gioco dal prossimo avvio. Il language pack resta installato e non c'è da scaricare niente per rimetterlo.",
-    "description": "Shown under the chooser when the pack is switched off."
-  },
   "Setup.Auto": { "message": "Aggiorna da solo all'avvio", "description": "Checkbox." },
   "Setup.AutoUnavailable": {
-    "message": "Disponibile per un language pack installato da un link. Un language pack preso da un file, o usato dov'è, non ha un indirizzo a cui chiedere.",
+    "message": "Solo per un pack installato da un link.",
     "description": "Why the auto-update box is greyed out."
   },
   "Setup.PickerTitle": { "message": "Scegli la cartella in cui è stato costruito il tuo language pack", "description": "Folder dialog title." },
 
   "Boot.NotWaiting": {
-    "message": "Dalamud non è impostato per aspettare i plugin prima di caricare il gioco, quindi all'avvio non verrà scaricato niente: il gioco leggerebbe il suo testo mentre il download è ancora in corso. Gli aggiornamenti vengono proposti qui sopra.",
+    "message": "Dalamud non aspetta i plugin all'avvio, quindi in quel momento non viene scaricato niente. Attivalo nelle impostazioni di Dalamud.",
     "description": "Warning when the boot wait is off."
   },
   "Boot.OpenSettings": { "message": "Apri le impostazioni di Dalamud", "description": "Button." },
