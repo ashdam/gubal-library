@@ -252,7 +252,7 @@ internal sealed class PackInstaller
         // Only when the archive was nested: the wrapper directory is left behind by the move above.
         DeleteIfPresent(staging);
 
-        this.log.Information(
+        Diagnostics.Log(this.log,
             "Installed '{Pack}' ({Version}) from {Source}.",
             manifest.DisplayName,
             manifest.TranslationVersion ?? "unversioned",
@@ -269,7 +269,7 @@ internal sealed class PackInstaller
         var target = Path.Combine(this.configDirectory, DownloadFile);
         DeleteFileIfPresent(target);
 
-        this.log.Information("Downloading a language pack from {Url}.", url);
+        Diagnostics.Log(this.log, "Downloading a language pack from {Url}.", url);
         progress?.Report(InstallProgress.Working("Connecting"));
 
         using var response = await client.GetAsync(url, HttpCompletionOption.ResponseHeadersRead, cancel)

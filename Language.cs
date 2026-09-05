@@ -67,7 +67,7 @@ internal static class Language
                     using var reader = new StreamReader(stream);
                     Loc.Setup(reader.ReadToEnd());
                     Current = wanted.ToLowerInvariant();
-                    log.Information("Settings window language: {Code}.", Current);
+                    Diagnostics.Log(log, "Settings window language: {Code}.", Current);
                     return;
                 }
 

@@ -122,10 +122,10 @@ internal sealed class GubalLumina
 
             if (built != stamp)
             {
-                log.Information($"[shadow] building for {stamp} (was {built ?? "nothing"})");
+                Diagnostics.Log(log, $"[shadow] building for {stamp} (was {built ?? "nothing"})");
                 var placed = Build(source, folder, packFolder, log);
                 File.WriteAllText(stampPath, stamp);
-                log.Information($"[shadow] {placed:N0} page(s) placed");
+                Diagnostics.Log(log, $"[shadow] {placed:N0} page(s) placed");
             }
 
             return Point(gameData, folder) is { } reason
@@ -248,7 +248,7 @@ internal sealed class GubalLumina
 
         if (skipped > 0)
         {
-            log.Information($"[shadow] {skipped:N0} page(s) had no entry in this installation's index");
+            Diagnostics.Log(log, $"[shadow] {skipped:N0} page(s) had no entry in this installation's index");
         }
 
         return placed;
@@ -312,7 +312,7 @@ internal sealed class GubalLumina
 
         if (removed > 0)
         {
-            log.Information($"[shadow] emptied {removed:N0} file(s) from {folder}");
+            Diagnostics.Log(log, $"[shadow] emptied {removed:N0} file(s) from {folder}");
         }
     }
 

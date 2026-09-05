@@ -97,10 +97,10 @@ The last three take no argument: each one flips what it names.
 | `/gubal check` | Ask now whether a newer pack is published, and say either way |
 | `/gubal usepack` | Toggle: the pack or the game's own English, from the next start. The way back when the settings window cannot be reached |
 | `/gubal autoupdate` | Toggle: the startup fetch, along with Dalamud's wait for plugins |
-| `/gubal probesqpack` | Toggle: log every Excel page the game reads, redirecting nothing. Chat only, there is no checkbox |
+| `/gubal debug on` / `off` | Trace lines in the log, and a line per page and font the game reads. Off, the plugin logs only warnings and errors. Chat only, there is no checkbox |
 
-`probesqpack` attaches when the plugin loads and only then, so it takes effect at the next client
-start. It exists to check that the plugin still attaches before the game's first read, which is the
+`debug` takes effect at the next client start: the probe attaches when the plugin loads and only then.
+It exists to check that the plugin still attaches before the game's first read, which is the
 one property this whole approach depends on.
 
 ## Contributors

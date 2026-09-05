@@ -1519,17 +1519,17 @@ internal sealed class ConfigWindow : Window
                 pages.ServedCount.ToString("N0")));
         }
 
-    }
+            // Show the fonts only when the pack has some. Show served against registered: the
+            // client reads the fonts once at boot, so "registered, not served" is the fault to find.
+            if (pages.FontCount > 0)
+            {
+                ImGui.TextDisabled(string.Format(
+                    Loc.Localize("Pack.Fonts", "{0} of {1} font file(s) served from the pack"),
+                    pages.FontsServedCount.ToString("N0"),
+                    pages.FontCount.ToString("N0")));
+            }
 
-    /// <summary>
-    ///     Collapsed by default, because nothing here is part of using the plugin.
-    /// </summary>
-    /// <remarks>
-    ///     The probe hooks a second function on the file read path and writes a line per Excel page
-    ///     to the log. That is a real cost for a real question — has a patch or a settings change
-    ///     eaten the margin this plugin needs to attach before the client's boot reads — and no cost
-    ///     anybody should pay by accident.
-    /// </remarks>
+    }
 
     /// <summary>
     ///     The ask, and where to find a person. Nothing about using the plugin.
@@ -1699,10 +1699,19 @@ internal sealed class ConfigWindow : Window
 /// <param name="PageCount">How many pages it would answer for.</param>
 /// <param name="ServedCount">How many reads it has actually answered — the number that proves it.</param>
 /// <param name="Error">Why it is not installed, when it is not. Null when it is, or when nobody asked.</param>
+/// <param name="FontCount">Font files the pack registered. Zero for most packs.</param>
+/// <param name="FontsServedCount">Font reads answered from disk. Zero with fonts registered means the client read them before the hook.</param>
 /// <param name="Manifest">What the loaded pack says about itself. Null when none loaded.</param>
 /// <param name="Update">What the background check made of the pack's declared update address.</param>
 internal readonly record struct PageStatus(
-    bool Active, int PageCount, int ServedCount, string? Error, PackManifest? Manifest, UpdateStatus Update);
+    bool Active,
+    int PageCount,
+    int ServedCount,
+    int FontCount,
+    int FontsServedCount,
+    string? Error,
+    PackManifest? Manifest,
+    UpdateStatus Update);
 
 
 

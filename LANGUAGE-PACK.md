@@ -188,6 +188,31 @@ File.WriteAllBytes(full, built);
 **Delete pages a later build no longer emits.** The plugin serves every `.exd` present, so a stale
 page from an earlier run continues to be served.
 
+## Fonts
+
+The game's interface fonts cover Latin-1 and a little beyond. A language whose letters they lack
+ships rebuilt fonts in the pack, under the game's own names, and the plugin serves them the same way
+it serves pages.
+
+```
+common/font/
+  AXIS_12.fdt
+  AXIS_14.fdt
+  AXIS_18.fdt
+  AXIS_36.fdt
+  font1.tex ... font7.tex
+```
+
+`AXIS_12`, `AXIS_14`, `AXIS_18` and `AXIS_36` draw the dialogue and most of the interface. The
+`.fdt` files index glyphs in the shared `font1.tex` to `font7.tex` atlases, so a rebuilt font needs
+every file it indexes. A tool that regenerates them is
+[FFXIV-FontChanger](https://github.com/Soreepeong/FFXIV-FontChanger).
+
+Only `.fdt` and `.tex` directly under `common/font/` are read. Fonts have no switch in the settings
+window: the client loads them once at boot and uses them for every line it draws, so a rebuilt font
+keeps every original glyph and adds the missing ones. A pack with no `common/font/` folder is served
+exactly as before.
+
 ## The manifest
 
 `gubal-manifest.json` at the root of the pack, UTF-8.

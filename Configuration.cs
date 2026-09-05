@@ -51,10 +51,9 @@ internal sealed class Configuration : IPluginConfiguration
     /// <see cref="DalamudBootWait" />.</summary>
     public bool AutoUpdatePack { get; set; }
 
-    /// <summary>Log the Excel pages the client asks for, redirecting nothing. Diagnostic: the margin
-    /// before the client's first read belongs to Dalamud's load order, and this is how to check a
-    /// patch has not eaten it.</summary>
-    public bool ProbeSqPack { get; set; }
+    /// <summary>Write trace lines to the log and attach the SqPack probe at load. Off by default:
+    /// the plugin then writes only warnings and errors. See <see cref="Diagnostics" />.</summary>
+    public bool Debug { get; set; }
 
     /// <summary>
     ///     The parts switched off. Empty serves everything.

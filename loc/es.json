@@ -308,6 +308,7 @@
   "Pack.LanguageByAuthor": { "message": "{0}, de {1}", "description": "Language and author of the pack." },
   "Pack.BuiltFor": { "message": "Construido para la versión {0} del juego", "description": "Game patch the pack was built from." },
   "Pack.Served": { "message": "{0} lectura(s) atendidas desde disco en esta sesión", "description": "Proves the redirection is working." },
+  "Pack.Fonts": { "message": "{0} de {1} fichero(s) de fuente servidos desde el pack", "description": "Fonts served against fonts registered." },
 
   "Update.Check": { "message": "Buscar actualizaciones", "description": "Button." },
   "Update.Checking": { "message": "Comprobando si hay un language pack más nuevo publicado...", "description": "While the check runs." },
