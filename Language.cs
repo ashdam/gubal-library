@@ -16,10 +16,10 @@ namespace GubalLibrary;
 ///         answers to disagree.
 ///     </para>
 ///     <para>
-///         <b>English is not a file.</b> Every string is written as
-///         <c>Loc.Localize(key, "the English")</c>, so the source language travels in the code and a
-///         missing file, a missing key or an empty translation all fall back to it. What ships as
-///         JSON is only what has been translated.
+///         <b>English lives in the code.</b> Every string is written as
+///         <c>Loc.Localize(key, "the English")</c>, so a missing file, a missing key or an empty
+///         translation all fall back to it. <c>loc/en.json</c> is what <c>Loc.ExportLocalizable</c>
+///         writes from them: the key list a translation is checked against.
 ///     </para>
 ///     <para>
 ///         <b>Only what Dalamud can be set to is worth shipping.</b> Its language list —
@@ -67,7 +67,7 @@ internal static class Language
                     using var reader = new StreamReader(stream);
                     Loc.Setup(reader.ReadToEnd());
                     Current = wanted.ToLowerInvariant();
-                    log.Information("Settings window language: {Code}.", Current);
+                    Diagnostics.Log(log, "Settings window language: {Code}.", Current);
                     return;
                 }
 

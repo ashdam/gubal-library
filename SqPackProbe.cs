@@ -41,7 +41,7 @@ internal sealed unsafe class SqPackProbe : IDisposable
                 this.Detour);
 
             this.hook.Enable();
-            log.Information("SqPack probe attached at 0x{Address:X}.", FileThread.Addresses.ReadSqPack.Value);
+            Diagnostics.Log(log, "SqPack probe attached at 0x{Address:X}.", FileThread.Addresses.ReadSqPack.Value);
         }
         catch (Exception e)
         {
@@ -76,12 +76,17 @@ internal sealed unsafe class SqPackProbe : IDisposable
             {
                 var path = descriptor->ResourceHandle->FileName.ToString();
 
-                // Only Excel pages. Models, textures and sound are most of the reads and none of
-                // this project's business.
-                if (path.EndsWith(".exd", StringComparison.OrdinalIgnoreCase))
+                // Excel pages and interface fonts: the two things a pack can serve. Models and
+                // sound are most of the reads, and not this project's business.
+                var page = path.EndsWith(".exd", StringComparison.OrdinalIgnoreCase);
+                if (page || path.StartsWith(PackContents.FontPrefix, StringComparison.OrdinalIgnoreCase))
                 {
-                    this.excel++;
-                    this.log.Information("[probe] {Sync} {Path}", isSync ? "sync " : "async", path);
+                    if (page)
+                    {
+                        this.excel++;
+                    }
+
+                    Diagnostics.Log(this.log, "[probe] {Sync} {Path}", isSync ? "sync " : "async", path);
                 }
             }
         }

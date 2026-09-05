@@ -16,7 +16,7 @@
     <Platforms>x64</Platforms>
     <AssemblyName>GubalLibrary</AssemblyName>
     <RootNamespace>GubalLibrary</RootNamespace>
-    <Version>0.5.0.1</Version>
+    <Version>0.5.2.0</Version>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
@@ -60,12 +60,13 @@
 
   <ItemGroup>
     <EmbeddedResource Include="images\tooltips\*.png" />
+    <EmbeddedResource Include="images\flags\*.png" />
   </ItemGroup>
 
   <!--
     The settings window's own words, one file per language, in the format CheapLoc reads. English is
-    not here: it is the fallback written beside every key in the code, so a language with no file and
-    a key with no translation both come out in English. See Language.cs.
+    the fallback written beside every key in the code; loc/en.json is what Loc.ExportLocalizable writes from
+    them, kept as the key list a translation starts from. See Language.cs.
 
     Only languages Dalamud can actually be set to are worth adding — its list is de, ja, fr, it, es,
     ko, no, ru, zh, tw and English, so a file for anything else would never be chosen by anybody.

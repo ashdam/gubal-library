@@ -28,20 +28,35 @@ internal sealed record GroupView(
 /// </remarks>
 internal sealed class PackContents
 {
-    private readonly List<PackPage> pages;
+    /// <summary>Where the client keeps its fonts. The one folder of a pack that holds no pages.</summary>
+    /// <remarks>
+    ///     A pack whose text needs glyphs the game's fonts do not have ships rebuilt <c>.fdt</c>
+    ///     files and the <c>.tex</c> atlases they index, under the game's own names. Nothing else is
+    ///     accepted from that folder. Nothing outside <c>exd/</c> and this folder is served.
+    /// </remarks>
+    public const string FontPrefix = "common/font/";
 
-    private PackContents(List<PackPage> pages, int tooLong)
+    private static readonly string[] FontExtensions = [".fdt", ".tex"];
+
+    private readonly List<PackPage> pages;
+    private readonly List<PackPage> fonts;
+
+    private PackContents(List<PackPage> pages, List<PackPage> fonts, int tooLong)
     {
         this.pages = pages;
+        this.fonts = fonts;
         this.TooLong = tooLong;
         this.Layout = BuildLayout(pages);
     }
 
-    /// <summary>Pages refused for sitting at too long a path, which are served by nobody.</summary>
+    /// <summary>Pages and fonts refused because their path is too long. Nobody serves them.</summary>
     public int TooLong { get; }
 
     /// <summary>Every page in the pack, whether or not its part is switched on.</summary>
     public int PageCount => this.pages.Count;
+
+    /// <summary>Font files in the pack. Zero for most packs. Fonts alone do not make a folder a pack.</summary>
+    public int FontCount => this.fonts.Count;
 
     /// <summary>The groups and parts this pack actually holds, in the order they are drawn.</summary>
     /// <remarks>
@@ -84,11 +99,12 @@ internal sealed class PackContents
     public static PackContents Load(string directory, int maxLocalPathLength)
     {
         var pages = new List<PackPage>();
+        var fonts = new List<PackPage>();
         var tooLong = 0;
 
         if (string.IsNullOrWhiteSpace(directory) || !Directory.Exists(directory))
         {
-            return new PackContents(pages, tooLong);
+            return new PackContents(pages, fonts, tooLong);
         }
 
         foreach (var file in Directory.EnumerateFiles(directory, "*.exd", SearchOption.AllDirectories))
@@ -105,8 +121,38 @@ internal sealed class PackContents
             pages.Add(new PackPage(gamePath, file, PackParts.SheetOf(gamePath)));
         }
 
-        return new PackContents(pages, tooLong);
+        // Look for fonts only in the folder the client reads them from. The sheet key is fixed, so
+        // a font never goes into the part table or into the leftovers box.
+        var fontDir = Path.Combine(directory, FontPrefix.Replace('/', Path.DirectorySeparatorChar));
+        if (Directory.Exists(fontDir))
+        {
+            foreach (var file in Directory.EnumerateFiles(fontDir))
+            {
+                if (!FontExtensions.Contains(Path.GetExtension(file), StringComparer.OrdinalIgnoreCase))
+                {
+                    continue;
+                }
+
+                if (file.Length > maxLocalPathLength)
+                {
+                    tooLong++;
+                    continue;
+                }
+
+                var gamePath = FontPrefix + Path.GetFileName(file);
+                fonts.Add(new PackPage(gamePath, file, FontSheet));
+            }
+        }
+
+        return new PackContents(pages, fonts, tooLong);
     }
+
+    /// <summary>The sheet key of a font. Not a sheet, and never shown as a checkbox.</summary>
+    /// <remarks>
+    ///     Fonts are not on the list of parts a player can switch off. Without them the text of the
+    ///     pack does not draw. When the pack is withdrawn, the fonts go with it.
+    /// </remarks>
+    private const string FontSheet = "common/font/";
 
     /// <summary>
     ///     The pages to hand the game, with the switched-off parts left out.
@@ -131,14 +177,23 @@ internal sealed class PackContents
         return served;
     }
 
+    /// <summary>The font files, all of them. Fonts have no switch for the user: see <see cref="FontSheet" />.</summary>
+    public IReadOnlyList<PackPage> Fonts => this.fonts;
+
     /// <summary>Says in the log which parts were held back, since the page count alone cannot.</summary>
     /// <remarks>
     ///     A pack serving fewer pages than it holds looks identical to one that failed to read half
     ///     of itself. Naming the sheets is the difference between a decision and a bug.
     /// </remarks>
-    public void LogOmissions(IPluginLog log, ICollection<string> disabledSheets, int served)
+    public void LogOmissions(IPluginLog log, ICollection<string> disabledSheets)
     {
-        if (disabledSheets.Count == 0 || served == this.pages.Count)
+        if (disabledSheets.Count == 0)
+        {
+            return;
+        }
+
+        var held = this.pages.Count(p => disabledSheets.Contains(p.Sheet));
+        if (held == 0)
         {
             return;
         }
@@ -149,9 +204,9 @@ internal sealed class PackContents
             .Where(disabledSheets.Contains)
             .Order(StringComparer.OrdinalIgnoreCase);
 
-        log.Information(
+        Diagnostics.Log(log,
             "{Count} page(s) are not being served because you switched their part off: {Sheets}.",
-            this.pages.Count - served,
+            held,
             string.Join(", ", off));
     }
 
@@ -200,7 +255,7 @@ internal sealed class PackContents
         {
             groups.Add(new GroupView(
                 PackParts.OtherGroupName,
-                Loc.Localize("Group.Other.Desc",
+                Loc.Localize("Group.Other.Tooltip",
                     "Text this pack translates that this build of the plugin has no name for, listed "
                     + "under the game's own name for it. A pack in another language may well cover "
                     + "things this one does not."),

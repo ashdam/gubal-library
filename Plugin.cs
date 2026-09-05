@@ -105,6 +105,7 @@ public sealed class Plugin : IDalamudPlugin
         IClientState clientState,
         IFramework framework,
         IGameInteropProvider interop,
+        ISigScanner sigScanner,
         ITextureProvider textures,
         IDataManager data,
         IPluginLog log)
@@ -143,7 +144,8 @@ public sealed class Plugin : IDalamudPlugin
 
         // First, because what it measures is how early this plugin runs: anything queued ahead of it
         // would be measuring itself.
-        this.probe = this.config.ProbeSqPack ? new SqPackProbe(interop, log) : null;
+        Diagnostics.Enabled = this.config.Debug;
+        this.probe = this.config.Debug ? new SqPackProbe(interop, log) : null;
 
         this.installer = new PackInstaller(log, pluginInterface.GetPluginConfigDirectory());
 
@@ -163,6 +165,7 @@ public sealed class Plugin : IDalamudPlugin
             // session, so a redirection put in place later is invisible for what it read.
             (this.redirector, this.redirectorError) = ExdRedirector.Create(
                 interop,
+                sigScanner,
                 log,
                 this.config.LanguagePackPath,
                 this.Contents(),
@@ -190,7 +193,7 @@ public sealed class Plugin : IDalamudPlugin
                 log.Warning("[shadow] the pack was withdrawn from the client too, rather than serve half");
             }
 
-            log.Information($"[shadow] {this.shadow.Message} [{this.shadow.Folder}]");
+            Diagnostics.Log(log, $"[shadow] {this.shadow.Message} [{this.shadow.Folder}]");
         }
 
         this.configWindow = new ConfigWindow(
@@ -315,17 +318,24 @@ public sealed class Plugin : IDalamudPlugin
                       + "and could not be set to. Turn it on in Dalamud's settings or this does nothing.");
                 break;
 
-            // Next load, not now: what it measures is how early the plugin attaches.
-            case "probesqpack":
-                this.config.ProbeSqPack = !this.config.ProbeSqPack;
+            // Next load, not now: the probe attaches at load, and the trace lines start there.
+            case "debug on":
+            case "debug off":
+                this.config.Debug = arguments.Trim().EndsWith("on", StringComparison.OrdinalIgnoreCase);
                 this.SaveConfig(this.config);
-                this.chat.Print(this.config.ProbeSqPack
-                    ? "[Gubal]SqPack probe ON. Restart the client, because it attaches at load and only then."
-                    : "[Gubal]SqPack probe OFF from the next load.");
+                this.chat.Print(this.config.Debug
+                    ? "[Gubal]Debug ON from the next start: trace lines in the log, and a line per page and font the game reads."
+                    : "[Gubal]Debug OFF from the next start. Only warnings and errors are logged.");
+                break;
+
+            case "debug":
+                this.chat.Print(this.config.Debug
+                    ? "[Gubal]Debug is ON. /gubal debug off"
+                    : "[Gubal]Debug is OFF. /gubal debug on");
                 break;
 
             default:
-                this.chat.Print("[Gubal]Usage: /gubal [status|parts|check|usepack|autoupdate|probesqpack]");
+                this.chat.Print("[Gubal]Usage: /gubal [status|parts|check|usepack|autoupdate|debug on|debug off]");
                 break;
         }
     }
@@ -343,6 +353,12 @@ public sealed class Plugin : IDalamudPlugin
             // The number that separates "loaded" from "working": a route installed too late to matter
             // reports the two lines above identically.
             this.chat.Print($"[Gubal]{pages.ServedCount:N0} read(s) answered from disk this session.");
+
+            if (pages.FontCount > 0)
+            {
+                this.chat.Print(
+                    $"[Gubal]{pages.FontsServedCount:N0} of {pages.FontCount:N0} font file(s) served from the pack.");
+            }
 
             // One command away, because it is the first thing to rule out when a plugin misbehaves.
             // The folder is named because 100 MB somebody cannot find is 100 MB they cannot delete.
@@ -425,8 +441,9 @@ public sealed class Plugin : IDalamudPlugin
     private PageStatus PageSnapshot()
     {
         return this.redirector is { } r
-            ? new PageStatus(true, r.PageCount, r.ServedCount, null, r.Manifest, this.update)
-            : new PageStatus(false, 0, 0, this.redirectorError, null, this.update);
+            ? new PageStatus(
+                true, r.PageCount, r.ServedCount, r.FontCount, r.FontsServedCount, null, r.Manifest, this.update)
+            : new PageStatus(false, 0, 0, 0, 0, this.redirectorError, null, this.update);
     }
 
     /// <summary>
@@ -449,7 +466,7 @@ public sealed class Plugin : IDalamudPlugin
 
         // In chat as well as the window, because the window is where the person just was and chat is
         // where they will be.
-        this.chat.Print("[Gubal]Language pack installed. RESTART THE CLIENT. The game reads its text once at startup.");
+        this.chat.Print("[Gubal]Language pack installed. RESTART THE GAME. The game reads its text once at startup.");
     }
 
     /// <summary>
@@ -554,7 +571,7 @@ public sealed class Plugin : IDalamudPlugin
             return null;
         }
 
-        log.Information("Taking language pack {Version} before the game reads its text.", version);
+        Diagnostics.Log(log, "Taking language pack {Version} before the game reads its text.", version);
 
         var result = await this.installer.InstallAsync(this.config.PackSource, null, cancel).ConfigureAwait(false);
 
@@ -740,7 +757,7 @@ public sealed class Plugin : IDalamudPlugin
             .AddText("Open the settings")
             .AddUiForegroundOff()
             .Add(RawPayload.LinkTerminator)
-            .AddText(" or type /gubal to install it. The client has to restart afterwards.")
+            .AddText(" or type /gubal to install it. The game has to restart afterwards.")
             .Build();
     }
 

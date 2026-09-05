@@ -1,0 +1,506 @@
+{
+  "Tab.Pack": {
+    "message": "Language pack",
+    "description": "ConfigWindow.Draw"
+  },
+  "Tab.Parts": {
+    "message": "Translated parts",
+    "description": "ConfigWindow.Draw"
+  },
+  "Tab.Help": {
+    "message": "Help and contact",
+    "description": "ConfigWindow.Draw"
+  },
+  "Parts.Empty": {
+    "message": "No language pack installed.",
+    "description": "ConfigWindow.DrawPartsTab"
+  },
+  "Parts.Intro": {
+    "message": "Untick a part and it goes back to English at the next start. Hover a box for what it covers.",
+    "description": "ConfigWindow.DrawPartsTab"
+  },
+  "Parts.NextStart": {
+    "message": "Changes here take effect when the game next starts.",
+    "description": "ConfigWindow.DrawPartsTab"
+  },
+  "Parts.Count": {
+    "message": "{0} of {1} on",
+    "description": "ConfigWindow.DrawPartsTab"
+  },
+  "Parts.TurnAllOn": {
+    "message": "Turn everything on",
+    "description": "ConfigWindow.DrawPartsTab"
+  },
+  "Parts.Off": {
+    "message": "Switched off",
+    "description": "ConfigWindow.DrawComparison"
+  },
+  "Parts.On": {
+    "message": "Switched on",
+    "description": "ConfigWindow.DrawComparison"
+  },
+  "Restart.Parts": {
+    "message": "You changed which parts are translated. The game reads all of its text once, at startup, so this takes effect the next time it starts.",
+    "description": "ConfigWindow.NoteParted"
+  },
+  "Pack.Off": {
+    "message": "The game is showing its own text. The installed language pack is switched off.",
+    "description": "ConfigWindow.DrawInstalledPack"
+  },
+  "Pack.Pending": {
+    "message": "A language pack is installed but not in use yet. Restart the game.",
+    "description": "ConfigWindow.DrawInstalledPack"
+  },
+  "Pack.None": {
+    "message": "No language pack installed. Choose a language below and press Install.",
+    "description": "ConfigWindow.DrawInstalledPack"
+  },
+  "Pack.Unversioned": {
+    "message": "unversioned",
+    "description": "ConfigWindow.DrawInstalledPack"
+  },
+  "Pack.UpToDate": {
+    "message": "{0}, up to date: {1}",
+    "description": "ConfigWindow.DrawInstalledPack"
+  },
+  "Pack.NothingServed": {
+    "message": "NOTHING IS TRANSLATED THIS SESSION",
+    "description": "ConfigWindow.DrawInstalledPack"
+  },
+  "Update.Checking": {
+    "message": "Checking whether a newer language pack is published...",
+    "description": "ConfigWindow.DrawUpdateNotice"
+  },
+  "Update.Available": {
+    "message": "A newer language pack is published: {0}",
+    "description": "ConfigWindow.DrawUpdateNotice"
+  },
+  "Update.BuiltForGame": {
+    "message": ", built for game {0}",
+    "description": "ConfigWindow.DrawUpdateNotice"
+  },
+  "Update.Unreachable": {
+    "message": "No connection to the language pack update URL. If it persists, this pack will not update itself, so check where you got it from.",
+    "description": "ConfigWindow.DrawUpdateNotice"
+  },
+  "Update.NotDeclared": {
+    "message": "This language pack has no update URL, so it will never update itself.",
+    "description": "ConfigWindow.DrawUpdateNotice"
+  },
+  "Restart.Title": {
+    "message": "RESTART THE GAME",
+    "description": "ConfigWindow.DrawRestartBanner"
+  },
+  "Setup.LanguageLabel": {
+    "message": "Language",
+    "description": "ConfigWindow.DrawLanguageChooser"
+  },
+  "Setup.LanguageUnbuilt": {
+    "message": "{0} (no pack yet)",
+    "description": "ConfigWindow.DrawLanguageChooser"
+  },
+  "Setup.Website": {
+    "message": "Website",
+    "description": "ConfigWindow.DrawLanguageChooser"
+  },
+  "Setup.Report": {
+    "message": "Report a localization issue",
+    "description": "ConfigWindow.DrawLanguageChooser"
+  },
+  "Setup.UseFolder": {
+    "message": "Use this folder",
+    "description": "ConfigWindow.DrawPackAction"
+  },
+  "Setup.UseFolderTip": {
+    "message": "Serves the folder in place. Press again after a rebuild.",
+    "description": "ConfigWindow.DrawPackAction"
+  },
+  "Update.Move": {
+    "message": "Reinstall from the new address",
+    "description": "ConfigWindow.DrawPackAction"
+  },
+  "Update.MoveTip": {
+    "message": "The pack moved. Reinstall from the new address to keep receiving updates.",
+    "description": "ConfigWindow.DrawPackAction"
+  },
+  "Update.InstallNew": {
+    "message": "Install new version {0}",
+    "description": "ConfigWindow.DrawPackAction"
+  },
+  "Update.Check": {
+    "message": "Check for updates",
+    "description": "ConfigWindow.DrawPackAction"
+  },
+  "Setup.Install": {
+    "message": "Install",
+    "description": "ConfigWindow.DrawPackAction"
+  },
+  "Setup.Browse": {
+    "message": "Browse...",
+    "description": "ConfigWindow.DrawOwnPack"
+  },
+  "Setup.OwnLabel": {
+    "message": "Custom Language Pack directory",
+    "description": "ConfigWindow.DrawOwnPack"
+  },
+  "Setup.UnbuiltFormat": {
+    "message": "How a language pack is built",
+    "description": "ConfigWindow.DrawOwnPack"
+  },
+  "Setup.OwnEmpty": {
+    "message": "The folder holding gubal-manifest.json.",
+    "description": "ConfigWindow.DrawFolderVerdict"
+  },
+  "Setup.OwnWrongPatch": {
+    "message": "{0}, built for game {1}. The game is running {2}, so it will be refused at startup rather than served. Rebuild it.",
+    "description": "ConfigWindow.DrawFolderVerdict"
+  },
+  "Setup.OwnReady": {
+    "message": "{0} ({1}), built for this patch.",
+    "description": "ConfigWindow.DrawFolderVerdict"
+  },
+  "Setup.OwnNoFolder": {
+    "message": "No folder at '{0}'.",
+    "description": "ConfigWindow.FolderPack"
+  },
+  "Setup.Unbuilt": {
+    "message": "No language pack available. Want to help translate it?",
+    "description": "ConfigWindow.DrawUnbuiltLanguage"
+  },
+  "Setup.UnbuiltTutorial": {
+    "message": "How to translate this language",
+    "description": "ConfigWindow.DrawUnbuiltLanguage"
+  },
+  "Recruit.Ask": {
+    "message": "Ask on GitHub Discussions",
+    "description": "ConfigWindow.DrawUnbuiltLanguage"
+  },
+  "Setup.LanguageEnglish": {
+    "message": "English (no localization)",
+    "description": "ConfigWindow.ChoiceLabel"
+  },
+  "Setup.LanguageOwn": {
+    "message": "A pack of your own",
+    "description": "ConfigWindow.ChoiceLabel"
+  },
+  "Setup.LanguageNone": {
+    "message": "Choose one",
+    "description": "ConfigWindow.ChoiceLabel"
+  },
+  "Restart.Serving": {
+    "message": "You changed the language. The game reads all of its text once, at startup, so this takes effect the next time it starts.",
+    "description": "ConfigWindow.NoteServing"
+  },
+  "Setup.Auto": {
+    "message": "Auto-update at start",
+    "description": "ConfigWindow.DrawAutoUpdateRow"
+  },
+  "Setup.AutoUnavailable": {
+    "message": "Only for a pack installed from a link.",
+    "description": "ConfigWindow.DrawAutoUpdateRow"
+  },
+  "Boot.NotWaiting": {
+    "message": "Dalamud is not waiting for plugins at startup, so nothing is fetched then. Turn it on in Dalamud's settings.",
+    "description": "ConfigWindow.DrawBootWaitState"
+  },
+  "Boot.OpenSettings": {
+    "message": "Open Dalamud settings",
+    "description": "ConfigWindow.DrawBootWaitState"
+  },
+  "Boot.WhereTip": {
+    "message": "It is on the General tab, called \"Wait for plugins before game loads\".",
+    "description": "ConfigWindow.DrawBootWaitState"
+  },
+  "Pack.UnknownLanguage": {
+    "message": "unknown language",
+    "description": "ConfigWindow.DrawPackDetail"
+  },
+  "Pack.LanguageByAuthor": {
+    "message": "{0} by {1}",
+    "description": "ConfigWindow.DrawPackDetail"
+  },
+  "Pack.BuiltFor": {
+    "message": "Built for game {0}",
+    "description": "ConfigWindow.DrawPackDetail"
+  },
+  "Pack.UnknownVersion": {
+    "message": "unknown",
+    "description": "ConfigWindow.DrawPackDetail"
+  },
+  "Pack.Served": {
+    "message": "{0} read(s) answered from disk this session",
+    "description": "ConfigWindow.DrawPackDetail"
+  },
+  "Pack.Fonts": {
+    "message": "{0} of {1} font file(s) served from the pack",
+    "description": "ConfigWindow.DrawPackDetail"
+  },
+  "Recruit.Title": {
+    "message": "Want the game in your language?",
+    "description": "ConfigWindow.DrawHelpTab"
+  },
+  "Recruit.Body": {
+    "message": "If you are interested, use the links below to collaborate with your community.",
+    "description": "ConfigWindow.DrawHelpTab"
+  },
+  "Recruit.Format": {
+    "message": "How a language pack is built",
+    "description": "ConfigWindow.DrawHelpTab"
+  },
+  "Contact.Title": {
+    "message": "Contact",
+    "description": "ConfigWindow.DrawHelpTab"
+  },
+  "Contact.Discord": {
+    "message": "Discord",
+    "description": "ConfigWindow.DrawHelpTab"
+  },
+  "Contact.Copy": {
+    "message": "Click to copy.",
+    "description": "ConfigWindow.DrawHelpTab"
+  },
+  "Setup.PickerTitle": {
+    "message": "Select the folder your language pack was built into",
+    "description": "ConfigWindow.BrowseForLanguagePack"
+  },
+  "Install.Done": {
+    "message": "Installed {0} ({1}).",
+    "description": "<<Install>b__1>d.MoveNext"
+  },
+  "Restart.Installed": {
+    "message": "The new language pack is installed but the game will not read it until it starts again, because it loads all of its text once, at startup.",
+    "description": "<<Install>b__1>d.MoveNext"
+  },
+  "Group.Other.Tooltip": {
+    "message": "Text this pack translates that this build of the plugin has no name for, listed under the game's own name for it. A pack in another language may well cover things this one does not.",
+    "description": "PackContents.BuildLayout"
+  },
+  "Group.Other.PartDesc": {
+    "message": "This build of the plugin has no name for this one.",
+    "description": "<>c.<BuildLayout>b__24_2"
+  },
+  "Group.Other.Name": {
+    "message": "Other text in this pack",
+    "description": "PackParts.get_OtherGroupName"
+  },
+  "Group.Story.Name": {
+    "message": "Quests and story",
+    "description": "PackParts.Build"
+  },
+  "Group.Story.Tooltip": {
+    "message": "Text of the main scenario, side quests and cutscenes.",
+    "description": "PackParts.Build"
+  },
+  "Part.QuestText.Name": {
+    "message": "Quest dialogue, journal and objectives",
+    "description": "PackParts.Build"
+  },
+  "Part.QuestText.Tooltip": {
+    "message": "Shows the text when you talk to NPCs about a quest, the story summaries in the journal, the list of steps in the tracker and the quest pop-up notices.",
+    "description": "PackParts.Build"
+  },
+  "Part.Cutscenes.Name": {
+    "message": "Cutscene subtitles",
+    "description": "PackParts.Build"
+  },
+  "Part.Cutscenes.Tooltip": {
+    "message": "Translates the subtitle lines at the bottom of the screen during voiced cutscenes.",
+    "description": "PackParts.Build"
+  },
+  "Part.QuestNames.Name": {
+    "message": "Quest names",
+    "description": "PackParts.Build"
+  },
+  "Part.QuestNames.Tooltip": {
+    "message": "Translates only the quest titles (in the tracker, the journal and the Unending Journey).",
+    "description": "PackParts.Build"
+  },
+  "Part.QuestNames.Warning": {
+    "message": "Names and text are separate parts. With only one of them on, titles and objectives are shown in different languages.",
+    "description": "PackParts.Build"
+  },
+  "Group.People.Name": {
+    "message": "Ambient dialogue and the world",
+    "description": "PackParts.Build"
+  },
+  "Group.People.Tooltip": {
+    "message": "Casual conversations and flavour text around the map.",
+    "description": "PackParts.Build"
+  },
+  "Part.Talk.Name": {
+    "message": "Talking to someone",
+    "description": "PackParts.Build"
+  },
+  "Part.Talk.Tooltip": {
+    "message": "The text window that opens when you talk to NPCs with no quest (including Gold Saucer criers and vendors).",
+    "description": "PackParts.Build"
+  },
+  "Part.AskAbout.Name": {
+    "message": "\"Ask about...\" menus and information windows",
+    "description": "PackParts.Build"
+  },
+  "Part.AskAbout.Tooltip": {
+    "message": "The dialogue options an NPC offers when you ask about several topics, and the explanatory text of each option.",
+    "description": "PackParts.Build"
+  },
+  "Part.Balloons.Name": {
+    "message": "Speech balloons and shouts",
+    "description": "PackParts.Build"
+  },
+  "Part.Balloons.Tooltip": {
+    "message": "Text balloons over characters' heads as you walk by, and warnings shouted in combat.",
+    "description": "PackParts.Build"
+  },
+  "Group.People.Warning": {
+    "message": "This is the largest part of the translation.",
+    "description": "PackParts.Build"
+  },
+  "Group.Duties.Name": {
+    "message": "Dungeons, raids and special zones",
+    "description": "PackParts.Build"
+  },
+  "Group.Duties.Tooltip": {
+    "message": "Everything that happens inside combat instances and large-scale content zones.",
+    "description": "PackParts.Build"
+  },
+  "Part.DutyText.Name": {
+    "message": "Text and interactions inside content (Duties)",
+    "description": "PackParts.Build"
+  },
+  "Part.DutyText.Tooltip": {
+    "message": "What bosses and NPCs say inside a dungeon or raid, on-screen objectives, route votes in Variant Dungeons and the records of zones such as Eureka, Bozja or the Occult Crescent.",
+    "description": "PackParts.Build"
+  },
+  "Part.Objects.Name": {
+    "message": "Objects and information in the world",
+    "description": "PackParts.Build"
+  },
+  "Part.Objects.Tooltip": {
+    "message": "What a mechanism or lever tells you when used, plus documents, letters, signs and puzzle hints.",
+    "description": "PackParts.Build"
+  },
+  "Part.DeepDungeons.Name": {
+    "message": "Deep Dungeon systems and unique content",
+    "description": "PackParts.Build"
+  },
+  "Part.DeepDungeons.Tooltip": {
+    "message": "Elements exclusive to Palace of the Dead, Heaven-on-High and Eureka Orthos (pomanders, floor effects, demiclones) together with the field lore log.",
+    "description": "PackParts.Build"
+  },
+  "Group.Finder.Name": {
+    "message": "Finder and guides (Duty Finder and tutorials)",
+    "description": "PackParts.Build"
+  },
+  "Group.Finder.Tooltip": {
+    "message": "Instance names and in-game explanations.",
+    "description": "PackParts.Build"
+  },
+  "Part.DutyFinder.Name": {
+    "message": "Content finder (Duty Finder)",
+    "description": "PackParts.Build"
+  },
+  "Part.DutyFinder.Tooltip": {
+    "message": "The name of every dungeon, hunt, trial and raid in the list, the roulette explanations and the short guildhest tactics.",
+    "description": "PackParts.Build"
+  },
+  "Part.ActiveHelp.Name": {
+    "message": "Tutorials and Active Help",
+    "description": "PackParts.Build"
+  },
+  "Part.ActiveHelp.Tooltip": {
+    "message": "The help pop-ups when you do something for the first time, and the journal tutorials.",
+    "description": "PackParts.Build"
+  },
+  "Part.ContentGuides.Name": {
+    "message": "Built-in content guides",
+    "description": "PackParts.Build"
+  },
+  "Part.ContentGuides.Tooltip": {
+    "message": "Built-in manuals such as the rules of Mahjong, Triple Triad and the Island Sanctuary.",
+    "description": "PackParts.Build"
+  },
+  "Group.Navigation.Name": {
+    "message": "Navigation and compatibility",
+    "description": "PackParts.Build"
+  },
+  "Group.Navigation.Tooltip": {
+    "message": "Names of aetherytes, Aethernet shards, ferries and travel menus.",
+    "description": "PackParts.Build"
+  },
+  "Part.Travel.Name": {
+    "message": "Transport, aetherytes and travel names",
+    "description": "PackParts.Build"
+  },
+  "Part.Travel.Tooltip": {
+    "message": "Names of aetherytes, Aethernet shards, ferries and travel menus. Lifestream looks these names up in English to know where to teleport you. Translated, navigation fails.",
+    "description": "PackParts.Build"
+  },
+  "Group.Navigation.Warning": {
+    "message": "If you translate this, the related plugins stop working (example: Lifestream).",
+    "description": "PackParts.Build"
+  },
+  "Group.SafeInterface.Name": {
+    "message": "Safe interface and settings",
+    "description": "PackParts.Build"
+  },
+  "Group.SafeInterface.Tooltip": {
+    "message": "General visual elements that break no script.",
+    "description": "PackParts.Build"
+  },
+  "Part.MainMenu.Name": {
+    "message": "Main menu and start screen",
+    "description": "PackParts.Build"
+  },
+  "Part.MainMenu.Tooltip": {
+    "message": "The options of the menu that opens with Esc, the title screen when the game opens, and character creation.",
+    "description": "PackParts.Build"
+  },
+  "Group.Interface.Name": {
+    "message": "Interface critical for addons",
+    "description": "PackParts.Build"
+  },
+  "Group.Interface.Tooltip": {
+    "message": "Window titles, buttons, confirmations, shop windows and loot windows.",
+    "description": "PackParts.Build"
+  },
+  "Part.Interface.Name": {
+    "message": "Buttons, windows and interface (UI)",
+    "description": "PackParts.Build"
+  },
+  "Part.Interface.Tooltip": {
+    "message": "Window titles, buttons, \"Yes/No\" confirmations, tomestone and exchange shop menus, and loot and coffer windows. Several plugins read the windows and buttons in English to interact with the interface. Translating them stops them from detecting those options.",
+    "description": "PackParts.Build"
+  },
+  "Group.Interface.Warning": {
+    "message": "If you translate this, the related plugins stop working (examples: Yes Already, AutoRetainer, Pandora, LazyLoot, Deliveroo).",
+    "description": "PackParts.Build"
+  },
+  "Group.Chat.Name": {
+    "message": "Chat, messages and items",
+    "description": "PackParts.Build"
+  },
+  "Group.Chat.Tooltip": {
+    "message": "On-screen logs and inventory information.",
+    "description": "PackParts.Build"
+  },
+  "Part.Log.Name": {
+    "message": "Combat and system log",
+    "description": "PackParts.Build"
+  },
+  "Part.Log.Tooltip": {
+    "message": "Everything that appears in the chat window (damage, emotes, gil notices, system errors, zone announcements).",
+    "description": "PackParts.Build"
+  },
+  "Part.Log.Warning": {
+    "message": "Combat parsers and several plugins read these lines in English.",
+    "description": "PackParts.Build"
+  },
+  "Part.Items.Name": {
+    "message": "Items and character attributes",
+    "description": "PackParts.Build"
+  },
+  "Part.Items.Tooltip": {
+    "message": "The names of every item in the bags and on the market board, and the names and descriptions of attributes (Strength, Critical Hit, etc.).",
+    "description": "PackParts.Build"
+  }
+}
