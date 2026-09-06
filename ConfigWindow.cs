@@ -1095,11 +1095,8 @@ internal sealed class ConfigWindow : Window
         }
     }
 
-    /// <summary>
-    ///     The manifest published at a pack's release, fetched once per session. Never the installed
-    ///     one: coverage belongs to a release, and what is installed may be older or a folder of one's own.
-    /// </summary>
-    /// <returns>Loading is true while the fetch is out; a fetch that failed leaves the manifest null for the session.</returns>
+   
+    // The manifest published at a pack's release, fetched once per session. 
     private (PackManifest? Manifest, bool Loading) PublishedManifest(KnownPack pack)
     {
         lock (this.published)
