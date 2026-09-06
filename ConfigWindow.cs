@@ -921,10 +921,13 @@ internal sealed class ConfigWindow : Window
             for (var i = 0; i < KnownPacks.All.Length; i++)
             {
                 var pack = KnownPacks.All[i];
+                var (manifest, loading) = pack.Published ? this.PublishedManifest(pack) : (null, false);
+                var offline = pack.Published && !loading && manifest is null;
 
                 ImGui.TableNextRow();
                 ImGui.TableNextColumn();
-                if (this.LanguageRow(pack.Code, i == chosen, pack.Code, null, pack.Name))
+                // A release that cannot be reached cannot be installed either, so its row is not offered.
+                if (this.LanguageRow(pack.Code, i == chosen, pack.Code, null, pack.Name, offline))
                 {
                     var switching = i != chosen;
                     this.chosenPack = i;
@@ -946,7 +949,7 @@ internal sealed class ConfigWindow : Window
                     changed = true;
                 }
 
-                var manifest = this.DrawCoverageCell(pack, pages);
+                DrawCoverageCell(pack, manifest, loading);
 
                 ImGui.TableNextColumn();
                 if (manifest?.Coverage is { } coverage)
@@ -1031,9 +1034,14 @@ internal sealed class ConfigWindow : Window
     }
 
     /// <summary>A radio button, then a flag or a glyph, then the name. True when the radio was pressed.</summary>
-    private bool LanguageRow(string id, bool selected, string? flagCode, FontAwesomeIcon? glyph, string label)
+    private bool LanguageRow(string id, bool selected, string? flagCode, FontAwesomeIcon? glyph, string label, bool disabled = false)
     {
-        var pressed = ImGui.RadioButton($"##pick_{id}", selected);
+        bool pressed;
+        using (ImRaii.Disabled(disabled))
+        {
+            pressed = ImGui.RadioButton($"##pick_{id}", selected);
+        }
+
         ImGui.SameLine();
 
         if (flagCode is not null && this.Flag(flagCode) is { } flag)
@@ -1059,27 +1067,24 @@ internal sealed class ConfigWindow : Window
 
     /// <summary>The Translated cell: a bar with the figure, "No pack yet", or blank while nothing is known.</summary>
     /// <returns>The manifest the figure came from, for the cells after it.</returns>
-    private PackManifest? DrawCoverageCell(KnownPack pack, PageStatus pages)
+    private static void DrawCoverageCell(KnownPack pack, PackManifest? manifest, bool loading)
     {
         ImGui.TableNextColumn();
+        ImGui.AlignTextToFramePadding();
 
         if (!pack.Published)
         {
-            ImGui.AlignTextToFramePadding();
             ImGui.TextDisabled(Loc.Localize("Setup.NoPackYet", "No pack yet"));
-            return null;
         }
-
-        var (manifest, loading) = this.PublishedManifest(pack, pages);
-
-        if (loading)
+        else if (loading)
         {
-            ImGui.AlignTextToFramePadding();
             ImGui.TextDisabled(Loc.Localize("Setup.CoverageLoading", "Loading..."));
-            return null;
         }
-
-        if (manifest?.Coverage is { } coverage)
+        else if (manifest is null)
+        {
+            ImGui.TextDisabled(Loc.Localize("Setup.Offline", "Offline"));
+        }
+        else if (manifest.Coverage is { } coverage)
         {
             var percent = coverage.Percent;
             var overlay = percent >= 100 ? "100 %"
@@ -1088,24 +1093,15 @@ internal sealed class ConfigWindow : Window
 
             ImGui.ProgressBar((float)Math.Clamp(percent / 100.0, 0.0, 1.0), new Vector2(-1, 0), overlay);
         }
-
-        return manifest;
     }
 
     /// <summary>
-    ///     What is known about a published pack: the installed manifest when it is this language,
-    ///     otherwise the one fetched from its release, once per session.
+    ///     The manifest published at a pack's release, fetched once per session. Never the installed
+    ///     one: coverage belongs to a release, and what is installed may be older or a folder of one's own.
     /// </summary>
     /// <returns>Loading is true while the fetch is out; a fetch that failed leaves the manifest null for the session.</returns>
-    private (PackManifest? Manifest, bool Loading) PublishedManifest(KnownPack pack, PageStatus pages)
+    private (PackManifest? Manifest, bool Loading) PublishedManifest(KnownPack pack)
     {
-        if (pages.Manifest is { } installed
-            && KnownPacks.ForCode(installed.Language) is { } own
-            && string.Equals(own.Code, pack.Code, StringComparison.OrdinalIgnoreCase))
-        {
-            return (installed, false);
-        }
-
         lock (this.published)
         {
             if (this.published.TryGetValue(pack.Code, out var known))
