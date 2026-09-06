@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Numerics;
 using CheapLoc;
 using Dalamud.Bindings.ImGui;
@@ -99,6 +100,12 @@ internal sealed class ConfigWindow : Window
 
     /// <summary>Which language chooser entry is showing. Null re-reads it from the source box.</summary>
     private int? chosenPack;
+
+    /// <summary>The manifest fetched for each published language this session, null when it could not be.</summary>
+    private readonly Dictionary<string, PackManifest?> published = new(StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>Languages whose fetch has been started, so each is asked for once.</summary>
+    private readonly HashSet<string> fetching = new(StringComparer.OrdinalIgnoreCase);
 
     /// <summary>The path <see cref="checkedPack" /> describes. Null before anything has been looked at.</summary>
     private string? checkedPath;
@@ -617,38 +624,6 @@ internal sealed class ConfigWindow : Window
     /// <summary>The height every flag is drawn at; width follows the image so no flag is squashed.</summary>
     private static float FlagHeight => 12f * ImGuiHelpers.GlobalScale;
 
-    /// <summary>Enough spaces to cover <paramref name="width" /> pixels, for text a picture will be painted over.</summary>
-    private static string PadFor(float width)
-    {
-        var space = ImGui.CalcTextSize(" ").X;
-        return space <= 0f ? string.Empty : new string(' ', (int)Math.Ceiling(width / space));
-    }
-
-    /// <summary>A flag, then the row it labels. Falls back to plain text while the image loads.</summary>
-    private bool FlagRow(string code, string label, bool selected)
-    {
-        if (this.Flag(code) is { } flag)
-        {
-            var height = FlagHeight;
-            ImGui.Image(flag.Handle, new Vector2(height * flag.Width / flag.Height, height));
-            ImGui.SameLine();
-        }
-
-        return ImGui.Selectable(label, selected);
-    }
-
-    /// <summary>A glyph from the icon font, then the row it labels, for entries that are not a country.</summary>
-    private static bool GlyphRow(FontAwesomeIcon icon, string label, bool selected)
-    {
-        using (ImRaii.PushFont(UiBuilder.IconFont, true))
-        {
-            ImGui.TextUnformatted(icon.ToIconString());
-        }
-
-        ImGui.SameLine();
-        return ImGui.Selectable(label, selected);
-    }
-
     /// <summary>Switches a run of sheets on or off together, and notes that a restart is owed.</summary>
     private void SetSheets(IEnumerable<string> sheets, bool on)
     {
@@ -919,55 +894,38 @@ internal sealed class ConfigWindow : Window
     }
 
     /// <summary>
-    ///     The list of language packs the community publishes. Returns which entry is showing.
+    ///     The language packs the community publishes, one row each, with what each manifest says.
+    ///     Returns which entry is showing.
     /// </summary>
-    /// <remarks>Fills the address in and stops: nothing is fetched until the button beside it.</remarks>
+    /// <remarks>Picking a row sets the address and stops: nothing is fetched until the button below.</remarks>
     private int DrawLanguageChooser(PageStatus pages, ref bool changed)
     {
         var chosen = this.Chosen(pages);
+        var scale = ImGuiHelpers.GlobalScale;
 
-        ImGui.AlignTextToFramePadding();
-        ImGui.TextDisabled(Loc.Localize("Setup.LanguageLabel", "Language"));
-        ImGui.SameLine();
-
-        // Fixed width: stretched to the edge it leaves nowhere for the button and links beside it.
-        ImGui.SetNextItemWidth(220f * ImGuiHelpers.GlobalScale);
-        // The closed combo cannot hold an image, so the flag is painted over it after the fact and the
-        // preview text is pushed right by the width the flag will take.
-        var previewFlag = chosen >= 0 ? this.Flag(KnownPacks.All[chosen].Code) : null;
-        var previewPad = previewFlag is null ? 0f : FlagHeight * previewFlag.Width / previewFlag.Height + ImGui.GetStyle().ItemInnerSpacing.X;
-        var preview = previewFlag is null ? ChoiceLabel(chosen) : PadFor(previewPad) + ChoiceLabel(chosen);
-
-        using (var combo = ImRaii.Combo("##packLanguage", preview))
+        using (var table = ImRaii.Table("##languages", 4,
+                   ImGuiTableFlags.RowBg | ImGuiTableFlags.NoSavedSettings | ImGuiTableFlags.PadOuterX))
         {
-            if (combo)
+            if (!table)
             {
-                // Only with something installed: this plugin never offers a language of its own.
-                if (this.config.LanguagePackPath.Length > 0)
+                return chosen;
+            }
+
+            // Language sizes to its longest label; the two stretch columns share what is left.
+            ImGui.TableSetupColumn(Loc.Localize("Setup.ColLanguage", "Language"), ImGuiTableColumnFlags.WidthFixed);
+            ImGui.TableSetupColumn(Loc.Localize("Setup.ColTranslated", "Translated"), ImGuiTableColumnFlags.WidthFixed, 90f * scale);
+            ImGui.TableSetupColumn(Loc.Localize("Setup.ColEnglish", "Kept in English"), ImGuiTableColumnFlags.WidthStretch);
+            ImGui.TableSetupColumn(Loc.Localize("Setup.ColLinks", "Links"), ImGuiTableColumnFlags.WidthFixed);
+            ImGui.TableHeadersRow();
+
+            for (var i = 0; i < KnownPacks.All.Length; i++)
+            {
+                var pack = KnownPacks.All[i];
+
+                ImGui.TableNextRow();
+                ImGui.TableNextColumn();
+                if (this.LanguageRow(pack.Code, i == chosen, pack.Code, null, pack.Name))
                 {
-                    if (GlyphRow(FontAwesomeIcon.Globe, ChoiceLabel(English), chosen == English) && chosen != English)
-                    {
-                        this.config.ServeLanguagePack = false;
-                        this.NoteServing();
-                        changed = true;
-                    }
-
-                    ImGui.Separator();
-                }
-
-                for (var i = 0; i < KnownPacks.All.Length; i++)
-                {
-                    var pack = KnownPacks.All[i];
-
-                    var label = !pack.Published
-                        ? string.Format(Loc.Localize("Setup.LanguageUnbuilt", "{0} (no pack yet)"), pack.Name)
-                        : pack.Name;
-
-                    if (!this.FlagRow(pack.Code, label, i == chosen))
-                    {
-                        continue;
-                    }
-
                     var switching = i != chosen;
                     this.chosenPack = i;
                     this.ServeAgain();
@@ -988,44 +946,191 @@ internal sealed class ConfigWindow : Window
                     changed = true;
                 }
 
-                // Not a language: sets no address, and opens the folder row instead.
-                ImGui.Separator();
-                if (GlyphRow(FontAwesomeIcon.FolderOpen, ChoiceLabel(OwnPack), chosen == OwnPack))
+                var manifest = this.DrawCoverageCell(pack, pages);
+
+                ImGui.TableNextColumn();
+                if (manifest?.Coverage is { } coverage)
                 {
-                    this.chosenPack = OwnPack;
-                    this.ServeAgain();
+                    ImGui.AlignTextToFramePadding();
+                    ImGui.TextWrapped(string.Join(", ", coverage.KeptEnglish));
+                }
+
+                ImGui.TableNextColumn();
+                ImGui.AlignTextToFramePadding();
+                if (pack.Site is { Length: > 0 } site)
+                {
+                    IconLink(FontAwesomeIcon.Globe, pack.SiteName ?? site, site);
+                    ImGui.SameLine();
+                }
+
+                IconLink(FontAwesomeIcon.Language, Loc.Localize("Setup.HelpTranslate", "Help us translate"), KnownPacks.TutorialFor(pack.Code));
+
+                if (PackTracker(pages, i) is { Length: > 0 } tracker)
+                {
+                    ImGui.SameLine();
+                    IconLink(FontAwesomeIcon.Bug, Loc.Localize("Setup.Report", "Report a localization issue"), tracker);
+                }
+            }
+
+            // Only with something installed: this plugin never offers a language of its own.
+            if (this.config.LanguagePackPath.Length > 0)
+            {
+                ImGui.TableNextRow();
+                ImGui.TableNextColumn();
+                if (this.LanguageRow("english", chosen == English, null, FontAwesomeIcon.Globe, ChoiceLabel(English))
+                    && chosen != English)
+                {
+                    this.config.ServeLanguagePack = false;
+                    this.NoteServing();
                     changed = true;
                 }
             }
-        }
 
-        // Painted over the closed combo, inside its frame padding, where the spaces above left room.
-        if (previewFlag is { } shown)
-        {
-            var min = ImGui.GetItemRectMin() + ImGui.GetStyle().FramePadding;
-            var size = new Vector2(FlagHeight * shown.Width / shown.Height, FlagHeight);
-            ImGui.GetWindowDrawList().AddImage(shown.Handle, min, min + size);
+            // Not a language: sets no address, and opens the folder row instead.
+            ImGui.TableNextRow();
+            ImGui.TableNextColumn();
+            if (this.LanguageRow("own", chosen == OwnPack, null, FontAwesomeIcon.FolderOpen, ChoiceLabel(OwnPack)))
+            {
+                this.chosenPack = OwnPack;
+                this.ServeAgain();
+                changed = true;
+            }
         }
 
         // Nothing to press for a language nobody has built, or for the game's own English. A folder
         // of one's own has its button beside Browse, on its own row.
         if (chosen != English && chosen != OwnPack && (chosen < 0 || KnownPacks.All[chosen].Published))
         {
-            ImGui.SameLine();
             this.DrawPackAction(pages, chosen);
         }
 
-        if (chosen >= 0 && KnownPacks.All[chosen].Site is { Length: > 0 } site)
-        {
-            LinkAfter(Loc.Localize("Setup.Website", "Website"), site);
-        }
-
-        if (PackTracker(pages, chosen) is { Length: > 0 } tracker)
-        {
-            LinkAfter(Loc.Localize("Setup.Report", "Report a localization issue"), tracker);
-        }
-
         return chosen;
+    }
+
+    /// <summary>An icon that opens a page in the browser. The label and the address go in the tooltip.</summary>
+    private static void IconLink(FontAwesomeIcon icon, string label, string url)
+    {
+        using (ImRaii.PushColor(ImGuiCol.Text, Blue))
+        using (ImRaii.PushFont(UiBuilder.IconFont, true))
+        {
+            ImGui.TextUnformatted(icon.ToIconString());
+        }
+
+        if (!ImGui.IsItemHovered())
+        {
+            return;
+        }
+
+        ImGui.SetMouseCursor(ImGuiMouseCursor.Hand);
+        SetTooltip(label + "\n" + url);
+
+        if (ImGui.IsMouseClicked(ImGuiMouseButton.Left))
+        {
+            Util.OpenLink(url);
+        }
+    }
+
+    /// <summary>A radio button, then a flag or a glyph, then the name. True when the radio was pressed.</summary>
+    private bool LanguageRow(string id, bool selected, string? flagCode, FontAwesomeIcon? glyph, string label)
+    {
+        var pressed = ImGui.RadioButton($"##pick_{id}", selected);
+        ImGui.SameLine();
+
+        if (flagCode is not null && this.Flag(flagCode) is { } flag)
+        {
+            ImGui.Image(flag.Handle, new Vector2(FlagHeight * flag.Width / flag.Height, FlagHeight));
+            ImGui.SameLine();
+        }
+        else if (glyph is { } icon)
+        {
+            ImGui.AlignTextToFramePadding();
+            using (ImRaii.PushFont(UiBuilder.IconFont, true))
+            {
+                ImGui.TextUnformatted(icon.ToIconString());
+            }
+
+            ImGui.SameLine();
+        }
+
+        ImGui.AlignTextToFramePadding();
+        ImGui.TextUnformatted(label);
+        return pressed;
+    }
+
+    /// <summary>The Translated cell: a bar with the figure, "No pack yet", or blank while nothing is known.</summary>
+    /// <returns>The manifest the figure came from, for the cells after it.</returns>
+    private PackManifest? DrawCoverageCell(KnownPack pack, PageStatus pages)
+    {
+        ImGui.TableNextColumn();
+
+        if (!pack.Published)
+        {
+            ImGui.AlignTextToFramePadding();
+            ImGui.TextDisabled(Loc.Localize("Setup.NoPackYet", "No pack yet"));
+            return null;
+        }
+
+        var (manifest, loading) = this.PublishedManifest(pack, pages);
+
+        if (loading)
+        {
+            ImGui.AlignTextToFramePadding();
+            ImGui.TextDisabled(Loc.Localize("Setup.CoverageLoading", "Loading..."));
+            return null;
+        }
+
+        if (manifest?.Coverage is { } coverage)
+        {
+            var percent = coverage.Percent;
+            var overlay = percent >= 100 ? "100 %"
+                : percent is > 0 and < 1 ? "<1 %"
+                : percent.ToString("0.#", CultureInfo.InvariantCulture) + " %";
+
+            ImGui.ProgressBar((float)Math.Clamp(percent / 100.0, 0.0, 1.0), new Vector2(-1, 0), overlay);
+        }
+
+        return manifest;
+    }
+
+    /// <summary>
+    ///     What is known about a published pack: the installed manifest when it is this language,
+    ///     otherwise the one fetched from its release, once per session.
+    /// </summary>
+    /// <returns>Loading is true while the fetch is out; a fetch that failed leaves the manifest null for the session.</returns>
+    private (PackManifest? Manifest, bool Loading) PublishedManifest(KnownPack pack, PageStatus pages)
+    {
+        if (pages.Manifest is { } installed
+            && KnownPacks.ForCode(installed.Language) is { } own
+            && string.Equals(own.Code, pack.Code, StringComparison.OrdinalIgnoreCase))
+        {
+            return (installed, false);
+        }
+
+        lock (this.published)
+        {
+            if (this.published.TryGetValue(pack.Code, out var known))
+            {
+                return (known, false);
+            }
+
+            if (pack.ManifestUrl is not { } url)
+            {
+                return (null, false);
+            }
+
+            if (this.fetching.Add(pack.Code))
+            {
+                _ = this.installer.FetchManifestAsync(url).ContinueWith(t =>
+                {
+                    lock (this.published)
+                    {
+                        this.published[pack.Code] = t.IsCompletedSuccessfully ? t.Result : null;
+                    }
+                });
+            }
+
+            return (null, true);
+        }
     }
 
     /// <summary>
@@ -1261,7 +1366,6 @@ internal sealed class ConfigWindow : Window
         ImGui.TextWrapped(Loc.Localize("Setup.Unbuilt",
             "No language pack available. Want to help translate it?"));
 
-        Link(Loc.Localize("Setup.UnbuiltTutorial", "How to translate this language"), KnownPacks.TutorialFor(pack.Code));
         Link(Loc.Localize("Recruit.Ask", "Ask on GitHub Discussions"), KnownPacks.Discussions);
         Link(Loc.Localize("Setup.UnbuiltFormat", "How a language pack is built"), KnownPacks.Format);
     }
@@ -1570,27 +1674,6 @@ internal sealed class ConfigWindow : Window
         return string.Equals(pack.Code, manifest?.Language, StringComparison.OrdinalIgnoreCase)
             ? manifest?.IssuesUrl ?? pack.Issues
             : pack.Issues;
-    }
-
-    /// <summary>A link continuing the row above, or starting its own when the row is full.</summary>
-    /// <remarks>
-    ///     <c>SameLine</c> on a full row clips rather than wraps, and a combo, a button and two links
-    ///     do not fit at the minimum window width. Each link asks for its width first.
-    /// </remarks>
-    private static void LinkAfter(string label, string url)
-    {
-        var needed = ImGui.CalcTextSize(label).X + (ImGui.GetStyle().ItemSpacing.X * 2);
-
-        if (ImGui.GetItemRectMax().X + needed <= ImGui.GetWindowPos().X + ImGui.GetContentRegionMax().X)
-        {
-            ImGui.SameLine();
-
-            // Vertically centred against whatever it followed: plain text sits at the top of a row a
-            // frame tall otherwise.
-            ImGui.AlignTextToFramePadding();
-        }
-
-        Link(label, url);
     }
 
     /// <summary>Text that opens a page in the browser. Never drawn for an address we lack.</summary>
