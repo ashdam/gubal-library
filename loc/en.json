@@ -514,5 +514,9 @@
   "Setup.Report": {
     "message": "Report a localization issue",
     "description": "ConfigWindow.DrawLanguageChooser"
+  },
+  "Setup.Offline": {
+    "message": "Offline",
+    "description": "ConfigWindow.DrawCoverageCell"
   }
 }

@@ -237,5 +237,6 @@
   "Setup.CoverageLoading": { "message": "Caricamento..." },
   "Setup.ColLinks": { "message": "Link" },
   "Setup.HelpTranslate": { "message": "Aiutaci a tradurre" },
-  "Setup.Report": { "message": "Segnala un errore di localizzazione" }
+  "Setup.Report": { "message": "Segnala un errore di localizzazione" },
+  "Setup.Offline": { "message": "Offline" }
 }
