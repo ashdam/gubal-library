@@ -91,22 +91,6 @@
     "message": "RESTART THE GAME",
     "description": "ConfigWindow.DrawRestartBanner"
   },
-  "Setup.LanguageLabel": {
-    "message": "Language",
-    "description": "ConfigWindow.DrawLanguageChooser"
-  },
-  "Setup.LanguageUnbuilt": {
-    "message": "{0} (no pack yet)",
-    "description": "ConfigWindow.DrawLanguageChooser"
-  },
-  "Setup.Website": {
-    "message": "Website",
-    "description": "ConfigWindow.DrawLanguageChooser"
-  },
-  "Setup.Report": {
-    "message": "Report a localization issue",
-    "description": "ConfigWindow.DrawLanguageChooser"
-  },
   "Setup.UseFolder": {
     "message": "Use this folder",
     "description": "ConfigWindow.DrawPackAction"
@@ -165,10 +149,6 @@
   },
   "Setup.Unbuilt": {
     "message": "No language pack available. Want to help translate it?",
-    "description": "ConfigWindow.DrawUnbuiltLanguage"
-  },
-  "Setup.UnbuiltTutorial": {
-    "message": "How to translate this language",
     "description": "ConfigWindow.DrawUnbuiltLanguage"
   },
   "Recruit.Ask": {
@@ -502,5 +482,37 @@
   "Part.Items.Tooltip": {
     "message": "The names of every item in the bags and on the market board, and the names and descriptions of attributes (Strength, Critical Hit, etc.).",
     "description": "PackParts.Build"
+  },
+  "Setup.ColLanguage": {
+    "message": "Language",
+    "description": "ConfigWindow.DrawLanguageChooser"
+  },
+  "Setup.ColTranslated": {
+    "message": "Translated",
+    "description": "ConfigWindow.DrawLanguageChooser"
+  },
+  "Setup.ColEnglish": {
+    "message": "Kept in English",
+    "description": "ConfigWindow.DrawLanguageChooser"
+  },
+  "Setup.NoPackYet": {
+    "message": "No pack yet",
+    "description": "ConfigWindow.DrawLanguageChooser"
+  },
+  "Setup.CoverageLoading": {
+    "message": "Loading...",
+    "description": "ConfigWindow.DrawLanguageChooser"
+  },
+  "Setup.ColLinks": {
+    "message": "Links",
+    "description": "ConfigWindow.DrawLanguageChooser"
+  },
+  "Setup.HelpTranslate": {
+    "message": "Help us translate",
+    "description": "ConfigWindow.DrawLanguageChooser"
+  },
+  "Setup.Report": {
+    "message": "Report a localization issue",
+    "description": "ConfigWindow.DrawLanguageChooser"
   }
 }

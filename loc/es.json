@@ -179,12 +179,8 @@
     "message": "Este language pack no tiene dirección de actualización, así que nunca se actualizará solo."
   },
 
-  "Setup.LanguageLabel": { "message": "Idioma" },
   "Setup.LanguageNone": { "message": "Elige uno" },
   "Setup.LanguageOwn": { "message": "Un language pack tuyo" },
-  "Setup.LanguageUnbuilt": { "message": "{0} (todavía no hay language pack)" },
-  "Setup.Website": { "message": "Página web" },
-  "Setup.Report": { "message": "Reportar una errata" },
   "Setup.OwnLabel": { "message": "Carpeta del language pack personalizado" },
   "Setup.OwnEmpty": {
     "message": "La carpeta que contiene gubal-manifest.json."
@@ -202,7 +198,6 @@
     "message": "Language pack no disponible. ¿Quieres colaborar en su traducción?"
   },
   "Setup.UnbuiltFormat": { "message": "Cómo se construye un language pack" },
-  "Setup.UnbuiltTutorial": { "message": "Cómo traducir este idioma" },
 
   "Setup.Browse": { "message": "Examinar..." },
   "Setup.Install": { "message": "Instalar" },
@@ -234,5 +229,13 @@
   "Contact.Discord": { "message": "Discord" },
   "Contact.Copy": { "message": "Haz clic para copiarlo." },
 
-  "Pack.NothingServed": { "message": "ESTA SESIÓN NO TIENE NADA TRADUCIDO" }
+  "Pack.NothingServed": { "message": "ESTA SESIÓN NO TIENE NADA TRADUCIDO" },
+  "Setup.ColLanguage": { "message": "Idioma" },
+  "Setup.ColTranslated": { "message": "Traducido" },
+  "Setup.ColEnglish": { "message": "En inglés" },
+  "Setup.NoPackYet": { "message": "Sin pack todavía" },
+  "Setup.CoverageLoading": { "message": "Cargando..." },
+  "Setup.ColLinks": { "message": "Enlaces" },
+  "Setup.HelpTranslate": { "message": "Ayúdanos a traducir" },
+  "Setup.Report": { "message": "Informar de un error de localización" }
 }

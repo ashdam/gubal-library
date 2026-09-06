@@ -356,11 +356,7 @@ internal sealed class PackInstaller
 
         try
         {
-            using var client = new HttpClient { Timeout = ManifestTimeout };
-            await using var stream = await client.GetStreamAsync(updateUrl, cancel).ConfigureAwait(false);
-
-            var published = await System.Text.Json.JsonSerializer
-                .DeserializeAsync<PackManifest>(stream, cancellationToken: cancel).ConfigureAwait(false);
+            var published = await ReadManifestAsync(updateUrl, cancel).ConfigureAwait(false);
 
             if (published?.TranslationVersion is not { Length: > 0 } latest)
             {
@@ -380,6 +376,30 @@ internal sealed class PackInstaller
             this.log.Warning("Could not reach {Url} to check for a newer pack: {Message}", updateUrl, e.Message);
             return UpdateStatus.Unreachable(e.Message);
         }
+    }
+
+    /// <summary>The manifest published at an address, or null when it is not a manifest or cannot be reached.</summary>
+    public async Task<PackManifest?> FetchManifestAsync(string url, CancellationToken cancel = default)
+    {
+        try
+        {
+            var manifest = await ReadManifestAsync(url, cancel).ConfigureAwait(false);
+            return manifest?.TranslationVersion is { Length: > 0 } ? manifest : null;
+        }
+        catch (Exception e)
+        {
+            this.log.Warning("Could not read the manifest at {Url}: {Message}", url, e.Message);
+            return null;
+        }
+    }
+
+    private static async Task<PackManifest?> ReadManifestAsync(string url, CancellationToken cancel)
+    {
+        using var client = new HttpClient { Timeout = ManifestTimeout };
+        await using var stream = await client.GetStreamAsync(url, cancel).ConfigureAwait(false);
+
+        return await System.Text.Json.JsonSerializer
+            .DeserializeAsync<PackManifest>(stream, cancellationToken: cancel).ConfigureAwait(false);
     }
 
     private static void DeleteIfPresent(string directory)

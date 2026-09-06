@@ -55,6 +55,9 @@ internal sealed class PackManifest
     /// <summary>The patch the pages were rebuilt from. The one field that gates serving them.</summary>
     [JsonPropertyName("gameVersion")] public string? GameVersion { get; init; }
 
+    /// <summary>How much is translated, as the build counted it. Optional: the window shows it and nothing else reads it.</summary>
+    [JsonPropertyName("coverage")] public PackCoverage? Coverage { get; init; }
+
 
     /// <summary>Display name, falling back through what the pack actually filled in.</summary>
     public string DisplayName => this.Name ?? this.LanguageName ?? this.Language ?? "Unnamed language pack";
@@ -85,4 +88,36 @@ internal sealed class PackManifest
             return (null, $"{FileName} could not be read: {e.Message}");
         }
     }
+}
+
+/// <summary>The <c>coverage</c> block of a manifest: the published figure and what it leaves out.</summary>
+internal sealed class PackCoverage
+{
+    [JsonPropertyName("percent")] public double Percent { get; init; }
+
+    [JsonPropertyName("translated")] public int Translated { get; init; }
+
+    [JsonPropertyName("total")] public int Total { get; init; }
+
+    /// <summary>Text the pack keeps in English on purpose, one entry per block.</summary>
+    [JsonPropertyName("excludedFromLocalization")] public List<CoverageGroup>? ExcludedFromLocalization { get; init; }
+
+    /// <summary>The sheets kept in English, by label. Only entries that name a sheet in backticks: the
+    /// rest of the list is rows with nothing to translate, which is not a choice.</summary>
+    public IEnumerable<string> KeptEnglish =>
+        (this.ExcludedFromLocalization ?? [])
+            .Select(g => g.Content)
+            .OfType<string>()
+            .Select(c => (Text: c, Cut: c.IndexOf(" (`", StringComparison.Ordinal)))
+            .Where(c => c.Cut > 0)
+            .Select(c => c.Text[..c.Cut]);
+}
+
+internal sealed class CoverageGroup
+{
+    [JsonPropertyName("content")] public string? Content { get; init; }
+
+    [JsonPropertyName("translated")] public int Translated { get; init; }
+
+    [JsonPropertyName("total")] public int Total { get; init; }
 }
