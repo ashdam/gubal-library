@@ -33,7 +33,7 @@ internal readonly record struct KnownPack(
 internal static class KnownPacks
 {
     /// <summary>Where the pack format is documented, for a language nobody has built yet.</summary>
-    public const string Format = "https://eorzea-in-spanish.ashdam.workers.dev/localize/en.html";
+    public const string Format = "https://eorzea-localized.ashdam.workers.dev/localize/en.html";
 
     /// <summary>The plugin's own tracker. Not for a wrong line: see <see cref="KnownPack.Issues" />.</summary>
     public const string PluginIssues = "https://github.com/ashdam/gubal-library/issues";
@@ -46,7 +46,7 @@ internal static class KnownPacks
     public const string Discord = "miniashdam";
 
     /// <summary>Where a language's translators are pointed: one tutorial page per language.</summary>
-    private const string Tutorial = "https://eorzea-in-spanish.ashdam.workers.dev/localize/";
+    private const string Tutorial = "https://eorzea-localized.ashdam.workers.dev/localize/";
 
     /// <summary>The page that walks a translator through building the pack for one language.</summary>
     public static string TutorialFor(string code) => Tutorial + code.ToLowerInvariant() + ".html";
@@ -57,28 +57,28 @@ internal static class KnownPacks
             "es-ES",
             "Español",
             "https://github.com/ashdam/ffxiv-language-pack-es-es/releases/latest/download/ffxiv-language-pack-es-es.zip",
-            "https://eorzea-in-spanish.ashdam.workers.dev/es/",
+            "https://eorzea-localized.ashdam.workers.dev/es/",
             "https://github.com/ashdam/ffxiv-language-pack-es-es/issues",
             SiteName: "Eorzea en español"),
         new(
             "it",
             "Italiano",
             "https://github.com/ashdam/ffxiv-language-pack-it/releases/latest/download/ffxiv-language-pack-it.zip",
-            "https://eorzea-in-spanish.ashdam.workers.dev/it/",
+            "https://eorzea-localized.ashdam.workers.dev/it/",
             "https://github.com/ashdam/ffxiv-language-pack-it/issues",
             SiteName: "Eorzea in italiano"),
         new(
             "pt-BR",
             "Português (Brasil)",
             "https://github.com/ashdam/ffxiv-language-pack-pt-br/releases/latest/download/ffxiv-language-pack-pt-br.zip",
-            "https://eorzea-in-spanish.ashdam.workers.dev/pt-br/",
+            "https://eorzea-localized.ashdam.workers.dev/pt-br/",
             "https://github.com/ashdam/ffxiv-language-pack-pt-br/issues",
             SiteName: "Eorzea em português"),
         new(
             "pl",
             "Polski",
             "https://github.com/ashdam/ffxiv-language-pack-pl/releases/latest/download/ffxiv-language-pack-pl.zip",
-            "https://eorzea-in-spanish.ashdam.workers.dev/pl/",
+            "https://eorzea-localized.ashdam.workers.dev/pl/",
             "https://github.com/ashdam/ffxiv-language-pack-pl/issues",
             SiteName: "Eorzea po polsku"),
     ];
