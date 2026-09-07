@@ -140,11 +140,15 @@ jobs:
           generate_release_notes: true
 
   update-repo-json:
-    name: "Publish the plugin index"
+    name: "Prepare the plugin index"
     needs: ["version", "publish-github-release"]
     runs-on: "ubuntu-latest"
     permissions:
       contents: "write"
+    outputs:
+      base: ${{ steps.index.outputs.base }}
+      head: ${{ steps.index.outputs.head }}
+      blob: ${{ steps.index.outputs.blob }}
     steps:
       - name: "Checkout main"
         uses: "actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1" # v7.0.1
@@ -192,14 +196,13 @@ jobs:
           }
           Write-Host "repo.json validated: $($parsed.Count) entry(s), $($parsed[0].InternalName) $($parsed[0].AssemblyVersion)"
 
-      - name: "Validate and merge the index pull request"
+      - name: "Commit the generated index"
+        id: index
         shell: "pwsh"
         env:
-          GH_TOKEN: ${{ secrets.CI_MERGE_TOKEN }}
           RELEASE_VERSION: ${{ needs.version.outputs.version }}
         run: |
           $PSNativeCommandUseErrorActionPreference = $true
-          if (-not $env:GH_TOKEN) { throw 'CI_MERGE_TOKEN is required.' }
           $base = git rev-parse HEAD
           git config user.name  'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
@@ -212,16 +215,53 @@ jobs:
           $branch = "repo-json/$version"
           git commit -m "repo.json: $version"
           $head = git rev-parse HEAD
+          $blob = git rev-parse 'HEAD:repo.json'
           git push origin "HEAD:refs/heads/$branch"
+          "base=$base" >> $env:GITHUB_OUTPUT
+          "head=$head" >> $env:GITHUB_OUTPUT
+          "blob=$blob" >> $env:GITHUB_OUTPUT
+
+  merge-repo-json:
+    name: "Merge the generated index"
+    needs: ["version", "update-repo-json"]
+    runs-on: "ubuntu-latest"
+    permissions: {}
+    # Keep the privileged token on a fresh runner with no checkout or downloaded code.
+    steps:
+      - name: "Validate and merge the index pull request"
+        shell: "pwsh"
+        env:
+          GH_TOKEN: ${{ secrets.CI_MERGE_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+          RELEASE_VERSION: ${{ needs.version.outputs.version }}
+          INDEX_BASE: ${{ needs.update-repo-json.outputs.base }}
+          INDEX_HEAD: ${{ needs.update-repo-json.outputs.head }}
+          INDEX_BLOB: ${{ needs.update-repo-json.outputs.blob }}
+        run: |
+          $PSNativeCommandUseErrorActionPreference = $true
+          if (-not $env:GH_TOKEN) { throw 'CI_MERGE_TOKEN is required.' }
+          foreach ($sha in @($env:INDEX_BASE, $env:INDEX_HEAD, $env:INDEX_BLOB)) {
+            if ($sha -cnotmatch '^[0-9a-f]{40}$') { throw 'Invalid index object ID.' }
+          }
+          $version = $env:RELEASE_VERSION
+          if ($version -cnotmatch '^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$') { throw 'Invalid release version.' }
+          $branch = "repo-json/$version"
+          $commit = gh api "repos/$env:GH_REPO/commits/$env:INDEX_HEAD" | ConvertFrom-Json
+          if ($commit.parents.Count -ne 1 -or $commit.parents[0].sha -ne $env:INDEX_BASE) {
+            throw 'The generated index must be one commit above its base.'
+          }
+          if ($commit.files.Count -ne 1 -or $commit.files[0].filename -ne 'repo.json' -or $commit.files[0].status -ne 'modified' -or $commit.files[0].sha -ne $env:INDEX_BLOB) {
+            throw 'The remote commit does not match the generated index.'
+          }
+          $main = gh api "repos/$env:GH_REPO/git/ref/heads/main" --jq '.object.sha'
+          if ($main -ne $env:INDEX_BASE) { throw 'main changed. Review the index before merging.' }
           $url = gh pr create --base main --head $branch --title "Publish $version in the plugin index" --body "Update repo.json from the validated release manifest."
-          $pr = gh pr view $url --json number,headRefOid,baseRefName,isCrossRepository | ConvertFrom-Json
-          if ($pr.headRefOid -ne $head -or $pr.baseRefName -ne 'main' -or $pr.isCrossRepository) {
+          $pr = gh pr view $url --json number,headRefOid,baseRefOid,baseRefName,isCrossRepository | ConvertFrom-Json
+          if ($pr.headRefOid -ne $env:INDEX_HEAD -or $pr.baseRefOid -ne $env:INDEX_BASE -or $pr.baseRefName -ne 'main' -or $pr.isCrossRepository) {
             throw 'The index pull request does not match the generated commit.'
           }
           $changed = @(gh api "repos/$env:GITHUB_REPOSITORY/pulls/$($pr.number)/files" --paginate | ConvertFrom-Json)
           if ($changed.Count -ne 1 -or $changed[0].filename -ne 'repo.json' -or $changed[0].status -ne 'modified') {
             throw 'The index pull request must only modify repo.json.'
           }
-          $main = gh api "repos/$env:GITHUB_REPOSITORY/git/ref/heads/main" --jq '.object.sha'
-          if ($main -ne $base) { throw 'main changed. Review the index pull request before merging.' }
-          gh pr merge $url --merge --admin --match-head-commit $head
+          gh pr merge $url --merge --admin --match-head-commit $env:INDEX_HEAD
