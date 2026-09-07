@@ -203,9 +203,6 @@
   "Setup.Install": { "message": "Installa" },
   "Setup.LanguageEnglish": { "message": "Inglese (nessuna traduzione)" },
   "Setup.Auto": { "message": "Aggiorna da solo all'avvio" },
-  "Setup.AutoUnavailable": {
-    "message": "Solo per un pack installato da un link."
-  },
   "Setup.PickerTitle": { "message": "Scegli la cartella in cui è stato costruito il tuo language pack" },
 
   "Boot.NotWaiting": {
