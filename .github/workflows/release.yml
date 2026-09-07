@@ -3,27 +3,59 @@ name: "Release"
 
 on:
   push:
-    tags: ["v*"]
-  workflow_dispatch:
+    branches: ["main"]
 
-# No permissions by default. Every job below has to name what it needs, so a job that is never
-# meant to write cannot write even if a step in it is compromised.
+concurrency:
+  group: gubal-release
+  cancel-in-progress: false
+
 permissions: {}
 
 jobs:
+  version:
+    name: "Check version"
+    runs-on: "ubuntu-latest"
+    permissions:
+      contents: "read"
+    outputs:
+      changed: ${{ steps.version.outputs.changed }}
+      version: ${{ steps.version.outputs.version }}
+      tag: ${{ steps.version.outputs.tag }}
+    steps:
+      - name: "Checkout"
+        uses: "actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1" # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: "Test version checks"
+        run: python3 -B -m unittest discover -s .github/scripts -p 'test_*.py'
+      - name: "Check version"
+        id: version
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BEFORE_SHA: ${{ github.event.before }}
+        run: python3 -B .github/scripts/check-release.py
+      - name: "Check index credentials"
+        if: steps.version.outputs.changed == 'true'
+        env:
+          HAS_MERGE_TOKEN: ${{ secrets.GUBAL_MERGE_TOKEN != '' }}
+        run: |
+          if [ "$HAS_MERGE_TOKEN" != "true" ]; then
+            echo "GUBAL_MERGE_TOKEN is required to publish the plugin index." >&2
+            exit 1
+          fi
+
   build:
     name: "Build"
+    needs: ["version"]
+    if: needs.version.outputs.changed == 'true'
     runs-on: "windows-latest"
-    # Read-only: this job compiles and gates the version. It never touches the repository or the
-    # release, so the token it holds while running third-party toolchains can do neither.
     permissions:
       contents: "read"
     steps:
       - name: "Checkout"
         uses: "actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1" # v7.0.1
         with:
-          # Do not leave the token in .git/config for the rest of the job. Nothing here talks to
-          # the remote after checkout, so anything that reads the config finds no credential.
           persist-credentials: false
 
       - name: "Set up .NET"
@@ -31,9 +63,6 @@ jobs:
         with:
           dotnet-version: "10.0.x"
 
-      # Dalamud.NET.Sdk resolves its references from a local Dalamud install and hard-errors if the
-      # folder is missing -- there is no NuGet package to restore instead. DALAMUD_HOME overrides the
-      # path it would otherwise look for under %AppData%\XIVLauncher, which no runner has.
       - name: "Fetch Dalamud"
         shell: "pwsh"
         run: |
@@ -44,45 +73,24 @@ jobs:
         shell: "pwsh"
         env:
           DALAMUD_HOME: "${{ runner.temp }}\\dalamud"
-        # No project file named: there is exactly one in the repo root, and not naming it means
-        # renaming the csproj never silently breaks the release.
         run: dotnet build -c Release --nologo
 
-      # The tag names the release, but AssemblyVersion is what Dalamud actually compares to decide an
-      # update exists. If they disagree, testers either never get offered the update or get offered
-      # one that reinstalls the same build. Refuse to publish rather than ship that.
-      - name: "Check the tag matches AssemblyVersion"
-        if: "startsWith(github.ref, 'refs/tags/')"
+      - name: "Check the version matches AssemblyVersion"
         shell: "pwsh"
-        # The tag arrives through the environment, not through ${{ }} pasted into the script body.
-        # A tag is attacker-controllable text; interpolating it inline would let a crafted tag name
-        # close the string and run as PowerShell.
         env:
-          TAG_NAME: "${{ github.ref_name }}"
+          TAG_NAME: "${{ needs.version.outputs.tag }}"
         run: |
-          # Versions are written with four parts throughout -- csproj, tag and manifest -- so this is
-          # a plain string comparison. Note that .NET pads <Version> to four parts regardless, so a
-          # csproj saying 0.1.2 builds an assembly saying 0.1.2.0 and the tag has to say the same.
           $manifest = Get-Content 'bin\x64\Release\win-x64\GubalLibrary.json' -Raw | ConvertFrom-Json
           $tag = $env:TAG_NAME -replace '^v', ''
           if ($tag -ne $manifest.AssemblyVersion) {
             throw "Tag '$tag' does not match AssemblyVersion '$($manifest.AssemblyVersion)'. Bump <Version> in the csproj and retag."
           }
 
-      # Dalamud only offers an update when the API levels match exactly, so publishing at the wrong
-      # level publishes something nobody can install -- and nothing in the build notices on its own.
-      # The number in the manifest is a constant inside DalamudPackager, pinned by the Dalamud.NET.Sdk
-      # version, so it stays where it is until someone moves that pin. This is what makes it move.
-      #
-      # Unguarded on purpose, unlike the tag check above: on workflow_dispatch this answers "are we
-      # still aligned with what Dalamud ships", which is worth being able to ask without a tag.
       - name: "Check the API level matches the released Dalamud"
         shell: "pwsh"
         run: |
           $manifest = Get-Content 'bin\x64\Release\win-x64\GubalLibrary.json' -Raw | ConvertFrom-Json
 
-          # The release channel, not staging: it is what XIVLauncher installs, so it is the level
-          # testers are actually running.
           $released = (Invoke-RestMethod 'https://goatcorp.github.io/dalamud-distrib/version').AssemblyVersion
           $level = [int] ($released -split '\.')[0]
 
@@ -91,9 +99,6 @@ jobs:
             throw "API level $($manifest.DalamudApiLevel) does not match the released Dalamud's $level. Move the Dalamud.NET.Sdk pin and rebuild."
           }
 
-      # Hand the two files the later jobs need across as an artifact rather than rebuilding there.
-      # Both live in the plugin folder, so the artifact root is that folder: latest.zip and
-      # GubalLibrary.json land flat inside it.
       - name: "Upload artifact"
         uses: "actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a" # v7.0.1
         with:
@@ -106,11 +111,8 @@ jobs:
 
   publish-github-release:
     name: "Publish GitHub release"
-    if: "startsWith(github.ref, 'refs/tags/')"
-    needs: ["build"]
+    needs: ["version", "build"]
     runs-on: "ubuntu-latest"
-    # contents: write is only for creating the release. No checkout in this job, so the write token
-    # is never in the same room as the build toolchain or the repository working tree.
     permissions:
       contents: "write"
     steps:
@@ -120,25 +122,33 @@ jobs:
           name: "plugin"
           path: "assets"
 
+      - name: "Create the release tag"
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG_NAME: ${{ needs.version.outputs.tag }}
+          RELEASE_SHA: ${{ github.sha }}
+        run: |
+          gh api --method POST "repos/$GITHUB_REPOSITORY/git/refs" \
+            -f "ref=refs/tags/$TAG_NAME" -f "sha=$RELEASE_SHA"
+
       - name: "Publish"
         uses: "softprops/action-gh-release@efb35369e0ad2afab669f228072c1b0d510eae64" # v3.0.3
         with:
+          tag_name: ${{ needs.version.outputs.tag }}
+          target_commitish: ${{ github.sha }}
           files: "assets/latest.zip"
           generate_release_notes: true
 
-  # repo.json is the store front: Dalamud polls it and compares AssemblyVersion against what the
-  # player has installed. Publishing a release without updating it means nobody is ever told.
-  # The download links point at /releases/latest/ and never change, so only the version and the
-  # metadata copied from the built manifest need rewriting.
   update-repo-json:
-    name: "Push the new repo.json to a branch"
-    if: "startsWith(github.ref, 'refs/tags/')"
-    needs: ["publish-github-release"]
+    name: "Prepare the plugin index"
+    needs: ["version", "publish-github-release"]
     runs-on: "ubuntu-latest"
-    # This job keeps its credentials -- pushing the branch is the whole point of it -- but it is the
-    # only job that does, and it builds nothing and runs no third-party action.
     permissions:
       contents: "write"
+    outputs:
+      base: ${{ steps.index.outputs.base }}
+      head: ${{ steps.index.outputs.head }}
+      blob: ${{ steps.index.outputs.blob }}
     steps:
       - name: "Checkout main"
         uses: "actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1" # v7.0.1
@@ -153,10 +163,22 @@ jobs:
 
       - name: "Rewrite and validate repo.json"
         shell: "pwsh"
+        env:
+          RELEASE_VERSION: ${{ needs.version.outputs.version }}
         run: |
           $manifest = Get-Content 'assets/GubalLibrary.json' -Raw | ConvertFrom-Json
+          if ($manifest.InternalName -ne 'GubalLibrary' -or $manifest.AssemblyVersion -ne $env:RELEASE_VERSION) {
+            throw 'The manifest does not match this release.'
+          }
 
-          $entry = (Get-Content repo.json -Raw | ConvertFrom-Json)[0]
+          $entries = ConvertFrom-Json (Get-Content repo.json -Raw) -NoEnumerate
+          if ($entries -isnot [System.Collections.IList] -or $entries.Count -ne 1 -or $entries[0].InternalName -ne 'GubalLibrary') {
+            throw 'repo.json must contain one GubalLibrary entry.'
+          }
+          $entry = $entries[0]
+          if ([version]$manifest.AssemblyVersion -le [version]$entry.AssemblyVersion) {
+            throw 'The release version must exceed the version in repo.json.'
+          }
           $entry.AssemblyVersion = $manifest.AssemblyVersion
           $entry.DalamudApiLevel = $manifest.DalamudApiLevel
           $entry.Name            = $manifest.Name
@@ -164,19 +186,8 @@ jobs:
           $entry.Description     = $manifest.Description
           $entry.LastUpdate      = [DateTimeOffset]::UtcNow.ToUnixTimeSeconds()
 
-          # No @() around $entry. -AsArray already guarantees array output, so wrapping first yields
-          # [[{...}]] -- which Dalamud cannot read, and which shipped once because the obvious check
-          # ($parsed[0].Name) walks straight through the extra nesting and looks correct.
-          # utf8NoBOM: a BOM in front of '[' makes some JSON parsers reject the whole repository.
           ConvertTo-Json $entry -Depth 10 -AsArray | Set-Content repo.json -Encoding utf8NoBOM
 
-          # Structural gate, not a spot check. Asserts the shape Dalamud requires: a top-level array
-          # whose elements are objects carrying InternalName.
-          #
-          # -NoEnumerate is load-bearing. Piping into ConvertFrom-Json unwraps a single-element array,
-          # so [{...}] arrives as a bare object and [[{...}]] arrives as an array -- which makes the
-          # naive check pass the broken shape and reject the correct one. The first version of this
-          # gate did exactly that.
           $parsed = ConvertFrom-Json (Get-Content repo.json -Raw) -NoEnumerate
           if ($parsed -isnot [System.Collections.IList]) { throw 'repo.json is not a top-level array.' }
           foreach ($e in $parsed) {
@@ -185,35 +196,72 @@ jobs:
           }
           Write-Host "repo.json validated: $($parsed.Count) entry(s), $($parsed[0].InternalName) $($parsed[0].AssemblyVersion)"
 
-      # A branch, not main: main requires a pull request and rejects a direct push with GH013. The
-      # branch is what the maintainer opens the pull request from, and merging it is what makes
-      # Dalamud offer the new version.
-      - name: "Commit and push a branch"
+      - name: "Commit the generated index"
+        id: index
         shell: "pwsh"
+        env:
+          RELEASE_VERSION: ${{ needs.version.outputs.version }}
         run: |
+          $PSNativeCommandUseErrorActionPreference = $true
+          $base = git rev-parse HEAD
           git config user.name  'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git add repo.json
-
-          # --quiet exits 1 when something is staged, which is the normal path. Read at once so the
-          # commands below can fail the job: an unconditional `exit 0` here reported success over a
-          # rejected push, and repo.json stayed two releases behind for four days.
-          git diff --cached --quiet
-          $staged = $LASTEXITCODE -ne 0
-
-          if (-not $staged) {
-            Write-Host 'repo.json already current, nothing to do.'
-            exit 0
+          $files = @(git diff --cached --name-only)
+          if ($files.Count -ne 1 -or $files[0] -ne 'repo.json') {
+            throw 'Only repo.json may change.'
           }
-
-          $manifest = Get-Content 'assets/GubalLibrary.json' -Raw | ConvertFrom-Json
-          $version = $manifest.AssemblyVersion
+          $version = $env:RELEASE_VERSION
           $branch = "repo-json/$version"
-
           git commit -m "repo.json: $version"
-          if ($LASTEXITCODE -ne 0) { throw 'git commit failed.' }
+          $head = git rev-parse HEAD
+          $blob = git rev-parse 'HEAD:repo.json'
+          git push origin "HEAD:refs/heads/$branch"
+          "base=$base" >> $env:GITHUB_OUTPUT
+          "head=$head" >> $env:GITHUB_OUTPUT
+          "blob=$blob" >> $env:GITHUB_OUTPUT
 
-          git push --force origin "HEAD:refs/heads/$branch"
-          if ($LASTEXITCODE -ne 0) { throw "pushing $branch failed: repo.json is not published." }
-
-          Write-Host "Pushed $branch. Open a pull request from it and merge it to publish $version."
+  merge-repo-json:
+    name: "Merge the generated index"
+    needs: ["version", "update-repo-json"]
+    runs-on: "ubuntu-latest"
+    permissions: {}
+    # Keep the privileged token on a fresh runner with no checkout or downloaded code.
+    steps:
+      - name: "Validate and merge the index pull request"
+        shell: "pwsh"
+        env:
+          GH_TOKEN: ${{ secrets.GUBAL_MERGE_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+          RELEASE_VERSION: ${{ needs.version.outputs.version }}
+          INDEX_BASE: ${{ needs.update-repo-json.outputs.base }}
+          INDEX_HEAD: ${{ needs.update-repo-json.outputs.head }}
+          INDEX_BLOB: ${{ needs.update-repo-json.outputs.blob }}
+        run: |
+          $PSNativeCommandUseErrorActionPreference = $true
+          if (-not $env:GH_TOKEN) { throw 'GUBAL_MERGE_TOKEN is required.' }
+          foreach ($sha in @($env:INDEX_BASE, $env:INDEX_HEAD, $env:INDEX_BLOB)) {
+            if ($sha -cnotmatch '^[0-9a-f]{40}$') { throw 'Invalid index object ID.' }
+          }
+          $version = $env:RELEASE_VERSION
+          if ($version -cnotmatch '^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$') { throw 'Invalid release version.' }
+          $branch = "repo-json/$version"
+          $commit = gh api "repos/$env:GH_REPO/commits/$env:INDEX_HEAD" | ConvertFrom-Json
+          if ($commit.parents.Count -ne 1 -or $commit.parents[0].sha -ne $env:INDEX_BASE) {
+            throw 'The generated index must be one commit above its base.'
+          }
+          if ($commit.files.Count -ne 1 -or $commit.files[0].filename -ne 'repo.json' -or $commit.files[0].status -ne 'modified' -or $commit.files[0].sha -ne $env:INDEX_BLOB) {
+            throw 'The remote commit does not match the generated index.'
+          }
+          $main = gh api "repos/$env:GH_REPO/git/ref/heads/main" --jq '.object.sha'
+          if ($main -ne $env:INDEX_BASE) { throw 'main changed. Review the index before merging.' }
+          $url = gh pr create --base main --head $branch --title "Publish $version in the plugin index" --body "Update repo.json from the validated release manifest."
+          $pr = gh pr view $url --json number,headRefOid,baseRefOid,baseRefName,isCrossRepository | ConvertFrom-Json
+          if ($pr.headRefOid -ne $env:INDEX_HEAD -or $pr.baseRefOid -ne $env:INDEX_BASE -or $pr.baseRefName -ne 'main' -or $pr.isCrossRepository) {
+            throw 'The index pull request does not match the generated commit.'
+          }
+          $changed = @(gh api "repos/$env:GITHUB_REPOSITORY/pulls/$($pr.number)/files" --paginate | ConvertFrom-Json)
+          if ($changed.Count -ne 1 -or $changed[0].filename -ne 'repo.json' -or $changed[0].status -ne 'modified') {
+            throw 'The index pull request must only modify repo.json.'
+          }
+          gh pr merge $url --merge --admin --match-head-commit $env:INDEX_HEAD
