@@ -38,10 +38,10 @@ jobs:
       - name: "Check index credentials"
         if: steps.version.outputs.changed == 'true'
         env:
-          HAS_MERGE_TOKEN: ${{ secrets.CI_MERGE_TOKEN != '' }}
+          HAS_MERGE_TOKEN: ${{ secrets.GUBAL_MERGE_TOKEN != '' }}
         run: |
           if [ "$HAS_MERGE_TOKEN" != "true" ]; then
-            echo "CI_MERGE_TOKEN is required to publish the plugin index." >&2
+            echo "GUBAL_MERGE_TOKEN is required to publish the plugin index." >&2
             exit 1
           fi
 
@@ -231,7 +231,7 @@ jobs:
       - name: "Validate and merge the index pull request"
         shell: "pwsh"
         env:
-          GH_TOKEN: ${{ secrets.CI_MERGE_TOKEN }}
+          GH_TOKEN: ${{ secrets.GUBAL_MERGE_TOKEN }}
           GH_REPO: ${{ github.repository }}
           RELEASE_VERSION: ${{ needs.version.outputs.version }}
           INDEX_BASE: ${{ needs.update-repo-json.outputs.base }}
@@ -239,7 +239,7 @@ jobs:
           INDEX_BLOB: ${{ needs.update-repo-json.outputs.blob }}
         run: |
           $PSNativeCommandUseErrorActionPreference = $true
-          if (-not $env:GH_TOKEN) { throw 'CI_MERGE_TOKEN is required.' }
+          if (-not $env:GH_TOKEN) { throw 'GUBAL_MERGE_TOKEN is required.' }
           foreach ($sha in @($env:INDEX_BASE, $env:INDEX_HEAD, $env:INDEX_BLOB)) {
             if ($sha -cnotmatch '^[0-9a-f]{40}$') { throw 'Invalid index object ID.' }
           }
