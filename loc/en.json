@@ -175,10 +175,6 @@
     "message": "Auto-update at start",
     "description": "ConfigWindow.DrawAutoUpdateRow"
   },
-  "Setup.AutoUnavailable": {
-    "message": "Only for a pack installed from a link.",
-    "description": "ConfigWindow.DrawAutoUpdateRow"
-  },
   "Boot.NotWaiting": {
     "message": "Dalamud is not waiting for plugins at startup, so nothing is fetched then. Turn it on in Dalamud's settings.",
     "description": "ConfigWindow.DrawBootWaitState"
