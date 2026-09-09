@@ -28,28 +28,28 @@ internal sealed record GroupView(
 /// </remarks>
 internal sealed class PackContents
 {
-    /// <summary>Where the client keeps its fonts. The one folder of a pack that holds no pages.</summary>
-    /// <remarks>
-    ///     A pack whose text needs glyphs the game's fonts do not have ships rebuilt <c>.fdt</c>
-    ///     files and the <c>.tex</c> atlases they index, under the game's own names. Nothing else is
-    ///     accepted from that folder. Nothing outside <c>exd/</c> and this folder is served.
-    /// </remarks>
+    /// <summary>Only .fdt and .tex files are accepted from this font folder.</summary>
     public const string FontPrefix = "common/font/";
+
+    /// <summary>ULD files in this folder use the Addon translation setting.</summary>
+    public const string LayoutPrefix = "ui/uld/";
 
     private static readonly string[] FontExtensions = [".fdt", ".tex"];
 
     private readonly List<PackPage> pages;
     private readonly List<PackPage> fonts;
+    private readonly List<PackPage> layouts;
 
-    private PackContents(List<PackPage> pages, List<PackPage> fonts, int tooLong)
+    private PackContents(List<PackPage> pages, List<PackPage> fonts, List<PackPage> layouts, int tooLong)
     {
         this.pages = pages;
         this.fonts = fonts;
+        this.layouts = layouts;
         this.TooLong = tooLong;
         this.Layout = BuildLayout(pages);
     }
 
-    /// <summary>Pages and fonts refused because their path is too long. Nobody serves them.</summary>
+    /// <summary>Files refused because their local path is too long.</summary>
     public int TooLong { get; }
 
     /// <summary>Every page in the pack, whether or not its part is switched on.</summary>
@@ -100,11 +100,12 @@ internal sealed class PackContents
     {
         var pages = new List<PackPage>();
         var fonts = new List<PackPage>();
+        var layouts = new List<PackPage>();
         var tooLong = 0;
 
         if (string.IsNullOrWhiteSpace(directory) || !Directory.Exists(directory))
         {
-            return new PackContents(pages, fonts, tooLong);
+            return new PackContents(pages, fonts, layouts, tooLong);
         }
 
         foreach (var file in Directory.EnumerateFiles(directory, "*.exd", SearchOption.AllDirectories))
@@ -144,7 +145,44 @@ internal sealed class PackContents
             }
         }
 
-        return new PackContents(pages, fonts, tooLong);
+        var layoutDir = Path.Combine(directory, LayoutPrefix.Replace('/', Path.DirectorySeparatorChar));
+        if (Directory.Exists(layoutDir))
+        {
+            foreach (var file in Directory.EnumerateFiles(layoutDir, "*", SearchOption.AllDirectories))
+            {
+                if (!Path.GetExtension(file).Equals(".uld", StringComparison.OrdinalIgnoreCase))
+                {
+                    continue;
+                }
+
+                var localPath = Path.GetFullPath(file);
+                if (localPath.Length > maxLocalPathLength)
+                {
+                    tooLong++;
+                    continue;
+                }
+
+                var gamePath = Path.GetRelativePath(directory, localPath).Replace('\\', '/');
+                layouts.Add(new PackPage(gamePath, localPath, "addon"));
+            }
+        }
+
+        return new PackContents(pages, fonts, layouts, tooLong);
+    }
+
+    /// <summary>Layouts are served only while the Addon translation is enabled.</summary>
+    public Dictionary<string, string> ServableLayouts(ICollection<string> disabledSheets)
+    {
+        var served = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        if (!disabledSheets.Contains("addon"))
+        {
+            foreach (var layout in this.layouts)
+            {
+                served[layout.GamePath] = layout.LocalPath;
+            }
+        }
+
+        return served;
     }
 
     /// <summary>The sheet key of a font. Not a sheet, and never shown as a checkbox.</summary>

@@ -16,8 +16,7 @@ using FileMode = FFXIVClientStructs.FFXIV.Client.System.File.FileMode;
 namespace GubalLibrary;
 
 /// <summary>
-///     Gives the game the rebuilt <c>.exd</c> pages of a pack, and its fonts if it has some, in
-///     place of the files in its archives.
+///     Serves the pack's EXD pages, fonts and ULD layouts from disk.
 /// </summary>
 /// <remarks>
 ///     <para>
@@ -98,6 +97,7 @@ internal sealed unsafe class ExdRedirector : IDisposable
 
     private readonly IPluginLog log;
     private readonly Dictionary<string, string> pages;
+    private readonly Dictionary<string, string> layouts;
     private readonly Hook<FileThread.Delegates.DoFileJob>? hook;
 
     /// <summary>The fonts by game path, for the resource hooks.</summary>
@@ -121,6 +121,7 @@ internal sealed unsafe class ExdRedirector : IDisposable
         IGameInteropProvider interop,
         IPluginLog log,
         Dictionary<string, string> pages,
+        Dictionary<string, string> layouts,
         IReadOnlyList<PackPage> fontFiles,
         nint readFile,
         TextureLoader? textures,
@@ -128,6 +129,7 @@ internal sealed unsafe class ExdRedirector : IDisposable
     {
         this.log = log;
         this.pages = pages;
+        this.layouts = layouts;
         this.readFile = (delegate* unmanaged<FileThread*, FileDescriptor*, int, byte, byte>)readFile;
         this.textures = textures;
         this.Manifest = manifest;
@@ -161,9 +163,10 @@ internal sealed unsafe class ExdRedirector : IDisposable
         }
 
         Diagnostics.Log(log,
-            "Serving {Count} rebuilt page(s) and {Fonts} font file(s) of '{Pack}' ({Version}) from disk; hook at 0x{Address:X}.",
+            "Serving {Count} rebuilt page(s), {Fonts} font file(s) and {Layouts} ULD file(s) of '{Pack}' ({Version}) from disk; hook at 0x{Address:X}.",
             this.PageCount,
             this.FontCount,
+            this.layouts.Count,
             manifest.DisplayName,
             manifest.TranslationVersion ?? "no translationVersion, pack predates the stamp",
             FileThread.Addresses.DoFileJob.Value);
@@ -304,7 +307,8 @@ internal sealed unsafe class ExdRedirector : IDisposable
 
         try
         {
-            return (new ExdRedirector(interop, log, pages, fontFiles, readFile, textures, manifest), null);
+            var layouts = contents.ServableLayouts(disabledSheets);
+            return (new ExdRedirector(interop, log, pages, layouts, fontFiles, readFile, textures, manifest), null);
         }
         catch (Exception e)
         {
@@ -341,6 +345,7 @@ internal sealed unsafe class ExdRedirector : IDisposable
     {
         string? local = null;
         var font = false;
+        var layout = false;
 
         try
         {
@@ -354,6 +359,10 @@ internal sealed unsafe class ExdRedirector : IDisposable
                 if (name.Length > ExdSuffix.Length && name[^ExdSuffix.Length..].SequenceEqual(ExdSuffix))
                 {
                     this.pages.TryGetValue(Encoding.UTF8.GetString(name), out local);
+                }
+                else if (this.layouts.Count > 0 && IsLayoutPath(name))
+                {
+                    layout = this.layouts.TryGetValue(Encoding.UTF8.GetString(name), out local);
                 }
                 else if (this.fonts.Count > 0 && IsRooted(name))
                 {
@@ -376,7 +385,7 @@ internal sealed unsafe class ExdRedirector : IDisposable
         var scratch = *(byte**)((byte*)descriptor + ScratchFieldOffset);
         try
         {
-            return this.Serve(thread, descriptor, priority, isSync, local, font);
+            return this.Serve(thread, descriptor, priority, isSync, local, font, layout);
         }
         catch (Exception e)
         {
@@ -399,7 +408,7 @@ internal sealed unsafe class ExdRedirector : IDisposable
     ///     completes before this frame goes away — asynchronous reads copy what they need out first.
     /// </remarks>
     private byte Serve(
-        FileThread* thread, FileDescriptor* descriptor, int priority, bool isSync, string local, bool font)
+        FileThread* thread, FileDescriptor* descriptor, int priority, bool isSync, string local, bool font, bool layout)
     {
         var size = ScratchPathOffset + ((local.Length + 1) * sizeof(char));
         var scratch = stackalloc byte[size];
@@ -418,13 +427,11 @@ internal sealed unsafe class ExdRedirector : IDisposable
         *(byte**)((byte*)descriptor + ScratchFieldOffset) = scratch;
         descriptor->FileMode = FileMode.LoadUnpackedResource;
 
-        // Log before and after, for the first pages and for every font. The pair is the point: the
-        // first attempt at this crashed the client inside the game's read, and nothing said which
-        // page it died on. Fonts are few and read once, so each one gets a line.
-        var trace = font || this.reported < 5;
+        // Trace each font and layout read, and the first page reads.
+        var trace = font || layout || this.reported < 5;
         if (trace)
         {
-            if (!font)
+            if (!font && !layout)
             {
                 this.reported++;
             }
@@ -432,7 +439,7 @@ internal sealed unsafe class ExdRedirector : IDisposable
             Diagnostics.Log(this.log, "Attempting '{Path}' from disk ({Sync}).", local, isSync ? "sync" : "async");
         }
 
-        // Fonts through ReadFile, pages through the original dispatch. See ReadFileSignature.
+        // Fonts use ReadFile. Pages and ULD files use the original dispatch.
         byte result;
         if (font)
         {
@@ -442,7 +449,10 @@ internal sealed unsafe class ExdRedirector : IDisposable
         else
         {
             result = this.hook!.Original(thread, descriptor, priority, isSync);
-            this.servedPages++;
+            if (!layout)
+            {
+                this.servedPages++;
+            }
         }
 
         if (trace)
@@ -486,6 +496,12 @@ internal sealed unsafe class ExdRedirector : IDisposable
         || (name.Length >= 2
             && name[0] is (>= (byte)'A' and <= (byte)'Z') or (>= (byte)'a' and <= (byte)'z')
             && name[1] == (byte)':');
+
+    private static bool IsLayoutPath(ReadOnlySpan<byte> name) =>
+        name.Length > 4 && name[^4] == (byte)'.'
+        && name[^3] is (byte)'u' or (byte)'U'
+        && name[^2] is (byte)'l' or (byte)'L'
+        && name[^1] is (byte)'d' or (byte)'D';
 
     private ResourceHandle* GetResourceSyncDetour(
         ResourceManager* manager,

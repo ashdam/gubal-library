@@ -64,6 +64,10 @@ and log messages all come out of the game's Excel sheets, so all of them are rea
 with a checkbox each and a note on what switching it off costs. Switching a part off does not blank
 it: the pack replaces the game's own English, so that English is what comes back.
 
+Language packs can include `.uld` layout files under `ui/uld/`, for example
+`ui/uld/xbmmonsterbookdetail.uld`. Gubal serves them while the Addon translation is enabled
+and the pack matches the game version. Restart the client after an update.
+
 ## How this compares
 
 | | Well-known plugin<br><sub>translated as it appears, drawn over the game</sub> | Mod-loader text packs<br><sub>the game's pages, applied by a mod loader</sub> | **Gubal Library**<br><sub>the game's pages, served by the plugin</sub> |
