@@ -1,4 +1,7 @@
 {
+  "Part.GoldSaucer.Name": { "message": "Gold Saucer y minijuegos" },
+  "Part.GoldSaucer.Tooltip": { "message": "Textos de los GATE, las máquinas recreativas, las carreras de chocobos, las cartas de Triple Triad, Lord of Verminion y el mahjong domano." },
+
   "Group.Other.Name": {
     "message": "Otro texto de este language pack"
   },
@@ -197,7 +200,6 @@
   "Setup.Unbuilt": {
     "message": "Language pack no disponible. ¿Quieres colaborar en su traducción?"
   },
-  "Setup.UnbuiltFormat": { "message": "Cómo se construye un language pack" },
 
   "Setup.Browse": { "message": "Examinar..." },
   "Setup.Install": { "message": "Instalar" },
@@ -215,14 +217,9 @@
 
   "Install.Done": { "message": "Instalado {0} ({1})." },
 
-  "Recruit.Title": { "message": "¿Quieres el juego en tu idioma?" },
-  "Recruit.Body": {
-    "message": "Si te interesa, usa los enlaces de abajo para colaborar con tu comunidad."
-  },
-  "Recruit.Format": { "message": "Cómo se construye un language pack" },
+  "Help.ReportBug": { "message": "Informar de un error" },
   "Recruit.Ask": { "message": "Pregunta en GitHub Discussions" },
 
-  "Contact.Title": { "message": "Contacto" },
   "Contact.Discord": { "message": "Discord" },
   "Contact.Copy": { "message": "Haz clic para copiarlo." },
 

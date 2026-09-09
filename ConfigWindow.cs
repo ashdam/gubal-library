@@ -1291,8 +1291,6 @@ internal sealed class ConfigWindow : Window
         this.DrawPackAction(pages, OwnPack);
 
         this.DrawFolderVerdict();
-
-        Link(Loc.Localize("Setup.UnbuiltFormat", "How a language pack is built"), KnownPacks.Format);
     }
 
     /// <summary>
@@ -1377,7 +1375,6 @@ internal sealed class ConfigWindow : Window
             "No language pack available. Want to help translate it?"));
 
         Link(Loc.Localize("Recruit.Ask", "Ask on GitHub Discussions"), KnownPacks.Discussions);
-        Link(Loc.Localize("Setup.UnbuiltFormat", "How a language pack is built"), KnownPacks.Format);
     }
 
     /// <summary>The chooser entry the stored source resolves to, worked out once and then remembered.</summary>
@@ -1620,34 +1617,20 @@ internal sealed class ConfigWindow : Window
 
     }
 
-    /// <summary>
-    ///     The ask, and where to find a person. Nothing about using the plugin.
-    /// </summary>
+    /// <summary>Bug reports and contact details.</summary>
     private static void DrawHelpTab()
     {
-        Icon(FontAwesomeIcon.Globe, Blue);
-        ImGui.TextWrapped(Loc.Localize("Recruit.Title", "Want the game in your language?"));
+        Icon(FontAwesomeIcon.Bug, Blue);
+        Link(Loc.Localize("Help.ReportBug", "Report a bug"), KnownPacks.PluginIssues);
         ImGui.PopStyleColor();
-
-        ImGui.Indent();
-        ImGui.TextWrapped(Loc.Localize("Recruit.Body",
-            "If you are interested, use the links below to collaborate with your community."));
-
-        Link(Loc.Localize("Recruit.Format", "How a language pack is built"), KnownPacks.Format);
-        Link(Loc.Localize("Recruit.Ask", "Ask on GitHub Discussions"), KnownPacks.Discussions);
-
-        ImGui.Unindent();
 
         ImGui.Spacing();
         ImGui.Separator();
         ImGui.Spacing();
 
         Icon(FontAwesomeIcon.Comments, Blue);
-        ImGui.TextWrapped(Loc.Localize("Contact.Title", "Contact"));
-        ImGui.PopStyleColor();
-
-        ImGui.Indent();
         ImGui.TextDisabled(Loc.Localize("Contact.Discord", "Discord"));
+        ImGui.PopStyleColor();
         ImGui.SameLine();
 
         // Selectable rather than text: a handle has to be copyable to be worth anything.
@@ -1658,7 +1641,6 @@ internal sealed class ConfigWindow : Window
         }
 
         SetTooltip(Loc.Localize("Contact.Copy", "Click to copy."));
-        ImGui.Unindent();
     }
 
     /// <summary>Where a wrong line in the chosen pack is reported, or null when nowhere is known.</summary>
@@ -1780,6 +1762,3 @@ internal readonly record struct PageStatus(
     string? Error,
     PackManifest? Manifest,
     UpdateStatus Update);
-
-
-

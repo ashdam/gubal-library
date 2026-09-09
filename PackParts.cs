@@ -271,10 +271,23 @@ internal static class PackParts
                         "maincommand",         // Every entry of the main menu, with its tooltip.
                         "maincommandcategory", // The seven headings of that menu.
                         "retainertaskrandom",  // The explorer venture names.
-                        "goldsaucertextdata",  // Scoreboards and race courses.
                         "lobby",               // Title screen and character creation. Drawn before the player logs in.
                     ],
                     Image: "mainmenus"),
+
+                new TranslationPart(
+                    Loc.Localize("Part.GoldSaucer.Name", "Gold Saucer and minigames"),
+                    Loc.Localize("Part.GoldSaucer.Tooltip",
+                        "Text for GATEs, arcade games, chocobo racing, Triple Triad cards, "
+                        + "Lord of Verminion and Doman Mahjong."),
+                    [
+                        "goldsaucertextdata", "goldsaucerarcademachine", "rideshootingtextdata",
+                        "gfateclimbing", "gfatestelth", "emjaddon",
+                        "chocoboraceability", "chocoboracechallenge", "chocoboraceitem",
+                        "racingchocobonamecategory", "racingchocoboparam",
+                        "minionrace", "minionrules", "minionskilltype", "minionstage",
+                        "tripletriadcard", "tripletriadcardtype", "tripletriadcompetition", "tripletriadrule",
+                    ]),
             ]),
 
         new PartGroup(

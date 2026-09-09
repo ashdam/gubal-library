@@ -1,4 +1,7 @@
 {
+  "Part.GoldSaucer.Name": { "message": "Gold Saucer and minigames" },
+  "Part.GoldSaucer.Tooltip": { "message": "Text for GATEs, arcade games, chocobo racing, Triple Triad cards, Lord of Verminion and Doman Mahjong." },
+
   "Tab.Pack": {
     "message": "Language pack",
     "description": "ConfigWindow.Draw"
@@ -127,10 +130,6 @@
     "message": "Custom Language Pack directory",
     "description": "ConfigWindow.DrawOwnPack"
   },
-  "Setup.UnbuiltFormat": {
-    "message": "How a language pack is built",
-    "description": "ConfigWindow.DrawOwnPack"
-  },
   "Setup.OwnEmpty": {
     "message": "The folder holding gubal-manifest.json.",
     "description": "ConfigWindow.DrawFolderVerdict"
@@ -211,22 +210,7 @@
     "message": "{0} of {1} font file(s) served from the pack",
     "description": "ConfigWindow.DrawPackDetail"
   },
-  "Recruit.Title": {
-    "message": "Want the game in your language?",
-    "description": "ConfigWindow.DrawHelpTab"
-  },
-  "Recruit.Body": {
-    "message": "If you are interested, use the links below to collaborate with your community.",
-    "description": "ConfigWindow.DrawHelpTab"
-  },
-  "Recruit.Format": {
-    "message": "How a language pack is built",
-    "description": "ConfigWindow.DrawHelpTab"
-  },
-  "Contact.Title": {
-    "message": "Contact",
-    "description": "ConfigWindow.DrawHelpTab"
-  },
+  "Help.ReportBug": { "message": "Report a bug" },
   "Contact.Discord": {
     "message": "Discord",
     "description": "ConfigWindow.DrawHelpTab"
