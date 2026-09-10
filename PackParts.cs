@@ -112,6 +112,7 @@ internal static class PackParts
                         + "Gold Saucer criers and vendors)."),
                     [
                         "defaulttalk",    // NPC dialogue in the Talk window with no quest behind it.
+                        "fateevent",      // FATE entry dialogue and prompts.
                         "goldsaucertalk", // Gold Saucer criers and the prompts before a purchase.
                     ]),
 
