@@ -1,4 +1,8 @@
 {
+  "Group.PlaceNames.Name": { "message": "Nomi dei luoghi" },
+  "Group.PlaceNames.Tooltip": { "message": "Nomi di regioni, zone e luoghi sulle mappe, nei dungeon e nelle altre istanze." },
+  "Part.PlaceNames.Name": { "message": "Nomi dei luoghi" },
+  "Part.PlaceNames.Tooltip": { "message": "Nomi di regioni, zone e luoghi sulle mappe, nei dungeon e nelle altre istanze." },
   "Part.UnendingCodex.Name": { "message": "The Unending Codex" },
   "Part.UnendingCodex.Tooltip": { "message": "Nomi delle voci e descrizioni di personaggi, luoghi e concetti di The Unending Codex." },
   "Part.GoldSaucer.Name": { "message": "Gold Saucer e minigiochi" },

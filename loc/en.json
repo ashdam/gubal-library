@@ -1,4 +1,8 @@
 {
+  "Group.PlaceNames.Name": { "message": "Place names" },
+  "Group.PlaceNames.Tooltip": { "message": "Names of regions, zones and locations on maps and inside dungeons and other instances." },
+  "Part.PlaceNames.Name": { "message": "Place names" },
+  "Part.PlaceNames.Tooltip": { "message": "Names of regions, zones and locations on maps and inside dungeons and other instances." },
   "Part.UnendingCodex.Name": { "message": "The Unending Codex" },
   "Part.UnendingCodex.Tooltip": { "message": "Entry names and descriptions of characters, places and concepts in the Unending Codex." },
   "Part.GoldSaucer.Name": { "message": "Gold Saucer and minigames" },

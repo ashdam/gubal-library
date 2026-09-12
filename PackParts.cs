@@ -108,6 +108,17 @@ internal static class PackParts
             ]),
 
         new PartGroup(
+            Loc.Localize("Group.PlaceNames.Name", "Place names"),
+            Loc.Localize("Group.PlaceNames.Tooltip",
+                "Names of regions, zones and locations on maps and inside dungeons and other instances."),
+            [
+                new TranslationPart(
+                    Loc.Localize("Part.PlaceNames.Name", "Place names"),
+                    Loc.Localize("Part.PlaceNames.Tooltip",
+                        "Names of regions, zones and locations on maps and inside dungeons and other instances."),
+                    ["placename"]),
+            ]),
+        new PartGroup(
             Loc.Localize("Group.People.Name", "Ambient dialogue and the world"),
             Loc.Localize("Group.People.Tooltip", "Casual conversations and flavour text around the map."),
             [
@@ -311,6 +322,7 @@ internal static class PackParts
                         + "them from detecting those options."),
                     [
                         "addon",                 // Every button, tab, column heading and error the game draws.
+                        "mcguffinuidata", "csbonustextdata", "contenttype",
                         "gimmickyesno",          // The Yes/No prompt an object shows before it acts.
                         "specialshop",           // The name of each shop window.
                         "topicselect",           // The vendor list of shops. Same strings as specialshop; the menu draws this one.

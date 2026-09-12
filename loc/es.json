@@ -1,4 +1,8 @@
 {
+  "Group.PlaceNames.Name": { "message": "Nombres de lugares" },
+  "Group.PlaceNames.Tooltip": { "message": "Nombres de regiones, zonas y lugares en mapas y dentro de mazmorras y otras instancias." },
+  "Part.PlaceNames.Name": { "message": "Nombres de lugares" },
+  "Part.PlaceNames.Tooltip": { "message": "Nombres de regiones, zonas y lugares en mapas y dentro de mazmorras y otras instancias." },
   "Part.UnendingCodex.Name": { "message": "El Códice Interminable" },
   "Part.UnendingCodex.Tooltip": { "message": "Nombres de las entradas y descripciones de personajes, lugares y conceptos del Códice Interminable." },
   "Part.GoldSaucer.Name": { "message": "Gold Saucer y minijuegos" },
