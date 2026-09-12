@@ -219,8 +219,7 @@ public sealed class Plugin : IDalamudPlugin
             () => pluginInterface.OpenDalamudSettingsTo(SettingsOpenKind.General),
             () => this.shadow,
             pluginInterface.Manifest.AssemblyVersion.ToString(),
-            () => this.dialogueCodex.Status,
-            () => this.dialogueCodex.PrintExample(this.chat));
+            () => this.dialogueCodex.Status);
 
         this.windows.AddWindow(this.configWindow);
 

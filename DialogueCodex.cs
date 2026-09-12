@@ -5,7 +5,6 @@ using Dalamud.Interface;
 using Dalamud.Interface.Utility.Raii;
 using Dalamud.Game.Addon.Lifecycle;
 using Dalamud.Game.Addon.Lifecycle.AddonArgTypes;
-using Dalamud.Game.Text.SeStringHandling;
 using Dalamud.Plugin.Services;
 using FFXIVClientStructs.FFXIV.Client.Game;
 using FFXIVClientStructs.FFXIV.Client.UI;
@@ -157,17 +156,6 @@ internal sealed unsafe class DialogueCodex : IDisposable
         this.lifecycle.UnregisterListener(this.OnTalkUpdate, this.OnFinalize);
         this.Detach();
         this.CloseCodex();
-    }
-
-    public void PrintExample(IChatGui chat)
-    {
-        this.Update(this.framework);
-        if (!this.active || this.failed || this.available.Count == 0)
-            return;
-
-        var sample = string.Join(" / ", this.currentTerms.Select(term => term.Name).Distinct().Take(2));
-        var bytes = this.terms.Decorate(System.Text.Encoding.UTF8.GetBytes(sample), out _);
-        chat.Print(SeString.Parse(bytes));
     }
 
     private void Update(IFramework _)

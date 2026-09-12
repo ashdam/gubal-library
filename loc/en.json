@@ -498,9 +498,8 @@
     "description": "ConfigWindow.DrawLanguageChooser"
   },
   "Tab.Codex": { "message": "Unending Codex" },
-  "Codex.Enable": { "message": "Link dialogue terms to the Unending Codex (experimental)" },
+  "Codex.Enable": { "message": "Link dialogue terms to the Unending Codex" },
   "Codex.Description": { "message": "Highlight names of unlocked Codex entries in NPC dialogue. Click a highlighted name to open its entry. Click outside the name to advance the dialogue." },
-  "Codex.Test": { "message": "Show sample links in chat" },
   "Codex.Login": { "message": "Log in to use the Unending Codex." },
   "Codex.None": { "message": "No unlocked Codex entries are available." },
   "Codex.Ready": { "message": "Ready. Open a dialogue that names a Codex entry." },

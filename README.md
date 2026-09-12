@@ -87,13 +87,12 @@ and the pack matches the game version. Restart the client after an update.
 
 ### Dialogue Codex links
 
-In `/gubal` → **Unending Codex**, enable the experimental dialogue links. Names of unlocked
+In `/gubal` → **Unending Codex**, enable dialogue links. Names of unlocked
 Codex entries become links in the `Talk` window. The option takes effect without a restart.
 Names must match the Codex list, including full names. Text inside an existing link is not changed.
 
-Use **Show sample links in chat** to test the native Codex links. Then test a name in an NPC dialogue:
-Clicking a highlighted name must open the entry without advancing the dialogue. Clicking outside a name must advance it. Check text reveal, line wrapping,
-window scale, and disable the option while the dialogue is open.
+Click a highlighted name in NPC dialogue or a cutscene to open its entry without advancing the dialogue.
+Click outside a name to advance the dialogue. Links use the native game cursor and require no modifier key.
 
 ### Chat commands
 
