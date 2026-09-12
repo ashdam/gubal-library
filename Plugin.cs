@@ -218,8 +218,7 @@ public sealed class Plugin : IDalamudPlugin
             () => DalamudBootWait.IsOn(this.pluginInterface),
             () => pluginInterface.OpenDalamudSettingsTo(SettingsOpenKind.General),
             () => this.shadow,
-            pluginInterface.Manifest.AssemblyVersion.ToString(),
-            () => this.dialogueCodex.Status);
+            pluginInterface.Manifest.AssemblyVersion.ToString());
 
         this.windows.AddWindow(this.configWindow);
 
