@@ -56,6 +56,8 @@ internal sealed class ConfigWindow : Window
     private const int English = -3;
 
     private readonly Configuration config;
+    private readonly Func<string> codexStatus;
+    private readonly Action codexExample;
     private readonly FileDialogManager fileDialogs;
     private readonly Action<Configuration> save;
     private readonly Func<PageStatus> pageStatus;
@@ -150,11 +152,15 @@ internal sealed class ConfigWindow : Window
         Func<bool?> dalamudWaits,
         Action openDalamudSettings,
         Func<ShadowState?> shadowState,
-        string version)
+        string version,
+        Func<string> codexStatus,
+        Action codexExample)
         : base($"Gubal Library ({version})###GubalLibraryConfig")
     {
         this.shadowState = shadowState;
         this.config = config;
+        this.codexStatus = codexStatus;
+        this.codexExample = codexExample;
         this.save = save;
         this.fileDialogs = fileDialogs;
         this.pageStatus = pageStatus;
@@ -217,6 +223,25 @@ internal sealed class ConfigWindow : Window
                     if (tab)
                     {
                         this.DrawPartsTab(ref changed);
+                    }
+                }
+
+                using (var tab = ImRaii.TabItem(Loc.Localize("Tab.Codex", "Unending Codex")))
+                {
+                    if (tab)
+                    {
+                        var enabled = this.config.EnableCodexLinks;
+                        if (ImGui.Checkbox(Loc.Localize("Codex.Enable", "Link dialogue terms to the Unending Codex (experimental)"), ref enabled))
+                        {
+                            this.config.EnableCodexLinks = enabled;
+                            changed = true;
+                        }
+
+                        ImGui.TextWrapped(Loc.Localize("Codex.Description", "Highlight names of unlocked Codex entries in NPC dialogue. Click a highlighted name to open its entry. Click outside the name to advance the dialogue."));
+                        ImGui.TextWrapped(this.codexStatus());
+                        using var disabled = ImRaii.Disabled(!enabled);
+                        if (ImGui.Button(Loc.Localize("Codex.Test", "Show sample links in chat")))
+                            this.codexExample();
                     }
                 }
 

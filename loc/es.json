@@ -1,4 +1,6 @@
 {
+  "Part.UnendingCodex.Name": { "message": "El Códice Interminable" },
+  "Part.UnendingCodex.Tooltip": { "message": "Nombres de las entradas y descripciones de personajes, lugares y conceptos del Códice Interminable." },
   "Part.GoldSaucer.Name": { "message": "Gold Saucer y minijuegos" },
   "Part.GoldSaucer.Tooltip": { "message": "Textos de los GATE, las máquinas recreativas, las carreras de chocobos, las cartas de Triple Triad, Lord of Verminion y el mahjong domano." },
 
@@ -232,5 +234,13 @@
   "Setup.ColLinks": { "message": "Enlaces" },
   "Setup.HelpTranslate": { "message": "Ayúdanos a traducir" },
   "Setup.Report": { "message": "Informar de un error de localización" },
-  "Setup.Offline": { "message": "Sin conexión" }
+  "Setup.Offline": { "message": "Sin conexión" },
+  "Tab.Codex": { "message": "Unending Codex" },
+  "Codex.Enable": { "message": "Enlazar términos del diálogo al Unending Codex (experimental)" },
+  "Codex.Description": { "message": "Resalta los nombres de las entradas desbloqueadas del Codex en los diálogos de PNJ. Haz clic en un nombre resaltado para abrir su ficha. Haz clic fuera del nombre para avanzar el diálogo." },
+  "Codex.Test": { "message": "Mostrar enlaces de ejemplo en el chat" },
+  "Codex.Login": { "message": "Entra con un personaje para usar el Unending Codex." },
+  "Codex.None": { "message": "No hay entradas desbloqueadas del Codex disponibles." },
+  "Codex.Ready": { "message": "Listo. Abre un diálogo que mencione una entrada del Codex." },
+  "Codex.Failed": { "message": "Los enlaces del Codex no están disponibles. Consulta /xllog para ver los detalles." }
 }
