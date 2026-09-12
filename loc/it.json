@@ -1,4 +1,6 @@
 {
+  "Part.UnendingCodex.Name": { "message": "The Unending Codex" },
+  "Part.UnendingCodex.Tooltip": { "message": "Nomi delle voci e descrizioni di personaggi, luoghi e concetti di The Unending Codex." },
   "Part.GoldSaucer.Name": { "message": "Gold Saucer e minigiochi" },
   "Part.GoldSaucer.Tooltip": { "message": "Testi dei GATE, dei giochi arcade, delle corse dei chocobo, delle carte di Triple Triad, di Lord of Verminion e Doman Mahjong." },
 
@@ -232,5 +234,11 @@
   "Setup.ColLinks": { "message": "Link" },
   "Setup.HelpTranslate": { "message": "Aiutaci a tradurre" },
   "Setup.Report": { "message": "Segnala un errore di localizzazione" },
-  "Setup.Offline": { "message": "Offline" }
+  "Setup.Offline": { "message": "Offline" },
+  "Tab.Codex": { "message": "Unending Codex" },
+  "Codex.Enable": { "message": "Attiva i link a Unending Codex nei dialoghi" },
+  "Codex.Login": { "message": "Accedi con un personaggio per usare l'Unending Codex." },
+  "Codex.None": { "message": "Non sono disponibili voci sbloccate del Codex." },
+  "Codex.Ready": { "message": "Pronto. Apri un dialogo che menzioni una voce del Codex." },
+  "Codex.Failed": { "message": "I link al Codex non sono disponibili. Consulta /xllog per i dettagli." }
 }

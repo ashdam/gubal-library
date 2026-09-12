@@ -31,6 +31,8 @@ words out of a file and drew them natively.
 
 ![The Character window in Spanish](images/example6.png)
 
+![The Unending Codex in Spanish](images/example7.png)
+
 ## Install
 
 Gubal-library is a Dalamud plugin therefore Dalamud needs to be [downloaded](https://goatcorp.github.io/) and installed .
@@ -83,7 +85,16 @@ and the pack matches the game version. Restart the client after an update.
 
 ## Commands
 
-The last three take no argument: each one flips what it names.
+### Dialogue Codex links
+
+In `/gubal` → **Unending Codex**, enable dialogue links. Names of unlocked
+Codex entries become links in the `Talk` window. The option takes effect without a restart.
+Names must match the Codex list, including full names. Text inside an existing link is not changed.
+
+Click a highlighted name in NPC dialogue or a cutscene to open its entry without advancing the dialogue.
+Click outside a name to advance the dialogue. Links use the native game cursor and require no modifier key.
+
+### Chat commands
 
 | Command | Effect |
 |---|---|
@@ -95,7 +106,7 @@ The last three take no argument: each one flips what it names.
 | `/gubal autoupdate` | Toggle: the startup fetch, along with Dalamud's wait for plugins |
 | `/gubal debug on` / `off` | Trace lines in the log, and a line per page and font the game reads. Off, the plugin logs only warnings and errors. Chat only, there is no checkbox |
 
-`debug` takes effect at the next client start: the probe attaches when the plugin loads and only then.
+`/gubal debug` toggles diagnostics immediately. `/gubal debug on` and `/gubal debug off` set the state explicitly. Probes run only while debug is enabled.
 It exists to check that the plugin still attaches before the game's first read, which is the
 one property this whole approach depends on.
 

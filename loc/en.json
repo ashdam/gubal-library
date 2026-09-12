@@ -1,4 +1,6 @@
 {
+  "Part.UnendingCodex.Name": { "message": "The Unending Codex" },
+  "Part.UnendingCodex.Tooltip": { "message": "Entry names and descriptions of characters, places and concepts in the Unending Codex." },
   "Part.GoldSaucer.Name": { "message": "Gold Saucer and minigames" },
   "Part.GoldSaucer.Tooltip": { "message": "Text for GATEs, arcade games, chocobo racing, Triple Triad cards, Lord of Verminion and Doman Mahjong." },
 
@@ -495,6 +497,12 @@
     "message": "Report a localization issue",
     "description": "ConfigWindow.DrawLanguageChooser"
   },
+  "Tab.Codex": { "message": "Unending Codex" },
+  "Codex.Enable": { "message": "Enable Unending Codex links on dialog" },
+  "Codex.Login": { "message": "Log in to use the Unending Codex." },
+  "Codex.None": { "message": "No unlocked Codex entries are available." },
+  "Codex.Ready": { "message": "Ready. Open a dialogue that names a Codex entry." },
+  "Codex.Failed": { "message": "Codex links are unavailable. See /xllog for details." },
   "Setup.Offline": {
     "message": "Offline",
     "description": "ConfigWindow.DrawCoverageCell"

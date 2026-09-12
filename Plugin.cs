@@ -42,6 +42,7 @@ public sealed class Plugin : IDalamudPlugin
     private readonly FileDialogManager fileDialogs = new();
     private readonly Configuration config;
     private readonly ConfigWindow configWindow;
+    private readonly DialogueCodex dialogueCodex;
     private readonly IDalamudPluginInterface pluginInterface;
 
     /// <summary>Not readonly: it is withdrawn again when the archive turns out to have failed, rather
@@ -65,7 +66,8 @@ public sealed class Plugin : IDalamudPlugin
     /// <summary>Which folder <see cref="contents" /> was read from, so a change is noticed.</summary>
     private string contentsPath = string.Empty;
 
-    private readonly SqPackProbe? probe;
+    private SqPackProbe? probe;
+    private readonly IGameInteropProvider interop;
     private readonly WindowSystem windows = new("GubalLibrary");
 
     /// <summary>Makes the words "open the settings" in the chat announcement clickable.</summary>
@@ -108,6 +110,8 @@ public sealed class Plugin : IDalamudPlugin
         ISigScanner sigScanner,
         ITextureProvider textures,
         IDataManager data,
+        IGameGui gameGui,
+        IAddonLifecycle addonLifecycle,
         IPluginLog log)
     {
         // Before anything else reads a string: CheapLoc answers "#Key" rather than the English
@@ -144,6 +148,7 @@ public sealed class Plugin : IDalamudPlugin
 
         // First, because what it measures is how early this plugin runs: anything queued ahead of it
         // would be measuring itself.
+        this.interop = interop;
         Diagnostics.Enabled = this.config.Debug;
         this.probe = this.config.Debug ? new SqPackProbe(interop, log) : null;
 
@@ -196,6 +201,9 @@ public sealed class Plugin : IDalamudPlugin
             Diagnostics.Log(log, $"[shadow] {this.shadow.Message} [{this.shadow.Folder}]");
         }
 
+        this.dialogueCodex = new DialogueCodex(this.config, data, gameGui, clientState,
+            addonLifecycle, framework, log, sigScanner, pluginInterface.UiBuilder);
+
         this.configWindow = new ConfigWindow(
             this.config,
             this.SaveConfig,
@@ -229,6 +237,7 @@ public sealed class Plugin : IDalamudPlugin
         });
 
         pluginInterface.UiBuilder.Draw += this.DrawUi;
+        pluginInterface.UiBuilder.DisableCutsceneUiHide = true;
         pluginInterface.UiBuilder.OpenConfigUi += this.OpenConfig;
         pluginInterface.UiBuilder.OpenMainUi += this.OpenConfig;
     }
@@ -240,6 +249,9 @@ public sealed class Plugin : IDalamudPlugin
     /// </remarks>
     private void DrawUi()
     {
+        this.dialogueCodex.DrawLinks();
+        if (this.pluginInterface.UiBuilder.CutsceneActive)
+            return;
         this.windows.Draw();
         this.fileDialogs.Draw();
     }
@@ -256,6 +268,7 @@ public sealed class Plugin : IDalamudPlugin
 
         this.commands.RemoveHandler(CommandName);
         this.fileDialogs.Reset();
+        this.dialogueCodex.Dispose();
 
         this.redirector?.Dispose();
         this.probe?.Dispose();
@@ -318,20 +331,24 @@ public sealed class Plugin : IDalamudPlugin
                       + "and could not be set to. Turn it on in Dalamud's settings or this does nothing.");
                 break;
 
-            // Next load, not now: the probe attaches at load, and the trace lines start there.
+            case "debug":
             case "debug on":
             case "debug off":
-                this.config.Debug = arguments.Trim().EndsWith("on", StringComparison.OrdinalIgnoreCase);
+                this.config.Debug = arguments.Trim() == "debug"
+                    ? !Diagnostics.Enabled
+                    : arguments.Trim().EndsWith("on", StringComparison.OrdinalIgnoreCase);
+                Diagnostics.Enabled = this.config.Debug;
+                if (Diagnostics.Enabled)
+                    this.probe ??= new SqPackProbe(this.interop, this.log);
+                else
+                {
+                    this.probe?.Dispose();
+                    this.probe = null;
+                }
                 this.SaveConfig(this.config);
                 this.chat.Print(this.config.Debug
-                    ? "[Gubal]Debug ON from the next start: trace lines in the log, and a line per page and font the game reads."
-                    : "[Gubal]Debug OFF from the next start. Only warnings and errors are logged.");
-                break;
-
-            case "debug":
-                this.chat.Print(this.config.Debug
-                    ? "[Gubal]Debug is ON. /gubal debug off"
-                    : "[Gubal]Debug is OFF. /gubal debug on");
+                    ? "[Gubal]Debug ON. Probes are active. /gubal debug off"
+                    : "[Gubal]Debug OFF. Probes are inactive.");
                 break;
 
             default:

@@ -220,6 +220,31 @@ internal sealed class ConfigWindow : Window
                     }
                 }
 
+                using (var tab = ImRaii.TabItem(Loc.Localize("Tab.Codex", "Unending Codex")))
+                {
+                    if (tab)
+                    {
+                        var enabled = this.config.EnableCodexLinks;
+                        if (ImGui.Checkbox(Loc.Localize("Codex.Enable", "Enable Unending Codex links on dialog"), ref enabled))
+                        {
+                            this.config.EnableCodexLinks = enabled;
+                            changed = true;
+                        }
+
+                        var picture = this.Picture("codex-on");
+                        if (picture != null)
+                        {
+                            // Crop the preview to the dialogue and its highlighted term.
+                            var uv0 = new Vector2(0.295f, 0.777f);
+                            var uv1 = new Vector2(0.705f, 0.945f);
+                            var crop = new Vector2(picture.Width, picture.Height) * (uv1 - uv0);
+                            var width = Math.Min(ImGui.GetContentRegionAvail().X, crop.X);
+                            ImGui.Spacing();
+                            ImGui.Image(picture.Handle, new Vector2(width, width * crop.Y / crop.X), uv0, uv1);
+                        }
+                    }
+                }
+
                 using (var tab = ImRaii.TabItem(Loc.Localize("Tab.Help", "Help and contact")))
                 {
                     if (tab)

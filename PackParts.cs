@@ -81,6 +81,12 @@ internal static class PackParts
                     Image: "story"),
 
                 new TranslationPart(
+                    Loc.Localize("Part.UnendingCodex.Name", "The Unending Codex"),
+                    Loc.Localize("Part.UnendingCodex.Tooltip",
+                        "Entry names and descriptions of characters, places and concepts in the Unending Codex."),
+                    ["akatsukinotestring"], Image: "codex"),
+
+                new TranslationPart(
                     Loc.Localize("Part.Cutscenes.Name", "Cutscene subtitles"),
                     Loc.Localize("Part.Cutscenes.Tooltip",
                         "Translates the subtitle lines at the bottom of the screen during voiced cutscenes."),

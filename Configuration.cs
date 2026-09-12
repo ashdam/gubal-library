@@ -55,6 +55,8 @@ internal sealed class Configuration : IPluginConfiguration
     /// the plugin then writes only warnings and errors. See <see cref="Diagnostics" />.</summary>
     public bool Debug { get; set; }
 
+    public bool EnableCodexLinks { get; set; }
+
     /// <summary>
     ///     The parts switched off. Empty serves everything.
     /// </summary>
