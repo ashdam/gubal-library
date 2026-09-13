@@ -76,6 +76,7 @@ internal static class PackParts
                     [
                         "quest/",   // Quest dialogue, journal entries, tracker objectives and quest notices. One file per quest.
                         "leve/",    // Levequest dialogue and the levemete window.
+                        "leve",     // Levequest titles and descriptions.
                         "opening/", // Dialogue of the first NPC a new character meets.
                     ],
                     Image: "story"),
