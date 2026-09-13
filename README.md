@@ -12,9 +12,9 @@ The plugin lists the packs the community publishes, and downloads the one you pi
 
 ## Language packs
 
-**Players:** pick your language at **[eorzea-localized.ashdam.workers.dev](https://eorzea-localized.ashdam.workers.dev/)**. Each language has its own page with the install steps, the coverage and where to report a wrong line.
+**Players:** pick your language at **[eorzealocalized.com](https://eorzealocalized.com/)**. Each language has its own page with the install steps, the coverage and where to report a wrong line.
 
-**Translators:** the **[localization guide](https://eorzea-localized.ashdam.workers.dev/localize/en.html)** explains how a pack is built, for a language that has one and for one that does not yet. Questions go to [Discussions](https://github.com/ashdam/gubal-library/discussions).
+**Translators:** the **[localization guide](https://eorzealocalized.com/localize/en.html)** explains how a pack is built, for a language that has one and for one that does not yet. Questions go to [Discussions](https://github.com/ashdam/gubal-library/discussions).
 
 ## Examples
 
