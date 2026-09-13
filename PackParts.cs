@@ -326,6 +326,26 @@ internal static class PackParts
                         "mcguffinuidata", "csbonustextdata", "contenttype",
                         "gimmickyesno",          // The Yes/No prompt an object shows before it acts.
                         "specialshop",           // The name of each shop window.
+                        "gilshop", "disposalshop", "disposalshopfiltertype", "fccshop",
+                        "inclusionshop", "inclusionshopwelcomtext", "gcshopitemcategory",
+                        "collectablesshop", "collectablesshopitemgroup",
+                        "itemsearchcategory", "itemuicategory", "cabinetsubcategory",
+                        "journalcategory", "journalgenre", "journalsection",
+                        "contentsnotecategory", "notebookdivisioncategory", "leveassignmenttype",
+                        "relicnotecategory",
+                        "classjobactionuicategory", "contentuicategory", "onlinestatus",
+                        "circleactivity",
+                        "fcchestname", "fchierarchy", "fcprofile",
+                        "fcreputation", "fcrights", "gcrankgridaniafemaletext",
+                        "gcrankgridaniamaletext", "gcranklimsafemaletext", "gcranklimsamaletext",
+                        "gcrankuldahfemaletext", "gcrankuldahmaletext",
+                        "housingappeal", "housingmateauthority", "housingmerchantpose",
+                        "housingplacement", "housingunplacement", "furniturecatalogcategory",
+                        "yardcatalogcategory",
+                        "companycraftdraftcategory", "companycraftmanufactorystate", "companycrafttype",
+                        "bankacraftworks", "hugecraftworksnpc", "sharlayancraftworks",
+                        "emotecategory", "orchestrioncategory", "playersearchlocation",
+                        "playersearchsublocation", "weather", "stain",
                         "topicselect",           // The vendor list of shops. Same strings as specialshop; the menu draws this one.
                         "inclusionshopcategory", // The two dropdowns at the top of an Item Exchange window.
                         "treasure",              // The coffers a duty leaves behind, and the loot window rows.
