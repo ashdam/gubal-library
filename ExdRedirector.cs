@@ -123,6 +123,7 @@ internal sealed unsafe class ExdRedirector : IDisposable
         Dictionary<string, string> pages,
         Dictionary<string, string> layouts,
         IReadOnlyList<PackPage> fontFiles,
+        IReadOnlyList<PackPage> screenImages,
         nint readFile,
         TextureLoader? textures,
         PackManifest manifest)
@@ -136,7 +137,7 @@ internal sealed unsafe class ExdRedirector : IDisposable
 
         this.fonts = new Dictionary<string, FontEntry>(StringComparer.OrdinalIgnoreCase);
         this.fontsByRooted = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-        foreach (var font in fontFiles)
+        foreach (var font in fontFiles.Concat(screenImages))
         {
             var entry = new FontEntry(font.LocalPath);
             this.fonts[font.GamePath] = entry;
@@ -179,7 +180,7 @@ internal sealed unsafe class ExdRedirector : IDisposable
     public int PageCount => this.pages.Count;
 
     /// <summary>How many font files are registered. See <see cref="PackContents.FontPrefix" />.</summary>
-    public int FontCount => this.fonts.Count;
+    public int FontCount => this.fonts.Keys.Count(path => path.StartsWith(PackContents.FontPrefix, StringComparison.OrdinalIgnoreCase));
 
     /// <summary>How many page reads have actually been answered from disk this session.</summary>
     /// <remarks>
@@ -220,7 +221,8 @@ internal sealed unsafe class ExdRedirector : IDisposable
         IPluginLog log,
         string directory,
         PackContents contents,
-        ICollection<string> disabledSheets)
+        ICollection<string> disabledSheets,
+        IReadOnlyList<PackPage>? previewImages = null)
     {
         if (string.IsNullOrWhiteSpace(directory) || !Directory.Exists(directory))
         {
@@ -267,7 +269,8 @@ internal sealed unsafe class ExdRedirector : IDisposable
         var readFile = nint.Zero;
         TextureLoader? textures = null;
         var fontFiles = contents.Fonts;
-        if (fontFiles.Count > 0)
+        IReadOnlyList<PackPage> screenImages = contents.ServableScreenImages(disabledSheets).Concat(previewImages ?? []).ToArray();
+        if (fontFiles.Count + screenImages.Count > 0)
         {
             string? missing = null;
             if (!sigScanner.TryScanText(ReadFileSignature, out readFile))
@@ -276,7 +279,7 @@ internal sealed unsafe class ExdRedirector : IDisposable
             }
             else
             {
-                var rootedTextures = fontFiles
+                var rootedTextures = fontFiles.Concat(screenImages)
                     .Where(f => f.GamePath.EndsWith(".tex", StringComparison.OrdinalIgnoreCase))
                     .Select(f => f.LocalPath.Replace('\\', '/'));
                 (textures, missing) = TextureLoader.Create(interop, sigScanner, log, rootedTextures);
@@ -285,11 +288,12 @@ internal sealed unsafe class ExdRedirector : IDisposable
             if (missing is not null)
             {
                 log.Warning(
-                    "{Count} font file(s) are not being served: the client's {Function} was not found. "
+                    "{Count} font or screen-image file(s) are not being served: the client's {Function} was not found. "
                     + "The pages are served as usual.",
                     fontFiles.Count,
                     missing);
                 fontFiles = [];
+                screenImages = [];
             }
         }
 
@@ -308,7 +312,7 @@ internal sealed unsafe class ExdRedirector : IDisposable
         try
         {
             var layouts = contents.ServableLayouts(disabledSheets);
-            return (new ExdRedirector(interop, log, pages, layouts, fontFiles, readFile, textures, manifest), null);
+            return (new ExdRedirector(interop, log, pages, layouts, fontFiles, screenImages, readFile, textures, manifest), null);
         }
         catch (Exception e)
         {
@@ -444,7 +448,8 @@ internal sealed unsafe class ExdRedirector : IDisposable
         if (font)
         {
             result = this.readFile(thread, descriptor, priority, isSync ? (byte)1 : (byte)0);
-            this.servedFonts++;
+            if (local.Replace('\\', '/').Contains(PackContents.FontPrefix, StringComparison.OrdinalIgnoreCase))
+                this.servedFonts++;
         }
         else
         {
@@ -562,7 +567,7 @@ internal sealed unsafe class ExdRedirector : IDisposable
             }
 
             var name = path.AsSpan();
-            if (!IsFontPath(name) || !this.fonts.TryGetValue(Encoding.UTF8.GetString(name), out var entry))
+            if (!(IsFontPath(name) || name.StartsWith("ui/icon/120000/"u8) || name.StartsWith("ui/icon/990000/"u8)) || !this.fonts.TryGetValue(Encoding.UTF8.GetString(name), out var entry))
             {
                 return null;
             }

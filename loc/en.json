@@ -1,10 +1,25 @@
 {
-  "Group.PlaceNames.Name": { "message": "Place names" },
-  "Group.PlaceNames.Tooltip": { "message": "Names of regions, zones and locations on maps and inside dungeons and other instances." },
+  "Dev.Revised": { "message": "Revised" },
+  "Dev.Cinematics": { "message": "Cinematic text" },
+  "Dev.Cinzel": { "message": "Cinzel regular" },
+  "Dev.Banners": { "message": "Banners" },
+  "Dev.ResolutionHint": { "message": "The game selects SD (.tex) or HD (_hr1.tex). Hover over a title to see the dimensions." },
+
+  "Dev.Resolutions": { "message": "Each ID has SD (.tex, 1280 x 360) and HD (_hr1.tex, 2560 x 720). The game selects the resolution." },
+  "Dev.Current": { "message": "Current" },
+  "Dev.R8": { "message": "r8 + border" },
+  "Dev.PreviewHint": { "message": "Click a radio button to show the banner. Click it again to repeat." },
+  "Dev.LoginRequired": { "message": "Log in to preview banners." },
+  "Dev.ImageId": { "message": "Image ID" },
+  "Dev.OriginalLabel": { "message": "Original label" },
+  "Coverage.NoData": { "message": "No data" },
+  "Coverage.Shared": { "message": "Other game text" },
+  "Coverage.Unavailable": { "message": "This pack has no expansion breakdown." },
+  "Coverage.Count": { "message": "{0:N0} / {1:N0} texts translated" },
+  "Coverage.ByExpansion": { "message": "Translation by expansion" },
+  "Setup.ColGameVersion": { "message": "Game version" },
   "Part.PlaceNames.Name": { "message": "Place names" },
   "Part.PlaceNames.Tooltip": { "message": "Names of regions, zones and locations on maps and inside dungeons and other instances." },
-  "Part.UnendingCodex.Name": { "message": "The Unending Codex" },
-  "Part.UnendingCodex.Tooltip": { "message": "Entry names and descriptions of characters, places and concepts in the Unending Codex." },
   "Part.GoldSaucer.Name": { "message": "Gold Saucer and minigames" },
   "Part.GoldSaucer.Tooltip": { "message": "Text for GATEs, arcade games, chocobo racing, Triple Triad cards, Lord of Verminion and Doman Mahjong." },
 
@@ -165,7 +180,7 @@
     "description": "ConfigWindow.ChoiceLabel"
   },
   "Setup.LanguageOwn": {
-    "message": "A pack of your own",
+    "message": "Custom",
     "description": "ConfigWindow.ChoiceLabel"
   },
   "Setup.LanguageNone": {
@@ -249,226 +264,37 @@
     "message": "Other text in this pack",
     "description": "PackParts.get_OtherGroupName"
   },
-  "Group.Story.Name": {
-    "message": "Quests and story",
-    "description": "PackParts.Build"
-  },
-  "Group.Story.Tooltip": {
-    "message": "Text of the main scenario, side quests and cutscenes.",
-    "description": "PackParts.Build"
-  },
-  "Part.QuestText.Name": {
-    "message": "Quest dialogue, journal and objectives",
-    "description": "PackParts.Build"
-  },
-  "Part.QuestText.Tooltip": {
-    "message": "Shows the text when you talk to NPCs about a quest, the story summaries in the journal, the list of steps in the tracker and the quest pop-up notices.",
-    "description": "PackParts.Build"
-  },
-  "Part.Cutscenes.Name": {
-    "message": "Cutscene subtitles",
-    "description": "PackParts.Build"
-  },
-  "Part.Cutscenes.Tooltip": {
-    "message": "Translates the subtitle lines at the bottom of the screen during voiced cutscenes.",
-    "description": "PackParts.Build"
-  },
-  "Part.QuestNames.Name": {
-    "message": "Quest names",
-    "description": "PackParts.Build"
-  },
-  "Part.QuestNames.Tooltip": {
-    "message": "Translates only the quest titles (in the tracker, the journal and the Unending Journey).",
-    "description": "PackParts.Build"
-  },
-  "Part.QuestNames.Warning": {
-    "message": "Names and text are separate parts. With only one of them on, titles and objectives are shown in different languages.",
-    "description": "PackParts.Build"
-  },
-  "Group.People.Name": {
-    "message": "Ambient dialogue and the world",
-    "description": "PackParts.Build"
-  },
-  "Group.People.Tooltip": {
-    "message": "Casual conversations and flavour text around the map.",
-    "description": "PackParts.Build"
-  },
-  "Part.Talk.Name": {
-    "message": "Talking to someone",
-    "description": "PackParts.Build"
-  },
-  "Part.Talk.Tooltip": {
-    "message": "The text window that opens when you talk to NPCs with no quest (including Gold Saucer criers and vendors).",
-    "description": "PackParts.Build"
-  },
-  "Part.AskAbout.Name": {
-    "message": "\"Ask about...\" menus and information windows",
-    "description": "PackParts.Build"
-  },
-  "Part.AskAbout.Tooltip": {
-    "message": "The dialogue options an NPC offers when you ask about several topics, and the explanatory text of each option.",
-    "description": "PackParts.Build"
-  },
-  "Part.Balloons.Name": {
-    "message": "Speech balloons and shouts",
-    "description": "PackParts.Build"
-  },
-  "Part.Balloons.Tooltip": {
-    "message": "Text balloons over characters' heads as you walk by, and warnings shouted in combat.",
-    "description": "PackParts.Build"
-  },
-  "Group.People.Warning": {
-    "message": "This is the largest part of the translation.",
-    "description": "PackParts.Build"
-  },
-  "Group.Duties.Name": {
-    "message": "Dungeons, raids and special zones",
-    "description": "PackParts.Build"
-  },
-  "Group.Duties.Tooltip": {
-    "message": "Everything that happens inside combat instances and large-scale content zones.",
-    "description": "PackParts.Build"
-  },
-  "Part.DutyText.Name": {
-    "message": "Text and interactions inside content (Duties)",
-    "description": "PackParts.Build"
-  },
-  "Part.DutyText.Tooltip": {
-    "message": "What bosses and NPCs say inside a dungeon or raid, on-screen objectives, route votes in Variant Dungeons and the records of zones such as Eureka, Bozja or the Occult Crescent.",
-    "description": "PackParts.Build"
-  },
-  "Part.Objects.Name": {
-    "message": "Objects and information in the world",
-    "description": "PackParts.Build"
-  },
-  "Part.Objects.Tooltip": {
-    "message": "What a mechanism or lever tells you when used, plus documents, letters, signs and puzzle hints.",
-    "description": "PackParts.Build"
-  },
-  "Part.DeepDungeons.Name": {
-    "message": "Deep Dungeon systems and unique content",
-    "description": "PackParts.Build"
-  },
-  "Part.DeepDungeons.Tooltip": {
-    "message": "Elements exclusive to Palace of the Dead, Heaven-on-High and Eureka Orthos (pomanders, floor effects, demiclones) together with the field lore log.",
-    "description": "PackParts.Build"
-  },
-  "Group.Finder.Name": {
-    "message": "Finder and guides (Duty Finder and tutorials)",
-    "description": "PackParts.Build"
-  },
-  "Group.Finder.Tooltip": {
-    "message": "Instance names and in-game explanations.",
-    "description": "PackParts.Build"
-  },
-  "Part.DutyFinder.Name": {
-    "message": "Content finder (Duty Finder)",
-    "description": "PackParts.Build"
-  },
-  "Part.DutyFinder.Tooltip": {
-    "message": "The name of every dungeon, hunt, trial and raid in the list, the roulette explanations and the short guildhest tactics.",
-    "description": "PackParts.Build"
-  },
-  "Part.ActiveHelp.Name": {
-    "message": "Tutorials and Active Help",
-    "description": "PackParts.Build"
-  },
-  "Part.ActiveHelp.Tooltip": {
-    "message": "The help pop-ups when you do something for the first time, and the journal tutorials.",
-    "description": "PackParts.Build"
-  },
-  "Part.ContentGuides.Name": {
-    "message": "Built-in content guides",
-    "description": "PackParts.Build"
-  },
-  "Part.ContentGuides.Tooltip": {
-    "message": "Built-in manuals such as the rules of Mahjong, Triple Triad and the Island Sanctuary.",
-    "description": "PackParts.Build"
-  },
-  "Group.Navigation.Name": {
-    "message": "Navigation and compatibility",
-    "description": "PackParts.Build"
-  },
-  "Group.Navigation.Tooltip": {
-    "message": "Names of aetherytes, Aethernet shards, ferries and travel menus.",
-    "description": "PackParts.Build"
-  },
-  "Part.Travel.Name": {
-    "message": "Transport, aetherytes and travel names",
-    "description": "PackParts.Build"
-  },
-  "Part.Travel.Tooltip": {
-    "message": "Names of aetherytes, Aethernet shards, ferries and travel menus. Lifestream looks these names up in English to know where to teleport you. Translated, navigation fails.",
-    "description": "PackParts.Build"
-  },
-  "Group.Navigation.Warning": {
-    "message": "If you translate this, the related plugins stop working (example: Lifestream).",
-    "description": "PackParts.Build"
-  },
-  "Group.SafeInterface.Name": {
-    "message": "Safe interface and settings",
-    "description": "PackParts.Build"
-  },
-  "Group.SafeInterface.Tooltip": {
-    "message": "General visual elements that break no script.",
-    "description": "PackParts.Build"
-  },
-  "Part.MainMenu.Name": {
-    "message": "Main menu and start screen",
-    "description": "PackParts.Build"
-  },
-  "Part.MainMenu.Tooltip": {
-    "message": "The options of the menu that opens with Esc, the title screen when the game opens, and character creation.",
-    "description": "PackParts.Build"
-  },
-  "Group.Interface.Name": {
-    "message": "Interface critical for addons",
-    "description": "PackParts.Build"
-  },
-  "Group.Interface.Tooltip": {
-    "message": "Window titles, buttons, confirmations, shop windows and loot windows.",
-    "description": "PackParts.Build"
-  },
-  "Part.Interface.Name": {
-    "message": "Buttons, windows and interface (UI)",
-    "description": "PackParts.Build"
-  },
-  "Part.Interface.Tooltip": {
-    "message": "Window titles, buttons, \"Yes/No\" confirmations, tomestone and exchange shop menus, and loot and coffer windows. Several plugins read the windows and buttons in English to interact with the interface. Translating them stops them from detecting those options.",
-    "description": "PackParts.Build"
-  },
-  "Group.Interface.Warning": {
-    "message": "If you translate this, the related plugins stop working (examples: Yes Already, AutoRetainer, Pandora, LazyLoot, Deliveroo).",
-    "description": "PackParts.Build"
-  },
-  "Group.Chat.Name": {
-    "message": "Chat, messages and items",
-    "description": "PackParts.Build"
-  },
-  "Group.Chat.Tooltip": {
-    "message": "On-screen logs and inventory information.",
-    "description": "PackParts.Build"
-  },
-  "Part.Log.Name": {
-    "message": "Combat and system log",
-    "description": "PackParts.Build"
-  },
-  "Part.Log.Tooltip": {
-    "message": "Everything that appears in the chat window (damage, emotes, gil notices, system errors, zone announcements).",
-    "description": "PackParts.Build"
-  },
-  "Part.Log.Warning": {
-    "message": "Combat parsers and several plugins read these lines in English.",
-    "description": "PackParts.Build"
-  },
-  "Part.Items.Name": {
-    "message": "Items and character attributes",
-    "description": "PackParts.Build"
-  },
-  "Part.Items.Tooltip": {
-    "message": "The names of every item in the bags and on the market board, and the names and descriptions of attributes (Strength, Critical Hit, etc.).",
-    "description": "PackParts.Build"
-  },
+  "Group.Story.Name": { "message": "Quests and story" },
+  "Group.Story.Tooltip": { "message": "Quest dialogue, objectives, titles and cutscene subtitles." },
+  "Part.QuestText.Name": { "message": "Quest dialogue and objectives" },
+  "Part.QuestText.Tooltip": { "message": "Quest conversations, journal entries, objectives and levequest descriptions." },
+  "Part.Cutscenes.Name": { "message": "Cutscene subtitles" },
+  "Part.Cutscenes.Tooltip": { "message": "Translates the subtitle lines at the bottom of the screen during voiced cutscenes." },
+  "Part.QuestNames.Name": { "message": "Quest names" },
+  "Part.QuestNames.Tooltip": { "message": "Translates only the quest titles (in the tracker, the journal and the Unending Journey)." },
+  "Part.Talk.Name": { "message": "Ambient conversations and shouts" },
+  "Part.Talk.Tooltip": { "message": "NPC dialogue outside quests, speech balloons and shouts, including combat shouts. NPC service conversations are under Interface menus." },
+  "Group.Duties.Name": { "message": "Duties and field operations" },
+  "Group.Duties.Tooltip": { "message": "Duty objectives, dialogue and special combat systems." },
+  "Part.DutyText.Name": { "message": "Duty dialogue and objectives" },
+  "Part.DutyText.Tooltip": { "message": "Dialogue, announcements and objectives in duties, FATEs and field operations, plus Variant Dungeon route choices." },
+  "Part.Objects.Name": { "message": "Objects and information in the world" },
+  "Part.Objects.Tooltip": { "message": "What a mechanism or lever tells you when used, plus documents, letters, signs and puzzle hints." },
+  "Part.DeepDungeons.Name": { "message": "Deep Dungeon items and effects" },
+  "Part.DeepDungeons.Tooltip": { "message": "Pomanders, aetherpool equipment, floor effects, demiclones and incense." },
+  "Part.DutyFinder.Name": { "message": "Duty names and descriptions" },
+  "Part.DutyFinder.Tooltip": { "message": "Duty Finder entries, roulette names and descriptions. Entry NPC menus are under Interface menus." },
+  "Group.Interface.Name": { "message": "Interface menus" },
+  "Group.Interface.Tooltip": { "message": "Windows, settings, shops and NPC services in one part." },
+  "Part.Interface.Name": { "message": "Interface menus and NPC services" },
+  "Part.Interface.Tooltip": { "message": "Buttons, settings, shops, retainers, travel and duty entry menus. Includes NPC topic menus and their dialogue and lore answers because each sheet is switched as a whole." },
+  "Group.Chat.Name": { "message": "Chat and system messages" },
+  "Group.Chat.Tooltip": { "message": "Combat logs, notifications and error messages." },
+  "Part.Log.Name": { "message": "Chat and system messages" },
+  "Part.Log.Tooltip": { "message": "Combat messages, emotes, invitations, system notices and connection errors." },
+  "Part.Log.Warning": { "message": "Combat parsers and plugins may depend on English log messages." },
+  "Part.Items.Name": { "message": "Items and character attributes" },
+  "Part.Items.Tooltip": { "message": "The names of every item in the bags and on the market board, and the names and descriptions of attributes (Strength, Critical Hit, etc.)." },
   "Setup.ColLanguage": {
     "message": "Language",
     "description": "ConfigWindow.DrawLanguageChooser"
@@ -478,7 +304,7 @@
     "description": "ConfigWindow.DrawLanguageChooser"
   },
   "Setup.ColEnglish": {
-    "message": "Kept in English",
+    "message": "Non translated",
     "description": "ConfigWindow.DrawLanguageChooser"
   },
   "Setup.NoPackYet": {
@@ -510,5 +336,31 @@
   "Setup.Offline": {
     "message": "Offline",
     "description": "ConfigWindow.DrawCoverageCell"
-  }
+  },
+  "Part.Lore.Name": { "message": "Codex and exploration records" },
+  "Part.Lore.Tooltip": { "message": "The Unending Codex, Occult Record and Variant Dungeon records." },
+  "Group.World.Name": { "message": "Dialogue and world lore" },
+  "Group.World.Tooltip": { "message": "Conversations, speech balloons, readable objects and lore records." },
+  "Part.TargetNames.Name": { "message": "Creatures and interactable objects" },
+  "Part.TargetNames.Tooltip": { "message": "Names of enemies, pets, aetherytes and objects you can select. Travel menus are under Interface menus." },
+  "Part.TargetNames.Warning": { "message": "Plugins that search for English object names may fail to find translated targets." },
+  "Group.Names.Name": { "message": "Names in the world" },
+  "Group.Names.Tooltip": { "message": "Names shown on maps and on characters and objects." },
+  "Part.Actions.Name": { "message": "Jobs, actions and status effects" },
+  "Part.Actions.Tooltip": { "message": "Job names, action names and descriptions, traits and status effects." },
+  "Group.Combat.Name": { "message": "Combat and equipment" },
+  "Group.Combat.Tooltip": { "message": "Actions, effects, attributes and item information." },
+  "Part.FieldSystems.Name": { "message": "Field operation jobs and equipment" },
+  "Part.FieldSystems.Tooltip": { "message": "Phantom jobs and traits in the Occult Crescent, and Eureka aether items." },
+  "Part.Crafting.Name": { "message": "Crafting and gathering deliveries" },
+  "Part.Crafting.Tooltip": { "message": "Delivery requirements for the Crystalline Mean, Studium and Wachumeqimeqi." },
+  "Part.Beastmaster.Name": { "message": "Beastmaster and the Crucible" },
+  "Part.Beastmaster.Tooltip": { "message": "Beast descriptions, Crucible equipment, action properties and score objectives." },
+  "Group.Activities.Name": { "message": "Other activities" },
+  "Group.Activities.Tooltip": { "message": "Minigames, crafting deliveries and Beastmaster content." },
+  "Part.Guides.Name": { "message": "Tutorials and game manuals" },
+  "Part.Guides.Tooltip": { "message": "Active Help, job gauge guides and built-in manuals for combat, housing, minigames and exploration." },
+  "Group.Guides.Name": { "message": "Tutorials and guides" },
+  "Group.Guides.Tooltip": { "message": "Help pages and explanations of game systems." },
+  "Part.Interface.Warning": { "message": "Plugins that read English buttons or menus may not recognize translated options. This also affects travel and NPC service automation." }
 }

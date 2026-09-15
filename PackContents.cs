@@ -39,6 +39,7 @@ internal sealed class PackContents
     private readonly List<PackPage> pages;
     private readonly List<PackPage> fonts;
     private readonly List<PackPage> layouts;
+    private readonly List<PackPage> screenImages = [];
 
     private PackContents(List<PackPage> pages, List<PackPage> fonts, List<PackPage> layouts, int tooLong)
     {
@@ -167,7 +168,22 @@ internal sealed class PackContents
             }
         }
 
-        return new PackContents(pages, fonts, layouts, tooLong);
+        var images = new List<PackPage>();
+        var imageDir = Path.Combine(directory, "ui", "icon", "120000");
+        if (Directory.Exists(imageDir))
+        {
+            foreach (var file in Directory.EnumerateFiles(imageDir, "*.tex", SearchOption.AllDirectories))
+            {
+                var localPath = Path.GetFullPath(file);
+                if (localPath.Length > maxLocalPathLength) { tooLong++; continue; }
+                var gamePath = Path.GetRelativePath(directory, localPath).Replace('\\', '/');
+                images.Add(new PackPage(gamePath, localPath, "addon"));
+            }
+        }
+
+        var result = new PackContents(pages, fonts, layouts, tooLong);
+        result.screenImages.AddRange(images);
+        return result;
     }
 
     /// <summary>Layouts are served only while the Addon translation is enabled.</summary>
@@ -217,6 +233,9 @@ internal sealed class PackContents
 
     /// <summary>The font files, all of them. Fonts have no switch for the user: see <see cref="FontSheet" />.</summary>
     public IReadOnlyList<PackPage> Fonts => this.fonts;
+
+    public IReadOnlyList<PackPage> ServableScreenImages(ICollection<string> disabledSheets) =>
+        disabledSheets.Contains("addon") ? [] : this.screenImages;
 
     /// <summary>Says in the log which parts were held back, since the page count alone cannot.</summary>
     /// <remarks>

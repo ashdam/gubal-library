@@ -8,6 +8,7 @@
   <ItemGroup>
     <Compile Include="../../../PackContents.cs" Link="PackContents.cs" />
     <Compile Include="../../../PackParts.cs" Link="PackParts.cs" />
+    <Compile Include="../../../PackManifest.cs" Link="PackManifest.cs" />
     <Compile Include="../../../Diagnostics.cs" Link="Diagnostics.cs" />
   </ItemGroup>
 </Project>

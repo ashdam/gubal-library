@@ -21,6 +21,22 @@ namespace GubalLibrary;
 /// </remarks>
 public sealed class Plugin : IDalamudPlugin
 {
+    private unsafe void PreviewScreenImage(uint imageId)
+    {
+        _ = this.framework.RunOnFrameworkThread(() =>
+        {
+            if (!this.clientState.IsLoggedIn || this.framework.IsFrameworkUnloading)
+            {
+                return;
+            }
+
+            var ui = FFXIVClientStructs.FFXIV.Client.UI.UIModule.Instance();
+            if (ui != null && ui->IsUIReady())
+            {
+                ui->ShowImage(imageId, useLocalePath: imageId < 990000, displayType: 0, playSound: false);
+            }
+        });
+    }
     private const string CommandName = "/gubal";
 
     /// <summary>Identifies this plugin's one chat link. Scoped to the plugin, so any value will do.</summary>
@@ -156,6 +172,8 @@ public sealed class Plugin : IDalamudPlugin
 
         // Before the redirector, and blocking, which is the point: what is fetched has to be on disk
         // before the pages are enumerated, or it is a generation too late.
+        var devImages = new DevScreenImages(Path.Combine(pluginInterface.GetPluginConfigDirectory(), "dev-screen-images"),
+            PackManifest.Read(this.config.LanguagePackPath).Manifest?.Language);
         this.bootUpdate = this.UpdateBeforeTheGameReads(log);
 
         // SERVING THE PACK MEANS SERVING IT TO BOTH, or serving nothing. A pack that reaches the
@@ -174,7 +192,8 @@ public sealed class Plugin : IDalamudPlugin
                 log,
                 this.config.LanguagePackPath,
                 this.Contents(),
-                this.config.DisabledSheets);
+                this.config.DisabledSheets,
+                devImages.Files);
 
             if (this.redirectorError is { Length: > 0 } error)
             {
@@ -218,7 +237,10 @@ public sealed class Plugin : IDalamudPlugin
             () => DalamudBootWait.IsOn(this.pluginInterface),
             () => pluginInterface.OpenDalamudSettingsTo(SettingsOpenKind.General),
             () => this.shadow,
-            pluginInterface.Manifest.AssemblyVersion.ToString());
+            pluginInterface.Manifest.AssemblyVersion.ToString(),
+            () => this.clientState.IsLoggedIn,
+            this.PreviewScreenImage,
+            devImages.Available);
 
         this.windows.AddWindow(this.configWindow);
 
