@@ -21,7 +21,7 @@ namespace GubalLibrary;
 ///     Ordered by what a new user has to do, not by what the plugin does internally: it ships no
 ///     translations, so a fresh install can do exactly one useful thing — be pointed at a folder.
 /// </remarks>
-internal sealed class ConfigWindow : Window
+internal sealed partial class ConfigWindow : Window
 {
     private static readonly Vector4 Green = new(0.4f, 0.9f, 0.4f, 1f);
     private static readonly Vector4 Amber = new(1f, 0.75f, 0.2f, 1f);
@@ -169,11 +169,9 @@ internal sealed class ConfigWindow : Window
 
         this.SizeConstraints = new WindowSizeConstraints
         {
-            // Wide enough for the longest part name in the Translated parts tab, indented under its
-            // group. The old minimum predates that tab and clipped the labels it is made of, which
-            // for a list whose whole job is to be readable is the one thing it cannot do.
-            MinimumSize = new Vector2(560, 220),
-            MaximumSize = new Vector2(900, 800),
+            // Keep the pack version and translation columns readable.
+            MinimumSize = new Vector2(760, 220),
+            MaximumSize = new Vector2(1100, 800),
         };
     }
 
@@ -936,7 +934,7 @@ internal sealed class ConfigWindow : Window
         var chosen = this.Chosen(pages);
         var scale = ImGuiHelpers.GlobalScale;
 
-        using (var table = ImRaii.Table("##languages", 4,
+        using (var table = ImRaii.Table("##languages", 5,
                    ImGuiTableFlags.RowBg | ImGuiTableFlags.NoSavedSettings | ImGuiTableFlags.PadOuterX))
         {
             if (!table)
@@ -946,7 +944,9 @@ internal sealed class ConfigWindow : Window
 
             ImGui.TableSetupColumn(Loc.Localize("Setup.ColLanguage", "Language"), ImGuiTableColumnFlags.WidthFixed);
             ImGui.TableSetupColumn(Loc.Localize("Setup.ColTranslated", "Translated"), ImGuiTableColumnFlags.WidthFixed, 90f * scale);
-            ImGui.TableSetupColumn(Loc.Localize("Setup.ColEnglish", "Kept in English"), ImGuiTableColumnFlags.WidthStretch);
+            ImGui.TableSetupColumn(Loc.Localize("Setup.ColGameVersion", "Game version"), ImGuiTableColumnFlags.WidthFixed,
+                ImGui.CalcTextSize("2026.09.01").X);
+            ImGui.TableSetupColumn(Loc.Localize("Setup.ColEnglish", "Non translated"), ImGuiTableColumnFlags.WidthStretch);
             ImGui.TableSetupColumn(Loc.Localize("Setup.ColLinks", "Links"), ImGuiTableColumnFlags.WidthFixed);
             ImGui.TableHeadersRow();
 
@@ -982,7 +982,13 @@ internal sealed class ConfigWindow : Window
                     changed = true;
                 }
 
-                DrawCoverageCell(pack, manifest, loading);
+                this.DrawCoverageCell(pack, manifest, loading);
+
+                ImGui.TableNextColumn();
+                ImGui.AlignTextToFramePadding();
+                var gameVersion = manifest?.GameVersion ?? string.Empty;
+                ImGui.TextUnformatted(gameVersion.EndsWith(".0000.0000", StringComparison.Ordinal)
+                    ? gameVersion[..^10] : gameVersion);
 
                 ImGui.TableNextColumn();
                 if (manifest?.Coverage is { } coverage)
@@ -1102,8 +1108,7 @@ internal sealed class ConfigWindow : Window
     }
 
     /// <summary>The Translated cell: a bar with the figure, "No pack yet", or blank while nothing is known.</summary>
-    /// <returns>The manifest the figure came from, for the cells after it.</returns>
-    private static void DrawCoverageCell(KnownPack pack, PackManifest? manifest, bool loading)
+    private void DrawCoverageCell(KnownPack pack, PackManifest? manifest, bool loading)
     {
         ImGui.TableNextColumn();
         ImGui.AlignTextToFramePadding();
@@ -1128,6 +1133,7 @@ internal sealed class ConfigWindow : Window
                 : percent.ToString("0.#", CultureInfo.InvariantCulture) + " %";
 
             ImGui.ProgressBar((float)Math.Clamp(percent / 100.0, 0.0, 1.0), new Vector2(-1, 0), overlay);
+            this.DrawCoverageTooltip(coverage);
         }
     }
 
@@ -1462,7 +1468,7 @@ internal sealed class ConfigWindow : Window
     private static string ChoiceLabel(int chosen) => chosen switch
     {
         English => Loc.Localize("Setup.LanguageEnglish", "English (no localization)"),
-        OwnPack => Loc.Localize("Setup.LanguageOwn", "A pack of your own"),
+        OwnPack => Loc.Localize("Setup.LanguageOwn", "Custom"),
         NoChoice => Loc.Localize("Setup.LanguageNone", "Choose one"),
         _ => KnownPacks.All[chosen].Name,
     };

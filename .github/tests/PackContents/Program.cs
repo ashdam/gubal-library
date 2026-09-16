@@ -1,5 +1,8 @@
 using GubalLibrary;
 
+CoverageChecks.Run();
+PackPartsChecks.Run();
+
 var root = Path.Combine(Path.GetTempPath(), "gubal-layout-test-" + Guid.NewGuid().ToString("N"));
 try
 {
@@ -30,6 +33,20 @@ try
     Check(contents.PageCount == 2 && contents.FontCount == 1, "ULD files do not change page or font counts");
     Check(contents.PartCount == baseline.PartCount, "ULD files do not add checkboxes");
     Check(contents.Servable(["addon"]).Keys.SequenceEqual(["exd/lobby_0_en.exd"]), "Page selection is unchanged");
+
+    Check(PackContents.IsScreenImagePath("ui/icon/120000/en/120021.tex"u8), "Native banner path is accepted");
+    Check(PackContents.IsScreenImagePath("ui/icon/121000/en/121001_hr1.tex"u8), "Native event banner path is accepted");
+    Check(!PackContents.IsScreenImagePath("ui/icon/990000/990101.tex"u8), "Preview path is not served");
+    Write("ui/icon/120000/en/120021.tex");
+    Write("ui/icon/121000/en/121001.tex");
+    Write("ui/icon/121000/en/121001_hr1.tex");
+    Write("ui/icon/120000/en/ignored.png");
+    Write("ui/icon/000000/000001.tex");
+    var images = PackContents.Load(root, 259);
+    Check(images.ServableScreenImages([]).Count == 3, "Only screen-image textures are served");
+    Check(images.ServableScreenImages(["addon"]).Count == 0, "Disabled Addon disables screen images");
+    Check(images.ServableScreenImages(["lobby"]).Count == 3, "Other parts do not disable screen images");
+    Check(images.FontCount == baseline.FontCount && images.PageCount == baseline.PageCount, "Images are not fonts or pages");
 
     var longFile = "ui/uld/" + new string('x', 80) + ".uld";
     Write(longFile);

@@ -16,7 +16,7 @@
     <Platforms>x64</Platforms>
     <AssemblyName>GubalLibrary</AssemblyName>
     <RootNamespace>GubalLibrary</RootNamespace>
-    <Version>0.5.6.2</Version>
+    <Version>0.5.7.0</Version>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
@@ -62,6 +62,7 @@
     <EmbeddedResource Include="images\tooltips\*.png" />
     <EmbeddedResource Include="images\example7.png" LogicalName="GubalLibrary.images.tooltips.codex-on.png" />
     <EmbeddedResource Include="images\flags\*.png" />
+    <EmbeddedResource Include="images\expansions\*.jpg" />
   </ItemGroup>
 
   <!--

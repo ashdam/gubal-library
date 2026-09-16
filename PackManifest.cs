@@ -99,6 +99,13 @@ internal sealed class PackCoverage
 
     [JsonPropertyName("total")] public int Total { get; init; }
 
+    [JsonPropertyName("groups")] public List<CoverageGroup>? Groups { get; init; }
+
+    public IEnumerable<ExpansionCoverage> ByExpansion =>
+        (this.Groups ?? [])
+            .GroupBy(g => g.Expansion ?? string.Empty)
+            .Select(g => new ExpansionCoverage(g.Key, g.Sum(x => (long)x.Translated), g.Sum(x => (long)x.Total)));
+
     /// <summary>Text the pack keeps in English on purpose, one entry per block.</summary>
     [JsonPropertyName("excludedFromLocalization")] public List<CoverageGroup>? ExcludedFromLocalization { get; init; }
 
@@ -115,9 +122,16 @@ internal sealed class PackCoverage
 
 internal sealed class CoverageGroup
 {
+    [JsonPropertyName("expansion")] public string? Expansion { get; init; }
+
     [JsonPropertyName("content")] public string? Content { get; init; }
 
     [JsonPropertyName("translated")] public int Translated { get; init; }
 
     [JsonPropertyName("total")] public int Total { get; init; }
+}
+
+internal sealed record ExpansionCoverage(string Name, long Translated, long Total)
+{
+    public double Percent => this.Total > 0 ? Math.Clamp(100.0 * this.Translated / this.Total, 0, 100) : 0;
 }
