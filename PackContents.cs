@@ -169,9 +169,10 @@ internal sealed class PackContents
         }
 
         var images = new List<PackPage>();
-        var imageDir = Path.Combine(directory, "ui", "icon", "120000");
-        if (Directory.Exists(imageDir))
+        foreach (var group in new[] { "120000", "121000" })
         {
+            var imageDir = Path.Combine(directory, "ui", "icon", group);
+            if (!Directory.Exists(imageDir)) continue;
             foreach (var file in Directory.EnumerateFiles(imageDir, "*.tex", SearchOption.AllDirectories))
             {
                 var localPath = Path.GetFullPath(file);

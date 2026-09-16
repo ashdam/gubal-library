@@ -35,12 +35,14 @@ try
     Check(contents.Servable(["addon"]).Keys.SequenceEqual(["exd/lobby_0_en.exd"]), "Page selection is unchanged");
 
     Write("ui/icon/120000/en/120021.tex");
+    Write("ui/icon/121000/en/121001.tex");
+    Write("ui/icon/121000/en/121001_hr1.tex");
     Write("ui/icon/120000/en/ignored.png");
     Write("ui/icon/000000/000001.tex");
     var images = PackContents.Load(root, 259);
-    Check(images.ServableScreenImages([]).Count == 1, "Only screen-image textures are served");
+    Check(images.ServableScreenImages([]).Count == 3, "Only screen-image textures are served");
     Check(images.ServableScreenImages(["addon"]).Count == 0, "Disabled Addon disables screen images");
-    Check(images.ServableScreenImages(["lobby"]).Count == 1, "Other parts do not disable screen images");
+    Check(images.ServableScreenImages(["lobby"]).Count == 3, "Other parts do not disable screen images");
     Check(images.FontCount == baseline.FontCount && images.PageCount == baseline.PageCount, "Images are not fonts or pages");
 
     var longFile = "ui/uld/" + new string('x', 80) + ".uld";
