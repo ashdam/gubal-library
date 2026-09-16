@@ -1,9 +1,4 @@
 {
-  "Dev.Original": {"message": "Original game texture"},
-  "Dev.Resolutions": {"message": "Each variant has SD and HD. The game selects the resolution."},
-
-  "Dev.PreviewHint": { "message": "Click a radio button to show the banner. Click it again to repeat." },
-  "Dev.LoginRequired": { "message": "Log in to preview banners." },
   "Coverage.NoData": { "message": "No data" },
   "Coverage.Shared": { "message": "Other game text" },
   "Coverage.Unavailable": { "message": "This pack has no expansion breakdown." },

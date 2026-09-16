@@ -1,6 +1,4 @@
 {
-  "Dev.Original": {"message": "Texture originale del gioco"},
-  "Dev.Resolutions": {"message": "Ogni variante ha SD e HD. Il gioco sceglie la risoluzione."},
   "Coverage.NoData": { "message": "Nessun dato" },
   "Coverage.Shared": { "message": "Altri testi del gioco" },
   "Coverage.Unavailable": { "message": "Questo pacchetto non include i dati per espansione." },

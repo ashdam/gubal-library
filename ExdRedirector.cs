@@ -221,8 +221,7 @@ internal sealed unsafe class ExdRedirector : IDisposable
         IPluginLog log,
         string directory,
         PackContents contents,
-        ICollection<string> disabledSheets,
-        IReadOnlyList<PackPage>? previewImages = null)
+        ICollection<string> disabledSheets)
     {
         if (string.IsNullOrWhiteSpace(directory) || !Directory.Exists(directory))
         {
@@ -269,7 +268,7 @@ internal sealed unsafe class ExdRedirector : IDisposable
         var readFile = nint.Zero;
         TextureLoader? textures = null;
         var fontFiles = contents.Fonts;
-        IReadOnlyList<PackPage> screenImages = contents.ServableScreenImages(disabledSheets).Concat(previewImages ?? []).ToArray();
+        IReadOnlyList<PackPage> screenImages = contents.ServableScreenImages(disabledSheets);
         if (fontFiles.Count + screenImages.Count > 0)
         {
             string? missing = null;
@@ -290,7 +289,7 @@ internal sealed unsafe class ExdRedirector : IDisposable
                 log.Warning(
                     "{Count} font or screen-image file(s) are not being served: the client's {Function} was not found. "
                     + "The pages are served as usual.",
-                    fontFiles.Count,
+                    fontFiles.Count + screenImages.Count,
                     missing);
                 fontFiles = [];
                 screenImages = [];
@@ -567,7 +566,7 @@ internal sealed unsafe class ExdRedirector : IDisposable
             }
 
             var name = path.AsSpan();
-            if (!(IsFontPath(name) || name.StartsWith("ui/icon/120000/"u8) || name.StartsWith("ui/icon/990000/"u8)) || !this.fonts.TryGetValue(Encoding.UTF8.GetString(name), out var entry))
+            if (!(IsFontPath(name) || PackContents.IsScreenImagePath(name)) || !this.fonts.TryGetValue(Encoding.UTF8.GetString(name), out var entry))
             {
                 return null;
             }

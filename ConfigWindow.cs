@@ -150,15 +150,9 @@ internal sealed partial class ConfigWindow : Window
         Func<bool?> dalamudWaits,
         Action openDalamudSettings,
         Func<ShadowState?> shadowState,
-        string version,
-        Func<bool> canPreviewImage,
-        Action<uint> previewImage,
-        IReadOnlySet<uint> previewImageIds)
+        string version)
         : base($"Gubal Library ({version})###GubalLibraryConfig")
     {
-        this.canPreviewImage = canPreviewImage;
-        this.previewImage = previewImage;
-        this.previewImageIds = previewImageIds;
         this.shadowState = shadowState;
         this.config = config;
         this.save = save;
@@ -249,13 +243,6 @@ internal sealed partial class ConfigWindow : Window
                     }
                 }
 
-                using (var tab = ImRaii.TabItem("Dev"))
-                {
-                    if (tab)
-                    {
-                        this.DrawDevTab();
-                    }
-                }
                 using (var tab = ImRaii.TabItem(Loc.Localize("Tab.Help", "Help and contact")))
                 {
                     if (tab)

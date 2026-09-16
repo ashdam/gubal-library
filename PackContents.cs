@@ -235,6 +235,9 @@ internal sealed class PackContents
     /// <summary>The font files, all of them. Fonts have no switch for the user: see <see cref="FontSheet" />.</summary>
     public IReadOnlyList<PackPage> Fonts => this.fonts;
 
+    internal static bool IsScreenImagePath(ReadOnlySpan<byte> path) =>
+        path.StartsWith("ui/icon/120000/"u8) || path.StartsWith("ui/icon/121000/"u8);
+
     public IReadOnlyList<PackPage> ServableScreenImages(ICollection<string> disabledSheets) =>
         disabledSheets.Contains("addon") ? [] : this.screenImages;
 

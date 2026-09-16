@@ -34,6 +34,9 @@ try
     Check(contents.PartCount == baseline.PartCount, "ULD files do not add checkboxes");
     Check(contents.Servable(["addon"]).Keys.SequenceEqual(["exd/lobby_0_en.exd"]), "Page selection is unchanged");
 
+    Check(PackContents.IsScreenImagePath("ui/icon/120000/en/120021.tex"u8), "Native banner path is accepted");
+    Check(PackContents.IsScreenImagePath("ui/icon/121000/en/121001_hr1.tex"u8), "Native event banner path is accepted");
+    Check(!PackContents.IsScreenImagePath("ui/icon/990000/990101.tex"u8), "Preview path is not served");
     Write("ui/icon/120000/en/120021.tex");
     Write("ui/icon/121000/en/121001.tex");
     Write("ui/icon/121000/en/121001_hr1.tex");
