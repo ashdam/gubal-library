@@ -1345,11 +1345,8 @@ internal sealed partial class ConfigWindow : Window
             return;
         }
 
-        if (PackVersion.Error(manifest.GameVersion, this.RunningGame()) is { } versionError)
+        if (PackVersion.Error(manifest.GameVersion, this.RunningGame()) is not null)
         {
-            Icon(FontAwesomeIcon.ExclamationTriangle, Red);
-            ImGui.TextWrapped(versionError);
-            ImGui.PopStyleColor();
             return;
         }
 
