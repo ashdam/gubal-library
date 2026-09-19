@@ -188,10 +188,10 @@ internal sealed class PackContents
     }
 
     /// <summary>Layouts are served only while the Addon translation is enabled.</summary>
-    public Dictionary<string, string> ServableLayouts(ICollection<string> disabledSheets)
+    public Dictionary<string, string> ServableLayouts(ICollection<string> disabledSheets, bool lifestreamCompatibility = false)
     {
         var served = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-        if (!disabledSheets.Contains("addon"))
+        if (!disabledSheets.Contains("addon") && !lifestreamCompatibility)
         {
             foreach (var layout in this.layouts)
             {
@@ -217,13 +217,13 @@ internal sealed class PackContents
     ///     redirector's dictionary, so its read misses and the game reads its own copy — no fallback
     ///     text, no second code path, nothing extra on the hot read path.
     /// </remarks>
-    public Dictionary<string, string> Servable(ICollection<string> disabledSheets)
+    public Dictionary<string, string> Servable(ICollection<string> disabledSheets, bool lifestreamCompatibility = false)
     {
         var served = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
 
         foreach (var page in this.pages)
         {
-            if (disabledSheets.Count == 0 || !disabledSheets.Contains(page.Sheet))
+            if (!disabledSheets.Contains(page.Sheet) && !PackCompatibility.Excludes(page.GamePath, lifestreamCompatibility))
             {
                 served[page.GamePath] = page.LocalPath;
             }
@@ -238,8 +238,8 @@ internal sealed class PackContents
     internal static bool IsScreenImagePath(ReadOnlySpan<byte> path) =>
         path.StartsWith("ui/icon/120000/"u8) || path.StartsWith("ui/icon/121000/"u8);
 
-    public IReadOnlyList<PackPage> ServableScreenImages(ICollection<string> disabledSheets) =>
-        disabledSheets.Contains("addon") ? [] : this.screenImages;
+    public IReadOnlyList<PackPage> ServableScreenImages(ICollection<string> disabledSheets, bool lifestreamCompatibility = false) =>
+        disabledSheets.Contains("addon") || lifestreamCompatibility ? [] : this.screenImages;
 
     /// <summary>Says in the log which parts were held back, since the page count alone cannot.</summary>
     /// <remarks>

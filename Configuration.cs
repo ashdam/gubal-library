@@ -57,6 +57,8 @@ internal sealed class Configuration : IPluginConfiguration
 
     public bool EnableCodexLinks { get; set; }
 
+    public bool LifestreamCompatibility { get; set; }
+
     /// <summary>
     ///     The parts switched off. Empty serves everything.
     /// </summary>

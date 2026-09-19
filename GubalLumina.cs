@@ -1,5 +1,7 @@
 using System.Buffers.Binary;
 using System.Reflection;
+using System.Security.Cryptography;
+using System.Text;
 using Dalamud.Plugin.Services;
 using Lumina;
 using Lumina.Data;
@@ -100,15 +102,10 @@ internal sealed class GubalLumina
     ///     <b>Never throws.</b> The caller is a plugin constructor, and the settings window has to
     ///     survive a failure here so somebody can read what went wrong.
     /// </remarks>
-    public static ShadowState Install(IDataManager data, string packFolder, string folder, IPluginLog log)
+    public static ShadowState Install(IDataManager data, IReadOnlyDictionary<string, string> pages, string folder, IPluginLog log)
     {
         try
         {
-            if (!Directory.Exists(packFolder))
-            {
-                return new ShadowState(false, $"there is no language pack at {packFolder}.", folder);
-            }
-
             var gameData = data.GameData;
             var source = Path.Combine(gameData.DataPath.FullName, "ffxiv", IndexName);
             if (!File.Exists(source))
@@ -116,14 +113,14 @@ internal sealed class GubalLumina
                 return new ShadowState(false, $"the game's Excel index is not at {source}.", folder);
             }
 
-            var stamp = Stamp(packFolder);
+            var stamp = Stamp(pages);
             var stampPath = Path.Combine(folder, StampName);
             var built = File.Exists(stampPath) ? File.ReadAllText(stampPath).Trim() : null;
 
             if (built != stamp)
             {
                 Diagnostics.Log(log, $"[shadow] building for {stamp} (was {built ?? "nothing"})");
-                var placed = Build(source, folder, packFolder, log);
+                var placed = Build(source, folder, pages, log);
                 File.WriteAllText(stampPath, stamp);
                 Diagnostics.Log(log, $"[shadow] {placed:N0} page(s) placed");
             }
@@ -141,29 +138,19 @@ internal sealed class GubalLumina
         }
     }
 
-    /// <summary>
-    ///     What identifies a built archive, so an unchanged one is reused and a stale one is rebuilt.
-    /// </summary>
-    /// <remarks>
-    ///     Newest write plus total size across the pack, which catches both a rebuilt page and a part
-    ///     being switched off. <b>And the game's own version</b>, because every entry in the copied
-    ///     index is an offset into an archive the patcher rewrites: an archive that survived a patch
-    ///     would not serve stale text, it would serve nonsense, to every plugin in the process.
-    /// </remarks>
-    private static string Stamp(string packFolder)
+    // Include every selected path and its metadata so changes to parts rebuild the archive.
+    private static string Stamp(IReadOnlyDictionary<string, string> pages)
     {
-        var newest = 0L;
-        var total = 0L;
-        var count = 0;
-        foreach (var f in Directory.EnumerateFiles(packFolder, "*.exd", SearchOption.AllDirectories))
+        var identity = new StringBuilder();
+        foreach (var (gamePath, file) in pages.OrderBy(p => p.Key, StringComparer.Ordinal))
         {
-            var fi = new FileInfo(f);
-            newest = Math.Max(newest, fi.LastWriteTimeUtc.Ticks);
-            total += fi.Length;
-            count++;
+            var fi = new FileInfo(file);
+            identity.Append(gamePath).Append('\0').Append(fi.FullName).Append('\0')
+                .Append(fi.Length).Append(':').Append(fi.LastWriteTimeUtc.Ticks).Append('\n');
         }
 
-        return $"{ExdRedirector.RunningGameVersion() ?? "unknown"}:{count}:{total}:{newest}";
+        var hash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(identity.ToString())));
+        return $"{ExdRedirector.RunningGameVersion() ?? "unknown"}:{hash}";
     }
 
     /// <summary>
@@ -171,7 +158,7 @@ internal sealed class GubalLumina
     ///     repoints the copied index at them.
     /// </summary>
     /// <returns>How many pages were placed.</returns>
-    private static int Build(string source, string folder, string packFolder, IPluginLog log)
+    private static int Build(string source, string folder, IReadOnlyDictionary<string, string> pages, IPluginLog log)
     {
         Directory.CreateDirectory(folder);
         Clear(folder, log);
@@ -208,11 +195,9 @@ internal sealed class GubalLumina
         // Write only, and a buffer worth having: this is one sequential append of about 100 MB.
         using (var dat = new FileStream(dat1, FileMode.Create, FileAccess.Write, FileShare.None, 1 << 20))
         {
-            foreach (var file in Directory.EnumerateFiles(packFolder, "*.exd", SearchOption.AllDirectories))
+            foreach (var (path, file) in pages)
             {
-                var gamePath = Path.GetRelativePath(packFolder, file)
-                    .Replace(Path.DirectorySeparatorChar, '/')
-                    .ToLowerInvariant();
+                var gamePath = path.ToLowerInvariant();
                 var slash = gamePath.LastIndexOf('/');
                 if (slash < 0)
                 {

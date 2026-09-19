@@ -177,7 +177,8 @@ public sealed class Plugin : IDalamudPlugin
                 log,
                 this.config.LanguagePackPath,
                 this.Contents(),
-                this.config.DisabledSheets);
+                this.config.DisabledSheets,
+                this.config.LifestreamCompatibility);
 
             if (this.redirectorError is { Length: > 0 } error)
             {
@@ -189,7 +190,7 @@ public sealed class Plugin : IDalamudPlugin
             {
                 this.shadow = GubalLumina.Install(
                     data,
-                    this.config.LanguagePackPath,
+                    this.redirector.ServedPages,
                     GubalLumina.Folder(pluginInterface.GetPluginConfigDirectory()),
                     log);
 
@@ -429,6 +430,10 @@ public sealed class Plugin : IDalamudPlugin
         }
 
         this.chat.Print("[Gubal]Change these under Translated parts in /gubal. They take effect at the next start.");
+        if (this.config.LifestreamCompatibility)
+        {
+            this.chat.Print("[Gubal]Lifestream compatibility is selected. Its required sheets stay in English after restart, even when their parts are on.");
+        }
     }
 
     /// <summary>What the installed pack holds, read from disk the first time and kept.</summary>

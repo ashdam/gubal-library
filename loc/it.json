@@ -1,4 +1,5 @@
 {
+  "Compatibility.Title": { "message": "Compatibilità" },
   "Coverage.NoData": { "message": "Nessun dato" },
   "Coverage.Shared": { "message": "Altri testi del gioco" },
   "Coverage.Unavailable": { "message": "Questo pacchetto non include i dati per espansione." },

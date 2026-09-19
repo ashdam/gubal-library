@@ -179,6 +179,8 @@ internal sealed unsafe class ExdRedirector : IDisposable
     /// <summary>How many page redirections are in place.</summary>
     public int PageCount => this.pages.Count;
 
+    internal IReadOnlyDictionary<string, string> ServedPages => this.pages;
+
     /// <summary>How many font files are registered. See <see cref="PackContents.FontPrefix" />.</summary>
     public int FontCount => this.fonts.Keys.Count(path => path.StartsWith(PackContents.FontPrefix, StringComparison.OrdinalIgnoreCase));
 
@@ -208,7 +210,8 @@ internal sealed unsafe class ExdRedirector : IDisposable
         IPluginLog log,
         string directory,
         PackContents contents,
-        ICollection<string> disabledSheets)
+        ICollection<string> disabledSheets,
+        bool lifestreamCompatibility)
     {
         if (string.IsNullOrWhiteSpace(directory) || !Directory.Exists(directory))
         {
@@ -246,7 +249,7 @@ internal sealed unsafe class ExdRedirector : IDisposable
         var readFile = nint.Zero;
         TextureLoader? textures = null;
         var fontFiles = contents.Fonts;
-        IReadOnlyList<PackPage> screenImages = contents.ServableScreenImages(disabledSheets);
+        IReadOnlyList<PackPage> screenImages = contents.ServableScreenImages(disabledSheets, lifestreamCompatibility);
         if (fontFiles.Count + screenImages.Count > 0)
         {
             string? missing = null;
@@ -274,7 +277,7 @@ internal sealed unsafe class ExdRedirector : IDisposable
             }
         }
 
-        var pages = contents.Servable(disabledSheets);
+        var pages = contents.Servable(disabledSheets, lifestreamCompatibility);
         contents.LogOmissions(log, disabledSheets);
 
         // Told apart from the empty folder above, because the two have opposite answers: one is a
@@ -282,13 +285,12 @@ internal sealed unsafe class ExdRedirector : IDisposable
         if (pages.Count == 0)
         {
             return (null,
-                "Every part of this language pack is switched off, so there is nothing to serve. "
-                + "Turn something back on under Translated parts.");
+                "No pages are enabled. Check the translated parts and compatibility settings.");
         }
 
         try
         {
-            var layouts = contents.ServableLayouts(disabledSheets);
+            var layouts = contents.ServableLayouts(disabledSheets, lifestreamCompatibility);
             return (new ExdRedirector(interop, log, pages, layouts, fontFiles, screenImages, readFile, textures, manifest), null);
         }
         catch (Exception e)
