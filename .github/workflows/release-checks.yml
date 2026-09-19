@@ -11,6 +11,11 @@ on:
       - "PackParts.cs"
       - "Diagnostics.cs"
       - "ExdRedirector.cs"
+      - "PackVersion.cs"
+      - "PackManifest.cs"
+      - "ConfigWindow.cs"
+      - "Plugin.cs"
+      - "loc/**"
       - "GubalLibrary.csproj"
 
 permissions:

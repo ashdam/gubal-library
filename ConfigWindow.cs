@@ -697,7 +697,12 @@ internal sealed partial class ConfigWindow : Window
     /// </remarks>
     private void DrawInstalledPack(PageStatus pages)
     {
-        if (pages.Manifest is not { } pack)
+        if (this.restartReason is null)
+        {
+            this.DrawUpdateNotice(pages);
+        }
+
+        if (!pages.Active || pages.Manifest is null)
         {
             // Nothing is being served, which is four different situations. A refusal says why itself;
             // the rest differ in whether a pack is installed and whether it was asked for, and
@@ -719,6 +724,7 @@ internal sealed partial class ConfigWindow : Window
             return;
         }
 
+        var pack = pages.Manifest;
         var version = pack.TranslationVersion ?? Loc.Localize("Pack.Unversioned", "unversioned");
 
         // The verdict lands on this line rather than under it. A clean check has nothing to add to
@@ -747,13 +753,6 @@ internal sealed partial class ConfigWindow : Window
             ImGui.TextWrapped(failed.Message);
         }
 
-        // Suppressed once something has been installed, because everything it could say is about the
-        // pack that is on its way out. Whether the OLD pack has a newer version published stopped
-        // being anybody's problem the moment a new one was put in its place.
-        if (this.restartReason is null)
-        {
-            this.DrawUpdateNotice(pages);
-        }
     }
 
     /// <summary>
@@ -1327,10 +1326,6 @@ internal sealed partial class ConfigWindow : Window
     /// <summary>
     ///     Whether what is in that folder is a pack this client can be given, said before it is.
     /// </summary>
-    /// <remarks>
-    ///     The patch gate is the one worth seeing early: a pack built against another patch adopts
-    ///     cleanly and is refused at the next start.
-    /// </remarks>
     private void DrawFolderVerdict()
     {
         if (this.config.OwnPackFolder.Trim().Length == 0)
@@ -1350,19 +1345,10 @@ internal sealed partial class ConfigWindow : Window
             return;
         }
 
-        var built = manifest.GameVersion;
-        var running = this.RunningGame();
-
-        if (built is { Length: > 0 } && running is { Length: > 0 } && !string.Equals(built, running, StringComparison.Ordinal))
+        if (PackVersion.Error(manifest.GameVersion, this.RunningGame()) is { } versionError)
         {
-            Icon(FontAwesomeIcon.ExclamationTriangle, Amber);
-            ImGui.TextWrapped(string.Format(
-                Loc.Localize("Setup.OwnWrongPatch",
-                    "{0}, built for game {1}. The game is running {2}, so it will be refused at "
-                    + "startup rather than served. Rebuild it."),
-                manifest.DisplayName,
-                built,
-                running));
+            Icon(FontAwesomeIcon.ExclamationTriangle, Red);
+            ImGui.TextWrapped(versionError);
             ImGui.PopStyleColor();
             return;
         }
@@ -1782,7 +1768,7 @@ internal sealed partial class ConfigWindow : Window
 /// <param name="FontCount">Font files the pack registered. Zero for most packs.</param>
 /// <param name="FontsServedCount">Font reads answered from disk. Zero with fonts registered means the client read them before the hook.</param>
 /// <param name="Error">Why it is not installed, when it is not. Null when it is, or when nobody asked.</param>
-/// <param name="Manifest">What the loaded pack says about itself. Null when none loaded.</param>
+/// <param name="Manifest">The active or installed pack. Null when no manifest can be read.</param>
 /// <param name="Update">What the background check made of the pack's declared update address.</param>
 internal readonly record struct PageStatus(
     bool Active,

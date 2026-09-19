@@ -200,19 +200,6 @@ internal sealed unsafe class ExdRedirector : IDisposable
     /// <summary>
     ///     Reads the page directory and starts serving it, or explains why it will not.
     /// </summary>
-    /// <remarks>
-    ///     <para>
-    ///         The manifest check is a refusal, not a warning. The build-time identity gate proves the
-    ///         pages reproduce the game's bytes <em>for the patch they were built against</em>, and
-    ///         nothing checks that at run time: pages from one patch served to the next shift rows and
-    ///         put Spanish on the wrong ones, silently. Losing the Spanish is the better failure.
-    ///     </para>
-    ///     <para>
-    ///         Nothing is hooked until there is something to serve. A detour on a core read path that
-    ///         redirects nothing is pure risk, and switching every part off reaches that state by a
-    ///         different road, so it is refused in its own words rather than as an empty folder.
-    ///     </para>
-    /// </remarks>
     /// <param name="contents">The pack, already read. See <see cref="PackContents" /> for why once.</param>
     /// <param name="disabledSheets">The parts the user switched off, from the configuration.</param>
     public static (ExdRedirector? Redirector, string? Error) Create(
@@ -234,18 +221,9 @@ internal sealed unsafe class ExdRedirector : IDisposable
             return (null, manifestError);
         }
 
-        var builtFor = manifest.GameVersion;
-        var running = RunningGameVersion();
-        if (builtFor is null || running is null)
+        if (PackVersion.Error(manifest.GameVersion, RunningGameVersion()) is { } versionError)
         {
-            return (null, $"Cannot compare versions (manifest: {builtFor ?? "none"}, game: {running ?? "unknown"}).");
-        }
-
-        if (!string.Equals(builtFor, running, StringComparison.Ordinal))
-        {
-            return (null,
-                $"These pages were built for game {builtFor} but the game is running {running}. "
-                + "Regenerate them; serving them now would put translated text on the wrong rows.");
+            return (null, versionError);
         }
 
         if (contents.TooLong > 0)

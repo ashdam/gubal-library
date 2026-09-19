@@ -69,6 +69,7 @@ it: the pack replaces the game's own English, so that English is what comes back
 Language packs can include `.uld` layout files under `ui/uld/`, for example
 `ui/uld/xbmmonsterbookdetail.uld`. Gubal serves them while the Addon translation is enabled
 and the pack matches the game version. Restart the client after an update.
+The pack is blocked if its game version differs or cannot be checked. Pack updates remain available while blocked.
 
 ## How this compares
 

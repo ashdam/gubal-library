@@ -66,6 +66,9 @@ public sealed class Plugin : IDalamudPlugin
     /// <summary>Which folder <see cref="contents" /> was read from, so a change is noticed.</summary>
     private string contentsPath = string.Empty;
 
+    private string? manifestPath;
+    private PackManifest? installedManifest;
+
     private SqPackProbe? probe;
     private readonly IGameInteropProvider interop;
     private readonly WindowSystem windows = new("GubalLibrary");
@@ -181,24 +184,24 @@ public sealed class Plugin : IDalamudPlugin
                 log.Warning("Translated pages are not being served: {Error}", error);
             }
 
-            // Dalamud's own Lumina caches a sheet on first access, so anything another plugin reads
-            // before this runs stays untranslated for the whole session.
-            this.shadow = GubalLumina.Install(
-                data,
-                this.config.LanguagePackPath,
-                GubalLumina.Folder(pluginInterface.GetPluginConfigDirectory()),
-                log);
-
-            // The read hook is already in, so it comes back out: the client has not read a sheet yet,
-            // and half-served is the one outcome this ordering exists to prevent.
-            if (!this.shadow.Ok)
+            // Only packs accepted for the game can be served to other plugins.
+            if (this.redirector is not null)
             {
-                this.redirector?.Dispose();
-                this.redirector = null;
-                log.Warning("[shadow] the pack was withdrawn from the client too, rather than serve half");
-            }
+                this.shadow = GubalLumina.Install(
+                    data,
+                    this.config.LanguagePackPath,
+                    GubalLumina.Folder(pluginInterface.GetPluginConfigDirectory()),
+                    log);
 
-            Diagnostics.Log(log, $"[shadow] {this.shadow.Message} [{this.shadow.Folder}]");
+                if (!this.shadow.Ok)
+                {
+                    this.redirector.Dispose();
+                    this.redirector = null;
+                    log.Warning("[shadow] the pack was withdrawn from the client too, rather than serve half");
+                }
+
+                Diagnostics.Log(log, $"[shadow] {this.shadow.Message} [{this.shadow.Folder}]");
+            }
         }
 
         this.dialogueCodex = new DialogueCodex(this.config, data, gameGui, clientState,
@@ -460,7 +463,7 @@ public sealed class Plugin : IDalamudPlugin
         return this.redirector is { } r
             ? new PageStatus(
                 true, r.PageCount, r.ServedCount, r.FontCount, r.FontsServedCount, null, r.Manifest, this.update)
-            : new PageStatus(false, 0, 0, 0, 0, this.redirectorError, null, this.update);
+            : new PageStatus(false, 0, 0, 0, 0, this.redirectorError, this.InstalledManifest(), this.update);
     }
 
     /// <summary>
@@ -480,6 +483,7 @@ public sealed class Plugin : IDalamudPlugin
         // Dropped rather than reloaded: the folder may be the same one, so nothing else would notice
         // it had changed underneath. The window rebuilds it on its next frame.
         this.contents = null;
+        this.manifestPath = null;
 
         // In chat as well as the window, because the window is where the person just was and chat is
         // where they will be.
@@ -571,19 +575,18 @@ public sealed class Plugin : IDalamudPlugin
             return null;
         }
 
-        // Refused rather than taken: a pack built for a patch this client is not running would be
-        // turned away by the redirector a moment from now, trading a translation that works for none.
-        // It happens for an ordinary reason — a publisher preparing the next patch's pack early.
+        // Automatic updates require the current game version.
         var version = published.TranslationVersion ?? "unversioned";
         var running = ExdRedirector.RunningGameVersion();
 
-        if (published.GameVersion is { Length: > 0 } builtFor && builtFor != running)
+        var builtFor = published.GameVersion;
+        if (PackVersion.Error(builtFor, running) is not null)
         {
             log.Warning(
                 "Not taking language pack {Version}: it is built for game {BuiltFor} and this client "
                 + "runs {Running}. The installed pack is left alone.",
                 version,
-                builtFor,
+                builtFor ?? "an unknown version",
                 running ?? "an unknown version");
             return null;
         }
@@ -804,9 +807,14 @@ public sealed class Plugin : IDalamudPlugin
     /// </remarks>
     private PackManifest? InstalledManifest()
     {
-        return this.config.LanguagePackPath.Length > 0
-            ? PackManifest.Read(this.config.LanguagePackPath).Manifest
-            : null;
+        var path = this.config.LanguagePackPath;
+        if (!string.Equals(this.manifestPath, path, StringComparison.OrdinalIgnoreCase))
+        {
+            this.installedManifest = path.Length > 0 ? PackManifest.Read(path).Manifest : null;
+            this.manifestPath = path;
+        }
+
+        return this.installedManifest;
     }
 
     private void SaveConfig(Configuration configuration)

@@ -9,6 +9,8 @@
     <Compile Include="../../../PackContents.cs" Link="PackContents.cs" />
     <Compile Include="../../../PackParts.cs" Link="PackParts.cs" />
     <Compile Include="../../../PackManifest.cs" Link="PackManifest.cs" />
+    <Compile Include="../../../PackVersion.cs" Link="PackVersion.cs" />
     <Compile Include="../../../Diagnostics.cs" Link="Diagnostics.cs" />
+    <None Include="../../../loc/*.json" Link="loc/%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 </Project>
