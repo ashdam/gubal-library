@@ -9,6 +9,8 @@ on:
       - ".github/tests/**"
       - "PackContents.cs"
       - "PackParts.cs"
+      - "PackCompatibility.cs"
+      - "GubalLumina.cs"
       - "Diagnostics.cs"
       - "ExdRedirector.cs"
       - "PackVersion.cs"

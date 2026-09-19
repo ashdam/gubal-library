@@ -292,6 +292,39 @@ internal sealed partial class ConfigWindow : Window
             return;
         }
 
+        this.DrawPartsHeader(pack, ref changed);
+
+        using var columns = ImRaii.Table("##partsAndCompatibility", 2, ImGuiTableFlags.SizingStretchProp);
+        if (!columns) return;
+
+        ImGui.TableSetupColumn("##translationParts", ImGuiTableColumnFlags.WidthStretch);
+        ImGui.TableSetupColumn("##compatibility", ImGuiTableColumnFlags.WidthFixed, 235f * ImGuiHelpers.GlobalScale);
+        ImGui.TableNextRow();
+        ImGui.TableSetColumnIndex(0);
+        this.DrawPartSelection(pack, ref changed);
+        ImGui.TableSetColumnIndex(1);
+        this.DrawCompatibility(ref changed);
+    }
+
+    private void DrawCompatibility(ref bool changed)
+    {
+        ImGui.TextUnformatted(Loc.Localize("Compatibility.Title", "Compatibility"));
+        var height = ImGui.GetFrameHeight() + ImGui.GetStyle().WindowPadding.Y * 2;
+
+        using var box = ImRaii.Child("##compatibilityOptions", new Vector2(0, height), true);
+        if (!box) return;
+
+        var lifestream = this.config.LifestreamCompatibility;
+        if (ImGui.Checkbox("Lifestream", ref lifestream))
+        {
+            this.config.LifestreamCompatibility = lifestream;
+            this.NoteParted();
+            changed = true;
+        }
+    }
+
+    private void DrawPartsHeader(PackContents pack, ref bool changed)
+    {
         // What the tab is for, said once at the top. Every box below explains itself on hover, but a
         // list of fourteen checkboxes with no opening line leaves the reader to work out from the
         // names alone whether ticking one adds a translation or removes it.
@@ -330,7 +363,10 @@ internal sealed partial class ConfigWindow : Window
         }
 
         ImGui.Separator();
+    }
 
+    private void DrawPartSelection(PackContents pack, ref bool changed)
+    {
         using var scroll = ImRaii.Child("##parts");
         if (!scroll)
         {

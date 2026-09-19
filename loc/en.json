@@ -1,4 +1,5 @@
 {
+  "Compatibility.Title": { "message": "Compatibility" },
   "Coverage.NoData": { "message": "No data" },
   "Coverage.Shared": { "message": "Other game text" },
   "Coverage.Unavailable": { "message": "This pack has no expansion breakdown." },

@@ -8,6 +8,14 @@ namespace CheapLoc
     }
 }
 
+namespace Dalamud.Configuration
+{
+    public interface IPluginConfiguration
+    {
+        int Version { get; set; }
+    }
+}
+
 namespace Dalamud.Plugin.Services
 {
     public interface IPluginLog
