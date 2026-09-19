@@ -129,8 +129,11 @@
   },
   "Setup.OwnNoFolder": { "message": "No hay ninguna carpeta en «{0}»." },
   "Setup.OwnReady": { "message": "{0} ({1}), construido para este parche." },
-  "Setup.OwnWrongPatch": {
-    "message": "{0}, construido para la versión {1} del juego. El juego está en la {2}, así que se rechazará al arrancar en vez de servirse. Vuelve a construirlo."
+  "Pack.GameVersionMismatch": {
+    "message": "Este paquete de idioma se creó para la versión {0} del juego; estás usando la {1}. La traducción está desactivada. Actualiza el paquete a una versión creada para esta versión del juego."
+  },
+  "Pack.GameVersionUnknown": {
+    "message": "No se ha podido comprobar la versión del juego del paquete de idioma. La traducción está desactivada. Instala un paquete creado para la versión actual del juego."
   },
   "Setup.UseFolder": { "message": "Usar esta carpeta" },
   "Setup.UseFolderTip": {

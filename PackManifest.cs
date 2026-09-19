@@ -52,7 +52,7 @@ internal sealed class PackManifest
     /// <summary>Which generation this is, stamped to the minute at build time.</summary>
     [JsonPropertyName("translationVersion")] public string? TranslationVersion { get; init; }
 
-    /// <summary>The patch the pages were rebuilt from. The one field that gates serving them.</summary>
+    /// <summary>The game version used to build the pages.</summary>
     [JsonPropertyName("gameVersion")] public string? GameVersion { get; init; }
 
     /// <summary>How much is translated, as the build counted it. Optional: the window shows it and nothing else reads it.</summary>

@@ -2,6 +2,7 @@ using GubalLibrary;
 
 CoverageChecks.Run();
 PackPartsChecks.Run();
+PackVersionChecks.Run();
 
 var root = Path.Combine(Path.GetTempPath(), "gubal-layout-test-" + Guid.NewGuid().ToString("N"));
 try

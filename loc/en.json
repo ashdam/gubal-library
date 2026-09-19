@@ -142,9 +142,11 @@
     "message": "The folder holding gubal-manifest.json.",
     "description": "ConfigWindow.DrawFolderVerdict"
   },
-  "Setup.OwnWrongPatch": {
-    "message": "{0}, built for game {1}. The game is running {2}, so it will be refused at startup rather than served. Rebuild it.",
-    "description": "ConfigWindow.DrawFolderVerdict"
+  "Pack.GameVersionMismatch": {
+    "message": "This language pack was built for game {0}; you are running {1}. Translation is disabled. Update the language pack to a version built for this game."
+  },
+  "Pack.GameVersionUnknown": {
+    "message": "The language pack's game version could not be checked. Translation is disabled. Install a language pack built for the current game version."
   },
   "Setup.OwnReady": {
     "message": "{0} ({1}), built for this patch.",

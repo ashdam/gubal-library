@@ -2,7 +2,9 @@ namespace CheapLoc
 {
     public static class Loc
     {
-        public static string Localize(string key, string fallback) => fallback;
+        public static Dictionary<string, string> Messages { get; set; } = [];
+
+        public static string Localize(string key, string fallback) => Messages.GetValueOrDefault(key, fallback);
     }
 }
 
