@@ -195,7 +195,7 @@ internal static class PackParts
                     Loc.Localize("Part.Interface.Name", "Interface menus and NPC services"),
                     Loc.Localize("Part.Interface.Tooltip", "Buttons, settings, shops, retainers, travel and duty entry menus. Includes NPC topic menus and their dialogue and lore answers because each sheet is switched as a whole."),
                     [
-                        "addon", "mcguffinuidata", "csbonustextdata", "contenttype", "gimmickyesno",
+                        "addon", "mcguffinuidata", "csbonustextdata", "contenttype", "gimmickyesno", "eventaction",
                         "specialshop", "gilshop", "disposalshop", "disposalshopfiltertype", "fccshop",
                         "inclusionshop", "inclusionshopwelcomtext", "gcshopitemcategory", "collectablesshop", "collectablesshopitemgroup",
                         "itemsearchcategory", "itemuicategory", "cabinetsubcategory", "journalcategory", "journalgenre",
