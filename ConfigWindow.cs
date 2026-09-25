@@ -150,9 +150,13 @@ internal sealed partial class ConfigWindow : Window
         Func<bool?> dalamudWaits,
         Action openDalamudSettings,
         Func<ShadowState?> shadowState,
-        string version)
+        string version,
+        bool isDev = false,
+        Func<bool>? canPreview = null)
         : base($"Gubal Library ({version})###GubalLibraryConfig")
     {
+        this.isDev = isDev;
+        this.canPreview = canPreview;
         this.shadowState = shadowState;
         this.config = config;
         this.save = save;
@@ -242,6 +246,8 @@ internal sealed partial class ConfigWindow : Window
                         }
                     }
                 }
+
+                if (this.isDev) this.DrawDevTab();
 
                 using (var tab = ImRaii.TabItem(Loc.Localize("Tab.Help", "Help and contact")))
                 {

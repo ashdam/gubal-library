@@ -169,7 +169,7 @@ internal sealed class PackContents
         }
 
         var images = new List<PackPage>();
-        foreach (var group in new[] { "120000", "121000" })
+        foreach (var group in new[] { "120000", "121000", "128000" })
         {
             var imageDir = Path.Combine(directory, "ui", "icon", group);
             if (!Directory.Exists(imageDir)) continue;
@@ -236,7 +236,8 @@ internal sealed class PackContents
     public IReadOnlyList<PackPage> Fonts => this.fonts;
 
     internal static bool IsScreenImagePath(ReadOnlySpan<byte> path) =>
-        path.StartsWith("ui/icon/120000/"u8) || path.StartsWith("ui/icon/121000/"u8);
+        path.StartsWith("ui/icon/120000/"u8) || path.StartsWith("ui/icon/121000/"u8)
+        || path.StartsWith("ui/icon/128000/"u8);
 
     public IReadOnlyList<PackPage> ServableScreenImages(ICollection<string> disabledSheets, bool lifestreamCompatibility = false) =>
         disabledSheets.Contains("addon") || lifestreamCompatibility ? [] : this.screenImages;
