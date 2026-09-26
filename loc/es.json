@@ -33,8 +33,8 @@
   "Part.DutyText.Tooltip": { "message": "Diálogos, avisos y objetivos de instancias, FATEs y operaciones de campo, además de las rutas de mazmorras variables." },
   "Part.Objects.Name": { "message": "Objetos e información del entorno" },
   "Part.Objects.Tooltip": { "message": "Lo que te dice un mecanismo o palanca al usarlo, además de documentos, cartas, carteles y pistas de acertijos." },
-  "Part.DeepDungeons.Name": { "message": "Objetos y efectos de mazmorras profundas" },
-  "Part.DeepDungeons.Tooltip": { "message": "Pomanders, equipo de éter, efectos de pisos, demiclones e incienso." },
+  "Part.DeepDungeons.Name": { "message": "Efectos de mazmorras profundas" },
+  "Part.DeepDungeons.Tooltip": { "message": "Efectos especiales que se aplican a las plantas de las mazmorras profundas." },
   "Part.DutyFinder.Name": { "message": "Nombres y descripciones de instancias" },
   "Part.DutyFinder.Tooltip": { "message": "Entradas del buscador de instancias, nombres y descripciones de ruletas. Los menús de NPC de acceso están en Menús de interfaz." },
 
@@ -48,8 +48,8 @@
   "Part.Log.Name": { "message": "Chat y mensajes del sistema" },
   "Part.Log.Tooltip": { "message": "Mensajes de combate, gestos, invitaciones, avisos del sistema y errores de conexión." },
   "Part.Log.Warning": { "message": "Los analizadores de combate y otros plugins pueden depender de los mensajes del registro en inglés." },
-  "Part.Items.Name": { "message": "Objetos y atributos del personaje" },
-  "Part.Items.Tooltip": { "message": "Nombres de todos los objetos en las bolsas/mercado y nombres/descripciones de atributos (Strength, Critical Hit, etc.)." },
+  "Part.Items.Name": { "message": "Objetos" },
+  "Part.Items.Tooltip": { "message": "Nombres y descripciones de objetos, incluidos los de misión, mazmorras profundas, Eureka, carreras de chocobos y Adiestrador." },
 
   "Group.Other.Tooltip": {
     "message": "Texto que traduce este language pack y que esta versión del plugin no sabe nombrar, listado con el nombre que le da el juego. Un language pack en otro idioma puede cubrir cosas que este no."
@@ -194,18 +194,22 @@
   "Part.Actions.Name": { "message": "Oficios, acciones y estados alterados" },
   "Part.Actions.Tooltip": { "message": "Nombres de oficios, nombres y descripciones de acciones, rasgos y estados alterados." },
   "Group.Combat.Name": { "message": "Combate y equipo" },
-  "Group.Combat.Tooltip": { "message": "Acciones, efectos, atributos e información de objetos." },
-  "Part.FieldSystems.Name": { "message": "Oficios y equipo de operaciones de campo" },
-  "Part.FieldSystems.Tooltip": { "message": "Oficios y rasgos fantasma de la Isla de la Media Luna y objetos de éter de Eureka." },
+  "Group.Combat.Tooltip": { "message": "Acciones, estados y atributos del personaje." },
+  "Part.FieldSystems.Name": { "message": "Jobs y acciones de operaciones de campo" },
+  "Part.FieldSystems.Tooltip": { "message": "Jobs y rasgos fantasma de la Isla del Creciente y categorías de acciones perdidas de Bozja." },
   "Part.Crafting.Name": { "message": "Entregas de artesanía y recolección" },
   "Part.Crafting.Tooltip": { "message": "Requisitos de entregas del Equilibrio Cristalino, el Studium y Wachumeqimeqi." },
   "Part.Beastmaster.Name": { "message": "Adiestrador y Crisol" },
-  "Part.Beastmaster.Tooltip": { "message": "Descripciones de bestias, equipo del Crisol, propiedades de acciones y objetivos de puntuación." },
+  "Part.Beastmaster.Tooltip": { "message": "Descripciones de bestias, propiedades de acciones y objetivos de puntuación." },
   "Group.Activities.Name": { "message": "Otras actividades" },
   "Group.Activities.Tooltip": { "message": "Minijuegos, entregas de artesanía y contenido del adiestrador." },
   "Part.Guides.Name": { "message": "Tutoriales y manuales del juego" },
   "Part.Guides.Tooltip": { "message": "Ayuda activa, guías de indicadores de oficio y manuales de combate, vivienda, minijuegos y exploración." },
   "Group.Guides.Name": { "message": "Tutoriales y guías" },
   "Group.Guides.Tooltip": { "message": "Páginas de ayuda y explicaciones de los sistemas del juego." },
-  "Part.Interface.Warning": { "message": "Los plugins que leen botones o menús en inglés pueden no reconocer las opciones traducidas. También afecta a la automatización de viajes y servicios de NPC." }
+  "Part.Interface.Warning": { "message": "Los plugins que leen botones o menús en inglés pueden no reconocer las opciones traducidas. También afecta a la automatización de viajes y servicios de NPC." },
+  "Group.Items.Name": { "message": "Objetos" },
+  "Group.Items.Tooltip": { "message": "Nombres y descripciones de objetos, incluidos los de misión y de actividades especiales." },
+  "Part.Attributes.Name": { "message": "Atributos del personaje" },
+  "Part.Attributes.Tooltip": { "message": "Nombres y descripciones de atributos del personaje, como Fuerza y Golpe crítico." }
 }
