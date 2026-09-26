@@ -95,7 +95,7 @@ internal static class PackParts
 
         new PartGroup(
             Loc.Localize("Group.Combat.Name", "Combat and equipment"),
-            Loc.Localize("Group.Combat.Tooltip", "Actions, effects, attributes and item information."),
+            Loc.Localize("Group.Combat.Tooltip", "Actions, status effects and character attributes."),
             [
                 new TranslationPart(
                     Loc.Localize("Part.Actions.Name", "Jobs, actions and status effects"),
@@ -105,10 +105,24 @@ internal static class PackParts
                         "status",
                     ]),
                 new TranslationPart(
-                    Loc.Localize("Part.Items.Name", "Items and character attributes"),
-                    Loc.Localize("Part.Items.Tooltip", "The names of every item in the bags and on the market board, and the names and descriptions of attributes (Strength, Critical Hit, etc.)."),
+                    Loc.Localize("Part.Attributes.Name", "Character attributes"),
+                    Loc.Localize("Part.Attributes.Tooltip", "Names and descriptions of character attributes, such as Strength and Critical Hit."),
                     [
-                        "item", "baseparam", "itemspecialbonus",
+                        "baseparam",
+                    ])
+            ]),
+
+        new PartGroup(
+            Loc.Localize("Group.Items.Name", "Items"),
+            Loc.Localize("Group.Items.Tooltip", "Item names and descriptions, including quest items and special activity items."),
+            [
+                new TranslationPart(
+                    Loc.Localize("Part.Items.Name", "Items"),
+                    Loc.Localize("Part.Items.Tooltip", "Item names and descriptions, including quest items, Deep Dungeon items, Eureka items, chocobo race items and Beastmaster items."),
+                    [
+                        "item", "eventitem", "eventitemhelp", "itemspecialbonus",
+                        "deepdungeonitem", "deepdungeonequipment", "deepdungeondemiclone",
+                        "eurekaaetheritem", "chocoboraceitem", "xbmitem", "xbmitemtype",
                     ])
             ]),
 
@@ -131,16 +145,16 @@ internal static class PackParts
                     ],
                     Image: "duty"),
                 new TranslationPart(
-                    Loc.Localize("Part.DeepDungeons.Name", "Deep Dungeon items and effects"),
-                    Loc.Localize("Part.DeepDungeons.Tooltip", "Pomanders, aetherpool equipment, floor effects, demiclones and incense."),
+                    Loc.Localize("Part.DeepDungeons.Name", "Deep Dungeon effects"),
+                    Loc.Localize("Part.DeepDungeons.Tooltip", "Special effects applied to Deep Dungeon floors."),
                     [
-                        "deepdungeonitem", "deepdungeonequipment", "deepdungeonflooreffectui", "deepdungeondemiclone",
+                        "deepdungeonflooreffectui",
                     ]),
                 new TranslationPart(
-                    Loc.Localize("Part.FieldSystems.Name", "Field operation jobs and equipment"),
-                    Loc.Localize("Part.FieldSystems.Tooltip", "Phantom jobs and traits in the Occult Crescent, and Eureka aether items."),
+                    Loc.Localize("Part.FieldSystems.Name", "Field operation jobs and actions"),
+                    Loc.Localize("Part.FieldSystems.Tooltip", "Phantom jobs and traits in the Occult Crescent, and lost action categories in Bozja."),
                     [
-                        "eurekaaetheritem", "mkdsupportjob", "mkdtrait",
+                        "mkdsupportjob", "mkdtrait", "myctemporaryitemuicategory",
                     ])
             ]),
 
@@ -153,7 +167,7 @@ internal static class PackParts
                     Loc.Localize("Part.GoldSaucer.Tooltip", "Text for GATEs, arcade games, chocobo racing, Triple Triad cards, Lord of Verminion and Doman Mahjong."),
                     [
                         "goldsaucertextdata", "goldsaucerarcademachine", "rideshootingtextdata", "gfateclimbing", "gfatestelth",
-                        "emjaddon", "chocoboraceability", "chocoboracechallenge", "chocoboraceitem", "racingchocobonamecategory",
+                        "emjaddon", "chocoboraceability", "chocoboracechallenge", "racingchocobonamecategory",
                         "racingchocoboparam", "minionrace", "minionrules", "minionskilltype", "minionstage",
                         "tripletriadcard", "tripletriadcardtype", "tripletriadcompetition", "tripletriadrule", "goldsaucertalk",
                     ]),
@@ -165,9 +179,9 @@ internal static class PackParts
                     ]),
                 new TranslationPart(
                     Loc.Localize("Part.Beastmaster.Name", "Beastmaster and the Crucible"),
-                    Loc.Localize("Part.Beastmaster.Tooltip", "Beast descriptions, Crucible equipment, action properties and score objectives."),
+                    Loc.Localize("Part.Beastmaster.Tooltip", "Beast descriptions, action properties and score objectives."),
                     [
-                        "xbmactioneffecttype", "xbmactiontarget", "xbmelement", "xbmitem", "xbmitemtype",
+                        "xbmactioneffecttype", "xbmactiontarget", "xbmelement",
                         "xbmpet", "xbmscorebonus", "xbmscorerank",
                     ])
             ]),

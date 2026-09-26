@@ -32,8 +32,8 @@
   "Part.DutyText.Tooltip": { "message": "Dialoghi, annunci e obiettivi di istanze, FATE e operazioni sul campo, oltre alle scelte dei percorsi nei dungeon variant." },
   "Part.Objects.Name": { "message": "Oggetti e informazioni dell'ambiente" },
   "Part.Objects.Tooltip": { "message": "Ciò che ti dice un meccanismo o una leva quando la usi, più documenti, lettere, cartelli e indizi degli enigmi." },
-  "Part.DeepDungeons.Name": { "message": "Oggetti ed effetti dei dungeon profondi" },
-  "Part.DeepDungeons.Tooltip": { "message": "Pomander, equipaggiamento etereo, effetti dei piani, demicloni e incenso." },
+  "Part.DeepDungeons.Name": { "message": "Effetti dei Deep Dungeon" },
+  "Part.DeepDungeons.Tooltip": { "message": "Effetti speciali applicati ai piani dei Deep Dungeon." },
   "Part.DutyFinder.Name": { "message": "Nomi e descrizioni delle istanze" },
   "Part.DutyFinder.Tooltip": { "message": "Voci del Duty Finder, nomi e descrizioni delle roulette. I menu dei PNG di accesso sono in Menu di interfaccia." },
 
@@ -47,8 +47,8 @@
   "Part.Log.Name": { "message": "Chat e messaggi di sistema" },
   "Part.Log.Tooltip": { "message": "Messaggi di combattimento, emote, inviti, avvisi di sistema ed errori di connessione." },
   "Part.Log.Warning": { "message": "I parser di combattimento e i plugin possono dipendere dai messaggi del registro in inglese." },
-  "Part.Items.Name": { "message": "Oggetti e attributi del personaggio" },
-  "Part.Items.Tooltip": { "message": "I nomi di tutti gli oggetti nelle borse e nel market board, e i nomi e le descrizioni degli attributi (Strength, Critical Hit, ecc.)." },
+  "Part.Items.Name": { "message": "Oggetti" },
+  "Part.Items.Tooltip": { "message": "Nomi e descrizioni degli oggetti, inclusi quelli di missione, Deep Dungeon, Eureka, corse dei chocobo e Beastmaster." },
 
   "Group.Other.Tooltip": {
     "message": "Testo che questo language pack traduce e a cui questa versione del plugin non sa dare un nome, elencato con il nome che gli dà il gioco. Un language pack in un'altra lingua può coprire cose che questo non copre."
@@ -193,18 +193,22 @@
   "Part.Actions.Name": { "message": "Mestieri, azioni e alterazioni di stato" },
   "Part.Actions.Tooltip": { "message": "Nomi dei mestieri, nomi e descrizioni delle azioni, tratti e alterazioni di stato." },
   "Group.Combat.Name": { "message": "Combattimento ed equipaggiamento" },
-  "Group.Combat.Tooltip": { "message": "Azioni, effetti, attributi e informazioni sugli oggetti." },
-  "Part.FieldSystems.Name": { "message": "Mestieri ed equipaggiamento delle operazioni sul campo" },
-  "Part.FieldSystems.Tooltip": { "message": "Mestieri e tratti fantasma della Mezzaluna Occulta e oggetti eterei di Eureka." },
+  "Group.Combat.Tooltip": { "message": "Azioni, effetti di stato e attributi del personaggio." },
+  "Part.FieldSystems.Name": { "message": "Job e azioni delle operazioni sul campo" },
+  "Part.FieldSystems.Tooltip": { "message": "Job e tratti fantasma di Occult Crescent e categorie delle azioni perdute di Bozja." },
   "Part.Crafting.Name": { "message": "Consegne di artigianato e raccolta" },
   "Part.Crafting.Tooltip": { "message": "Requisiti delle consegne per il Crystalline Mean, lo Studium e Wachumeqimeqi." },
   "Part.Beastmaster.Name": { "message": "Domatore e Crogiolo" },
-  "Part.Beastmaster.Tooltip": { "message": "Descrizioni delle bestie, equipaggiamento del Crogiolo, proprietà delle azioni e obiettivi di punteggio." },
+  "Part.Beastmaster.Tooltip": { "message": "Descrizioni delle bestie, proprietà delle azioni e obiettivi di punteggio." },
   "Group.Activities.Name": { "message": "Altre attività" },
   "Group.Activities.Tooltip": { "message": "Minigiochi, consegne artigianali e contenuti del domatore." },
   "Part.Guides.Name": { "message": "Tutorial e manuali del gioco" },
   "Part.Guides.Tooltip": { "message": "Aiuto attivo, guide degli indicatori dei mestieri e manuali di combattimento, alloggi, minigiochi ed esplorazione." },
   "Group.Guides.Name": { "message": "Tutorial e guide" },
   "Group.Guides.Tooltip": { "message": "Pagine di aiuto e spiegazioni dei sistemi di gioco." },
-  "Part.Interface.Warning": { "message": "I plugin che leggono pulsanti o menu in inglese potrebbero non riconoscere le opzioni tradotte. Questo riguarda anche i viaggi e i servizi automatici dei PNG." }
+  "Part.Interface.Warning": { "message": "I plugin che leggono pulsanti o menu in inglese potrebbero non riconoscere le opzioni tradotte. Questo riguarda anche i viaggi e i servizi automatici dei PNG." },
+  "Group.Items.Name": { "message": "Oggetti" },
+  "Group.Items.Tooltip": { "message": "Nomi e descrizioni degli oggetti, inclusi gli oggetti di missione e delle attività speciali." },
+  "Part.Attributes.Name": { "message": "Attributi del personaggio" },
+  "Part.Attributes.Tooltip": { "message": "Nomi e descrizioni degli attributi del personaggio, come Forza e Colpo critico." }
 }
