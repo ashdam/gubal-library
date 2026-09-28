@@ -226,6 +226,7 @@ public sealed class Plugin : IDalamudPlugin
             pluginInterface.IsDev,
             () => this.clientState.IsLoggedIn);
 
+        this.configWindow.ConfigureDevPreview(addonLifecycle);
         this.windows.AddWindow(this.configWindow);
 
         this.openConfigLink = chat.AddChatLinkHandler(OpenConfigLinkId, (_, _) => this.OpenConfig());
@@ -279,6 +280,7 @@ public sealed class Plugin : IDalamudPlugin
         this.redirector?.Dispose();
         this.probe?.Dispose();
 
+        this.configWindow.DisposeDevPreview();
         this.windows.RemoveAllWindows();
     }
 
