@@ -14,7 +14,7 @@ namespace GubalLibrary;
 ///     text pipeline.
 /// </summary>
 /// <remarks>
-///     Makes no network calls beyond fetching a pack somebody else built; translation happens offline
+///     Reports startup usage and fetches pack updates; translation happens offline
 ///     in a separate pipeline. <b>The file route, never UI injection.</b> Intercepting what the game
 ///     is about to draw and swapping the text in a node cannot reach the sheets the client reads at
 ///     boot, and costs thousands of lines to get that far.
@@ -41,6 +41,8 @@ public sealed class Plugin : IDalamudPlugin
     private readonly ICommandManager commands;
     private readonly FileDialogManager fileDialogs = new();
     private readonly Configuration config;
+    private readonly CancellationTokenSource usageCancellation = new();
+    private Task? usageTask;
     private readonly ConfigWindow configWindow;
     private readonly DialogueCodex dialogueCodex;
     private readonly IDalamudPluginInterface pluginInterface;
@@ -247,6 +249,57 @@ public sealed class Plugin : IDalamudPlugin
         pluginInterface.UiBuilder.DisableCutsceneUiHide = true;
         pluginInterface.UiBuilder.OpenConfigUi += this.OpenConfig;
         pluginInterface.UiBuilder.OpenMainUi += this.OpenConfig;
+
+        this.ReportStartupUsage();
+    }
+
+    private void ReportStartupUsage()
+    {
+        // A reload cannot establish which cached text the game uses. Wait for a game restart.
+        if (this.pluginInterface.Reason != PluginLoadReason.Boot)
+            return;
+        try
+        {
+            var manifest = this.redirector?.Manifest ?? this.InstalledManifest();
+            var official = UsageSnapshot.OfficialPack(this.config.InstalledFrom,
+                string.Equals(this.config.LanguagePackPath, this.installer.InstalledPath,
+                    StringComparison.OrdinalIgnoreCase),
+                KnownPacks.All.Select(pack => (pack.Code, pack.Source)));
+            var snapshot = UsageSnapshot.Create(official, manifest?.TranslationVersion,
+                this.config.LanguagePackPath.Length > 0, manifest is not null,
+                this.config.ServeLanguagePack, this.redirector is not null,
+                manifest is not null && PackVersion.Error(manifest.GameVersion,
+                    ExdRedirector.RunningGameVersion()) is null);
+            if (this.config.UsageInstallationId == Guid.Empty)
+                this.config.UsageInstallationId = Guid.NewGuid();
+            this.config.UsageSequence = checked(this.config.UsageSequence + 1);
+            this.SaveConfig(this.config);
+            var report = UsageReport.Create(this.config.UsageInstallationId, this.config.UsageSequence,
+                this.pluginInterface.Manifest.AssemblyVersion.ToString(), snapshot);
+            var cancel = this.usageCancellation.Token;
+            var outbox = new UsageOutbox(Path.Combine(this.pluginInterface.GetPluginConfigDirectory(),
+                UsageReporter.Endpoint.IsLoopback ? "usage-pending-local" : "usage-pending"));
+            // Capture the session before an install or a selection can change the configuration.
+            this.usageTask = Task.Run(async () =>
+            {
+                try
+                {
+                    await outbox.EnqueueAsync(report).ConfigureAwait(false);
+                    using var client = new System.Net.Http.HttpClient(
+                        new System.Net.Http.HttpClientHandler { AllowAutoRedirect = false });
+                    await outbox.SendAsync(client, UsageReporter.Endpoint, cancel,
+                        message => Diagnostics.Log(this.log, message)).ConfigureAwait(false);
+                }
+                catch (Exception)
+                {
+                    Diagnostics.Log(this.log, "Startup usage reporting failed.");
+                }
+            });
+        }
+        catch (Exception)
+        {
+            Diagnostics.Log(this.log, "Startup usage reporting could not be prepared.");
+        }
     }
 
     /// <summary>Draws the window set, then the file picker.</summary>
@@ -265,6 +318,11 @@ public sealed class Plugin : IDalamudPlugin
 
     public void Dispose()
     {
+        this.usageCancellation.Cancel();
+        if (this.usageTask is { } pendingUsage)
+            _ = pendingUsage.ContinueWith(_ => this.usageCancellation.Dispose(), TaskScheduler.Default);
+        else
+            this.usageCancellation.Dispose();
         this.pluginInterface.UiBuilder.Draw -= this.DrawUi;
         this.pluginInterface.UiBuilder.OpenConfigUi -= this.OpenConfig;
         this.pluginInterface.UiBuilder.OpenMainUi -= this.OpenConfig;

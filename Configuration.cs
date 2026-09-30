@@ -8,6 +8,9 @@ internal sealed class Configuration : IPluginConfiguration
     /// <summary>Bumped to 2 when the page-flavoured names became language-pack ones.</summary>
     public int Version { get; set; } = 2;
 
+    public Guid UsageInstallationId { get; set; }
+    public long UsageSequence { get; set; }
+
     /// <summary>Where the pack came from: a folder, a <c>.zip</c>, or a URL. Only a URL can be asked
     /// for a newer one, which is why this is kept beside <see cref="LanguagePackPath" />.</summary>
     public string PackSource { get; set; } = string.Empty;
