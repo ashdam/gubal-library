@@ -16,7 +16,7 @@
     "description": "ConfigWindow.Draw"
   },
   "Tab.Parts": {
-    "message": "Translated parts",
+    "message": "Localization settings",
     "description": "ConfigWindow.Draw"
   },
   "Tab.Help": {
@@ -289,12 +289,12 @@
     "message": "Language",
     "description": "ConfigWindow.DrawLanguageChooser"
   },
-  "Setup.ColTranslated": {
-    "message": "Translated",
+  "Setup.ColLocalized": {
+    "message": "Localized",
     "description": "ConfigWindow.DrawLanguageChooser"
   },
   "Setup.ColEnglish": {
-    "message": "Non translated",
+    "message": "WIP & future localization",
     "description": "ConfigWindow.DrawLanguageChooser"
   },
   "Setup.NoPackYet": {
@@ -356,5 +356,8 @@
   "Group.Items.Name": { "message": "Items" },
   "Group.Items.Tooltip": { "message": "Item names and descriptions, including quest items and special activity items." },
   "Part.Attributes.Name": { "message": "Character attributes" },
-  "Part.Attributes.Tooltip": { "message": "Names and descriptions of character attributes, such as Strength and Critical Hit." }
+  "Part.Attributes.Tooltip": { "message": "Names and descriptions of character attributes, such as Strength and Critical Hit." },
+  "Parts.TurnAllOff": { "message": "Turn everything off" },
+  "Compatibility.AutoRetainer": { "message": "Supported. Confirmed with AutoRetainer 4.6.2.11." },
+  "Setup.EnglishNotSpecified": { "message": "Not specified" }
 }

@@ -38,7 +38,8 @@ internal static class PackParts
                     Loc.Localize("Part.QuestNames.Tooltip", "Translates only the quest titles (in the tracker, the journal and the Unending Journey)."),
                     [
                         "quest", "completejournal",
-                    ]),
+                    ],
+                    Image: "quest-names"),
                 new TranslationPart(
                     Loc.Localize("Part.Cutscenes.Name", "Cutscene subtitles"),
                     Loc.Localize("Part.Cutscenes.Tooltip", "Translates the subtitle lines at the bottom of the screen during voiced cutscenes."),

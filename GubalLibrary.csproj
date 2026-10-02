@@ -16,7 +16,7 @@
     <Platforms>x64</Platforms>
     <AssemblyName>GubalLibrary</AssemblyName>
     <RootNamespace>GubalLibrary</RootNamespace>
-    <Version>0.5.13.0</Version>
+    <Version>0.5.14.0</Version>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
@@ -42,7 +42,7 @@
     the same question directly by reporting how many reads have actually been served.
 
     The screenshots below are not an exception to that: they are pictures OF a translation, not a
-    translation, and they are what the Translated parts tab shows when you hover a group. Two per
+    translation, and they are what the Localization settings tab shows when you hover a group. Two per
     group, the same window with the part switched off and switched on, and with no caption inside
     them, because the captions are drawn by the window and should stay editable.
 

@@ -491,7 +491,7 @@ public sealed class Plugin : IDalamudPlugin
             this.chat.Print($"[Gubal]{group.Name}: {state}");
         }
 
-        this.chat.Print("[Gubal]Change these under Translated parts in /gubal. They take effect at the next start.");
+        this.chat.Print("[Gubal]Change these under Localization settings in /gubal. They take effect at the next start.");
         if (this.config.LifestreamCompatibility)
         {
             this.chat.Print("[Gubal]Lifestream compatibility is selected. Its required sheets stay in English after restart, even when their parts are on.");

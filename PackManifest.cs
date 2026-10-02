@@ -93,6 +93,8 @@ internal sealed class PackManifest
 /// <summary>The <c>coverage</c> block of a manifest: the published figure and what it leaves out.</summary>
 internal sealed class PackCoverage
 {
+    [JsonPropertyName("futureLocalization")] public List<FutureLocalization>? FutureLocalization { get; init; }
+
     [JsonPropertyName("percent")] public double Percent { get; init; }
 
     [JsonPropertyName("translated")] public int Translated { get; init; }
@@ -106,18 +108,18 @@ internal sealed class PackCoverage
             .GroupBy(g => g.Expansion ?? string.Empty)
             .Select(g => new ExpansionCoverage(g.Key, g.Sum(x => (long)x.Translated), g.Sum(x => (long)x.Total)));
 
-    /// <summary>Text the pack keeps in English on purpose, one entry per block.</summary>
+    /// <summary>Content excluded from the coverage count.</summary>
     [JsonPropertyName("excludedFromLocalization")] public List<CoverageGroup>? ExcludedFromLocalization { get; init; }
+}
 
-    /// <summary>The sheets kept in English, by label. Only entries that name a sheet in backticks: the
-    /// rest of the list is rows with nothing to translate, which is not a choice.</summary>
-    public IEnumerable<string> KeptEnglish =>
-        (this.ExcludedFromLocalization ?? [])
-            .Select(g => g.Content)
-            .OfType<string>()
-            .Select(c => (Text: c, Cut: c.IndexOf(" (`", StringComparison.Ordinal)))
-            .Where(c => c.Cut > 0)
-            .Select(c => c.Text[..c.Cut]);
+internal sealed class FutureLocalization
+{
+    [JsonPropertyName("sheet")] public string? Sheet { get; init; }
+    [JsonPropertyName("content")] public string? Content { get; init; }
+    [JsonPropertyName("total")] public int Total { get; init; }
+    [JsonPropertyName("translated")] public int Translated { get; init; }
+    [JsonPropertyName("pending")] public int Pending { get; init; }
+    [JsonPropertyName("pendingPercent")] public double PendingPercent { get; init; }
 }
 
 internal sealed class CoverageGroup
