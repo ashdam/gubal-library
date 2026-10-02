@@ -62,7 +62,7 @@ Whatever the pack covers, and there is no list of supported windows — that is 
 this way. Dialogue, quest journal, cutscene subtitles, speech balloons, menus, item names, tooltips
 and log messages all come out of the game's Excel sheets, so all of them are reached.
 
-**You can turn parts of it off.** The *Translated parts* tab lists what the installed pack holds,
+**You can turn parts of it off.** The *Localization settings* tab lists what the installed pack holds,
 with a checkbox each and a note on what switching it off costs. Switching a part off does not blank
 it: the pack replaces the game's own English, so that English is what comes back.
 

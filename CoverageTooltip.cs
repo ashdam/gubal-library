@@ -56,7 +56,7 @@ internal sealed partial class ConfigWindow
             {
                 if (i % columns != 0) ImGui.SameLine();
                 var (name, art) = ExpansionArt[i];
-                this.DrawExpansionCard(name, art, expansions.FirstOrDefault(e => e.Name == name), gold, cardSize);
+                this.DrawExpansionCard(art, expansions.FirstOrDefault(e => e.Name == name), gold, cardSize);
             }
 
             foreach (var expansion in expansions.Where(e => !ExpansionArt.Any(a => a.Name == e.Name)))
@@ -74,7 +74,7 @@ internal sealed partial class ConfigWindow
         ImGui.EndTooltip();
     }
 
-    private void DrawExpansionCard(string name, string art, ExpansionCoverage? coverage, Vector4 gold, Vector2 size)
+    private void DrawExpansionCard(string art, ExpansionCoverage? coverage, Vector4 gold, Vector2 size)
     {
         var scale = ImGuiHelpers.GlobalScale;
         var start = ImGui.GetCursorScreenPos();
@@ -96,9 +96,6 @@ internal sealed partial class ConfigWindow
         draw.AddRectFilledMultiColor(start, end, shadeTop, shadeTop, shadeBottom, shadeBottom);
         draw.AddRect(start, end, ImGui.GetColorU32(gold with { W = 0.55f }), 6f * scale);
         var inset = 10f * scale;
-        var fontSize = Math.Min(ImGui.GetFontSize(), (size.X - inset * 2) / ImGui.CalcTextSize(name).X * ImGui.GetFontSize());
-        draw.AddText(ImGui.GetFont(), fontSize, start + new Vector2(inset, inset),
-            ImGui.GetColorU32(Vector4.One), name);
         var label = coverage is { Total: > 0 } ? CoveragePercent(coverage.Percent)
             : Loc.Localize("Coverage.NoData", "No data");
         var count = coverage is { Total: > 0 }

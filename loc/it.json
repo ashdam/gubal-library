@@ -58,7 +58,7 @@
   },
 
   "Tab.Pack": { "message": "Language pack" },
-  "Tab.Parts": { "message": "Parti tradotte" },
+  "Tab.Parts": { "message": "Impostazioni di localizzazione" },
   "Tab.Help": { "message": "Aiuto e contatti" },
 
   "Parts.Empty": {
@@ -167,8 +167,8 @@
 
   "Pack.NothingServed": { "message": "QUESTA SESSIONE NON HA NIENTE DI TRADOTTO" },
   "Setup.ColLanguage": { "message": "Lingua" },
-  "Setup.ColTranslated": { "message": "Tradotto" },
-  "Setup.ColEnglish": { "message": "Non tradotto" },
+  "Setup.ColLocalized": { "message": "Localizzato" },
+  "Setup.ColEnglish": { "message": "Localizzazioni in corso e future" },
   "Setup.NoPackYet": { "message": "Ancora nessun pack" },
   "Setup.CoverageLoading": { "message": "Caricamento..." },
   "Setup.ColLinks": { "message": "Link" },
@@ -210,5 +210,8 @@
   "Group.Items.Name": { "message": "Oggetti" },
   "Group.Items.Tooltip": { "message": "Nomi e descrizioni degli oggetti, inclusi gli oggetti di missione e delle attività speciali." },
   "Part.Attributes.Name": { "message": "Attributi del personaggio" },
-  "Part.Attributes.Tooltip": { "message": "Nomi e descrizioni degli attributi del personaggio, come Forza e Colpo critico." }
+  "Part.Attributes.Tooltip": { "message": "Nomi e descrizioni degli attributi del personaggio, come Forza e Colpo critico." },
+  "Parts.TurnAllOff": { "message": "Disattiva tutto" },
+  "Compatibility.AutoRetainer": { "message": "Compatibile. Confermato con AutoRetainer 4.6.2.11." },
+  "Setup.EnglishNotSpecified": { "message": "Non specificato" }
 }

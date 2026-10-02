@@ -214,7 +214,7 @@ internal sealed partial class ConfigWindow : Window
                     }
                 }
 
-                using (var tab = ImRaii.TabItem(Loc.Localize("Tab.Parts", "Translated parts")))
+                using (var tab = ImRaii.TabItem(Loc.Localize("Tab.Parts", "Localization settings")))
                 {
                     if (tab)
                     {
@@ -315,7 +315,8 @@ internal sealed partial class ConfigWindow : Window
     private void DrawCompatibility(ref bool changed)
     {
         ImGui.TextUnformatted(Loc.Localize("Compatibility.Title", "Compatibility"));
-        var height = ImGui.GetFrameHeight() + ImGui.GetStyle().WindowPadding.Y * 2;
+        var height = ImGui.GetFrameHeight() * 2 + ImGui.GetStyle().ItemSpacing.Y
+            + ImGui.GetStyle().WindowPadding.Y * 2;
 
         using var box = ImRaii.Child("##compatibilityOptions", new Vector2(0, height), true);
         if (!box) return;
@@ -326,6 +327,19 @@ internal sealed partial class ConfigWindow : Window
             this.config.LifestreamCompatibility = lifestream;
             this.NoteParted();
             changed = true;
+        }
+
+        var autoRetainer = true;
+        using (ImRaii.Disabled())
+        using (ImRaii.PushColor(ImGuiCol.CheckMark, Green))
+        {
+            ImGui.Checkbox("AutoRetainer", ref autoRetainer);
+        }
+
+        if (ImGui.IsItemHovered(ImGuiHoveredFlags.AllowWhenDisabled))
+        {
+            ImGui.SetTooltip(Loc.Localize("Compatibility.AutoRetainer",
+                "Supported. Confirmed with AutoRetainer 4.6.2.11."));
         }
     }
 
@@ -350,13 +364,19 @@ internal sealed partial class ConfigWindow : Window
         ImGui.AlignTextToFramePadding();
         ImGui.TextUnformatted(string.Format(Loc.Localize("Parts.Count", "{0} of {1} on"), total - off, total));
 
-        // One button, doing the only bulk thing worth offering. There is deliberately no "turn
-        // everything off": that is the "use this language pack" switch on the other tab, and a second
-        // control for the same fact is a control that can disagree with the first.
         var reset = Loc.Localize("Parts.TurnAllOn", "Turn everything on");
-        var width = ImGui.CalcTextSize(reset).X + (ImGui.GetStyle().FramePadding.X * 2);
-        ImGui.SameLine(0f, 0f);
-        ImGui.SetCursorPosX(ImGui.GetCursorPosX() + ImGui.GetContentRegionAvail().X - width);
+        var disable = Loc.Localize("Parts.TurnAllOff", "Turn everything off");
+        var width = ImGui.CalcTextSize(reset).X + ImGui.CalcTextSize(disable).X
+            + ImGui.GetStyle().FramePadding.X * 4 + ImGui.GetStyle().ItemSpacing.X;
+        ImGui.SameLine();
+        if (ImGui.GetContentRegionAvail().X >= width)
+        {
+            ImGui.SetCursorPosX(ImGui.GetCursorPosX() + ImGui.GetContentRegionAvail().X - width);
+        }
+        else
+        {
+            ImGui.NewLine();
+        }
 
         using (ImRaii.Disabled(off == 0))
         {
@@ -364,6 +384,16 @@ internal sealed partial class ConfigWindow : Window
             {
                 this.config.DisabledSheets.Clear();
                 this.NoteParted();
+                changed = true;
+            }
+        }
+
+        ImGui.SameLine();
+        using (ImRaii.Disabled(off == total))
+        {
+            if (ImGui.Button(disable))
+            {
+                this.SetSheets(pack.Layout.SelectMany(g => g.Parts).SelectMany(p => p.Sheets), false);
                 changed = true;
             }
         }
@@ -404,7 +434,7 @@ internal sealed partial class ConfigWindow : Window
             // group that only ever held one and the honest ones for a group this pack has cut down to
             // one. Calling a lone "title screen" checkbox "Menus and interface" would promise the rest
             // of the group, and unticking it would then look like it had failed.
-            this.DrawPart(only, only.Part.Name, group.Warning, only.Part.Image ?? group.Image, ref changed);
+            this.DrawPart(only, only.Part.Name, group.Warning, only.Part.Image ?? group.Image, ref changed, showMarker: false);
             return;
         }
 
@@ -421,10 +451,6 @@ internal sealed partial class ConfigWindow : Window
 
         using var node = ImRaii.TreeNode(group.Name);
 
-        // On the heading itself as well as on the marker beside it. Hovering the words is what
-        // people do; hanging everything off a small icon left two groups with no explanation at
-        // all — and, because the picture rides along with the tooltip, no picture either.
-        // A group with no text and no picture gets no tooltip and no marker.
         var explain = ExplainGroup(group);
         var tells = explain.Length > 0 || group.Image is not null;
 
@@ -438,11 +464,6 @@ internal sealed partial class ConfigWindow : Window
             ImGui.SameLine();
             ImGui.TextColored(Amber, "· " + string.Format(
                 Loc.Localize("Parts.Count", "{0} of {1} on"), group.Parts.Length - off, group.Parts.Length));
-        }
-
-        if (tells)
-        {
-            this.Marker(explain, group.Image);
         }
 
         if (!node)
@@ -463,7 +484,8 @@ internal sealed partial class ConfigWindow : Window
     ///     these is misbehaving" and the wrong answer to "what am I switching off", and only the
     ///     second question is being asked at the moment somebody reads the label.
     /// </remarks>
-    private void DrawPart(PartView view, string label, string? warning, string? image, ref bool changed)
+    private void DrawPart(PartView view, string label, string? warning, string? image, ref bool changed,
+        bool showMarker = true)
     {
         // Ticked only when none of it is off. A part can cover more than one sheet, and a saved
         // choice from a build that split them differently can leave half of one switched off; a tick
@@ -479,7 +501,10 @@ internal sealed partial class ConfigWindow : Window
 
         var explain = Explain(view, warning);
         this.Tip(explain, image, view.Sheets);
-        this.Marker(explain, image, view.Sheets);
+        if (showMarker)
+        {
+            this.Marker(explain, image, view.Sheets);
+        }
     }
 
     /// <summary>
@@ -984,17 +1009,31 @@ internal sealed partial class ConfigWindow : Window
             }
 
             ImGui.TableSetupColumn(Loc.Localize("Setup.ColLanguage", "Language"), ImGuiTableColumnFlags.WidthFixed);
-            ImGui.TableSetupColumn(Loc.Localize("Setup.ColTranslated", "Translated"), ImGuiTableColumnFlags.WidthFixed, 90f * scale);
-            ImGui.TableSetupColumn(Loc.Localize("Setup.ColGameVersion", "Game version"), ImGuiTableColumnFlags.WidthFixed,
-                ImGui.CalcTextSize("2026.09.01").X);
-            ImGui.TableSetupColumn(Loc.Localize("Setup.ColEnglish", "Non translated"), ImGuiTableColumnFlags.WidthStretch);
+            var localizedLabel = Loc.Localize("Setup.ColLocalized", "Localized");
+            var gameVersionLabel = Loc.Localize("Setup.ColGameVersion", "Game version");
+            ImGui.TableSetupColumn(localizedLabel, ImGuiTableColumnFlags.WidthFixed,
+                Math.Max(90f * scale, ImGui.CalcTextSize(localizedLabel).X));
+            ImGui.TableSetupColumn(gameVersionLabel, ImGuiTableColumnFlags.WidthFixed,
+                Math.Max(ImGui.CalcTextSize("2026.09.01").X, ImGui.CalcTextSize(gameVersionLabel).X)
+                + ImGui.GetStyle().FramePadding.X * 2);
+            ImGui.TableSetupColumn(Loc.Localize("Setup.ColEnglish", "WIP & future localization"), ImGuiTableColumnFlags.WidthStretch);
             ImGui.TableSetupColumn(Loc.Localize("Setup.ColLinks", "Links"), ImGuiTableColumnFlags.WidthFixed);
             ImGui.TableHeadersRow();
 
-            for (var i = 0; i < KnownPacks.All.Length; i++)
+            // Keep the catalog index for selection and installation.
+            var rows = KnownPacks.All.Select((pack, index) =>
             {
-                var pack = KnownPacks.All[i];
                 var (manifest, loading) = pack.Published ? this.PublishedManifest(pack) : (null, false);
+                return (Pack: pack, Index: index, Manifest: manifest, Loading: loading);
+            }).OrderByDescending(row => row.Manifest?.Coverage?.Percent ?? -1)
+                .ThenBy(row => row.Index);
+
+            foreach (var row in rows)
+            {
+                var i = row.Index;
+                var pack = row.Pack;
+                var manifest = row.Manifest;
+                var loading = row.Loading;
                 var offline = pack.Published && !loading && manifest is null;
 
                 ImGui.TableNextRow();
@@ -1032,10 +1071,13 @@ internal sealed partial class ConfigWindow : Window
                     ? gameVersion[..^10] : gameVersion);
 
                 ImGui.TableNextColumn();
-                if (manifest?.Coverage is { } coverage)
+                if (manifest is not null)
                 {
                     ImGui.AlignTextToFramePadding();
-                    ImGui.TextWrapped(string.Join(", ", coverage.KeptEnglish));
+                    DrawTruncatedText(manifest.Coverage?.FutureLocalization is { } future
+                        ? string.Join(", ", future.Where(p => p.Pending > 0).Select(p =>
+                            p.PendingPercent == 100 ? p.Content ?? p.Sheet : $"{p.Content ?? p.Sheet} ({(p.PendingPercent == 0 ? "<0.1" : p.PendingPercent.ToString("0.#", CultureInfo.InvariantCulture))}% pending)"))
+                        : Loc.Localize("Setup.EnglishNotSpecified", "Not specified"));
                 }
 
                 ImGui.TableNextColumn();
@@ -1088,6 +1130,31 @@ internal sealed partial class ConfigWindow : Window
         }
 
         return chosen;
+    }
+
+    private static void DrawTruncatedText(string text)
+    {
+        var width = ImGui.GetContentRegionAvail().X;
+        var display = text;
+        if (ImGui.CalcTextSize(text).X > width)
+        {
+            var low = 0;
+            var high = text.Length;
+            while (low < high)
+            {
+                var middle = low + (high - low + 1) / 2;
+                if (ImGui.CalcTextSize(text[..middle] + "...").X <= width)
+                    low = middle;
+                else
+                    high = middle - 1;
+            }
+
+            if (low > 0 && char.IsHighSurrogate(text[low - 1])) low--;
+            display = text[..low].TrimEnd() + "...";
+        }
+
+        ImGui.TextUnformatted(display);
+        if (ImGui.IsItemHovered()) SetTooltip(text);
     }
 
     /// <summary>An icon that opens a page in the browser. The label and the address go in the tooltip.</summary>
@@ -1180,6 +1247,7 @@ internal sealed partial class ConfigWindow : Window
 
    
     // The manifest published at a pack's release, fetched once per session. 
+
     private (PackManifest? Manifest, bool Loading) PublishedManifest(KnownPack pack)
     {
         lock (this.published)

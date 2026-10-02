@@ -59,7 +59,7 @@
   },
 
   "Tab.Pack": { "message": "Language pack" },
-  "Tab.Parts": { "message": "Partes traducidas" },
+  "Tab.Parts": { "message": "Ajustes de localización" },
   "Tab.Help": { "message": "Ayuda y contacto" },
 
   "Parts.Empty": {
@@ -168,8 +168,8 @@
 
   "Pack.NothingServed": { "message": "ESTA SESIÓN NO TIENE NADA TRADUCIDO" },
   "Setup.ColLanguage": { "message": "Idioma" },
-  "Setup.ColTranslated": { "message": "Traducido" },
-  "Setup.ColEnglish": { "message": "Sin traducir" },
+  "Setup.ColLocalized": { "message": "Localizado" },
+  "Setup.ColEnglish": { "message": "En curso y futuras localizaciones" },
   "Setup.NoPackYet": { "message": "Sin pack todavía" },
   "Setup.CoverageLoading": { "message": "Cargando..." },
   "Setup.ColLinks": { "message": "Enlaces" },
@@ -211,5 +211,8 @@
   "Group.Items.Name": { "message": "Objetos" },
   "Group.Items.Tooltip": { "message": "Nombres y descripciones de objetos, incluidos los de misión y de actividades especiales." },
   "Part.Attributes.Name": { "message": "Atributos del personaje" },
-  "Part.Attributes.Tooltip": { "message": "Nombres y descripciones de atributos del personaje, como Fuerza y Golpe crítico." }
+  "Part.Attributes.Tooltip": { "message": "Nombres y descripciones de atributos del personaje, como Fuerza y Golpe crítico." },
+  "Parts.TurnAllOff": { "message": "Desactivarlo todo" },
+  "Compatibility.AutoRetainer": { "message": "Compatible. Confirmado con AutoRetainer 4.6.2.11." },
+  "Setup.EnglishNotSpecified": { "message": "Sin especificar" }
 }
