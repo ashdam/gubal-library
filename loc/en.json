@@ -275,8 +275,8 @@
   "Part.DutyFinder.Name": { "message": "Duty names and descriptions" },
   "Part.DutyFinder.Tooltip": { "message": "Duty Finder entries, roulette names and descriptions. Entry NPC menus are under Interface menus." },
   "Group.Interface.Name": { "message": "Interface menus" },
-  "Group.Interface.Tooltip": { "message": "Windows, settings, shops and NPC services in one part." },
-  "Part.Interface.Name": { "message": "Interface menus and NPC services" },
+  "Group.Interface.Tooltip": { "message": "Title screen, main menus, windows and NPC services." },
+  "Part.Interface.Name": { "message": "Other interface menus and NPC services" },
   "Part.Interface.Tooltip": { "message": "Buttons, settings, shops, retainers, travel and duty entry menus. Includes NPC topic menus and their dialogue and lore answers because each sheet is switched as a whole." },
   "Group.Chat.Name": { "message": "Chat and system messages" },
   "Group.Chat.Tooltip": { "message": "Combat logs, notifications and error messages." },
@@ -359,5 +359,10 @@
   "Part.Attributes.Tooltip": { "message": "Names and descriptions of character attributes, such as Strength and Critical Hit." },
   "Parts.TurnAllOff": { "message": "Turn everything off" },
   "Compatibility.AutoRetainer": { "message": "Supported. Confirmed with AutoRetainer 4.6.2.11." },
-  "Setup.EnglishNotSpecified": { "message": "Not specified" }
+  "Setup.EnglishNotSpecified": { "message": "Not specified" },
+  "Part.Lobby.Name": { "message": "Lobby" },
+  "Part.Lobby.Tooltip": { "message": "Title screen, character selection and character creation." },
+  "Part.MainMenus.Name": { "message": "Main menus" },
+  "Part.MainMenus.Tooltip": { "message": "Main menu entries and categories." },
+  "Part.MainMenus.Warning": { "message": "Plugins that read English menu entries may not recognize translated options." }
 }

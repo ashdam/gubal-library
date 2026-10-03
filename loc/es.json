@@ -39,8 +39,8 @@
   "Part.DutyFinder.Tooltip": { "message": "Entradas del buscador de instancias, nombres y descripciones de ruletas. Los menús de NPC de acceso están en Menús de interfaz." },
 
   "Group.Interface.Name": { "message": "Menús de interfaz" },
-  "Group.Interface.Tooltip": { "message": "Ventanas, ajustes, tiendas y servicios de NPC en una sola parte." },
-  "Part.Interface.Name": { "message": "Menús de interfaz y servicios de NPC" },
+  "Group.Interface.Tooltip": { "message": "Pantalla de inicio, menús principales, ventanas y servicios de NPC." },
+  "Part.Interface.Name": { "message": "Otros menús de interfaz y servicios de NPC" },
   "Part.Interface.Tooltip": { "message": "Botones, ajustes, tiendas, asistentes, viajes y menús de acceso a instancias. Incluye los menús de temas de NPC y sus diálogos y respuestas de trasfondo, porque cada hoja se activa o desactiva completa." },
 
   "Group.Chat.Name": { "message": "Chat y mensajes del sistema" },
@@ -214,5 +214,10 @@
   "Part.Attributes.Tooltip": { "message": "Nombres y descripciones de atributos del personaje, como Fuerza y Golpe crítico." },
   "Parts.TurnAllOff": { "message": "Desactivarlo todo" },
   "Compatibility.AutoRetainer": { "message": "Compatible. Confirmado con AutoRetainer 4.6.2.11." },
-  "Setup.EnglishNotSpecified": { "message": "Sin especificar" }
+  "Setup.EnglishNotSpecified": { "message": "Sin especificar" },
+  "Part.Lobby.Name": { "message": "Pantalla de inicio y personajes" },
+  "Part.Lobby.Tooltip": { "message": "Pantalla de inicio, selección y creación de personajes." },
+  "Part.MainMenus.Name": { "message": "Menús principales" },
+  "Part.MainMenus.Tooltip": { "message": "Opciones y categorías de los menús principales." },
+  "Part.MainMenus.Warning": { "message": "Los plugins que leen opciones de menú en inglés podrían no reconocer las opciones traducidas." }
 }

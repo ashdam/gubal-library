@@ -38,8 +38,8 @@
   "Part.DutyFinder.Tooltip": { "message": "Voci del Duty Finder, nomi e descrizioni delle roulette. I menu dei PNG di accesso sono in Menu di interfaccia." },
 
   "Group.Interface.Name": { "message": "Menu di interfaccia" },
-  "Group.Interface.Tooltip": { "message": "Finestre, impostazioni, negozi e servizi dei PNG in una sola parte." },
-  "Part.Interface.Name": { "message": "Menu di interfaccia e servizi dei PNG" },
+  "Group.Interface.Tooltip": { "message": "Schermata iniziale, menu principali, finestre e servizi dei PNG." },
+  "Part.Interface.Name": { "message": "Altri menu di interfaccia e servizi dei PNG" },
   "Part.Interface.Tooltip": { "message": "Pulsanti, impostazioni, negozi, servitori, viaggi e menu di accesso alle istanze. Include i menu degli argomenti dei PNG e le relative risposte e informazioni sulla storia, perché ogni foglio viene attivato o disattivato per intero." },
 
   "Group.Chat.Name": { "message": "Chat e messaggi di sistema" },
@@ -213,5 +213,10 @@
   "Part.Attributes.Tooltip": { "message": "Nomi e descrizioni degli attributi del personaggio, come Forza e Colpo critico." },
   "Parts.TurnAllOff": { "message": "Disattiva tutto" },
   "Compatibility.AutoRetainer": { "message": "Compatibile. Confermato con AutoRetainer 4.6.2.11." },
-  "Setup.EnglishNotSpecified": { "message": "Non specificato" }
+  "Setup.EnglishNotSpecified": { "message": "Non specificato" },
+  "Part.Lobby.Name": { "message": "Schermata iniziale e personaggi" },
+  "Part.Lobby.Tooltip": { "message": "Schermata iniziale, selezione e creazione dei personaggi." },
+  "Part.MainMenus.Name": { "message": "Menu principali" },
+  "Part.MainMenus.Tooltip": { "message": "Voci e categorie dei menu principali." },
+  "Part.MainMenus.Warning": { "message": "I plugin che leggono le voci dei menu in inglese potrebbero non riconoscere le opzioni tradotte." }
 }
