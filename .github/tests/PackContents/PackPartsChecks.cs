@@ -13,11 +13,16 @@ internal static class PackPartsChecks
         var menus = parts.Single(part => part.Sheets.Contains("addon"));
         string[] menuSheets =
         [
-            "maincommand", "lobby", "custom/", "customtalk", "topicselect", "specialshop", "shop/",
+            "custom/", "customtalk", "topicselect", "specialshop", "shop/",
             "transport/", "warp/", "warp", "raid/", "content/", "guild_order/", "leve/", "system/",
             "retainertaskrandom", "guildleveassignmenttalk",
         ];
         Check(menuSheets.All(menus.Sheets.Contains), "NPC services must use the general interface switch");
+        Check(parts.Single(part => part.Sheets.Contains("lobby")).Sheets.SequenceEqual(["lobby"]),
+            "Lobby must have its own switch");
+        Check(parts.Single(part => part.Sheets.Contains("maincommand")).Sheets
+                .SequenceEqual(["maincommand", "maincommandcategory"]),
+            "Main menu entries and categories must share their own switch");
         Check(menus.Warning is not null, "Interface menus need a plugin compatibility warning");
 
         string[] gameplaySheets =

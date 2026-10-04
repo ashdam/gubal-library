@@ -3,7 +3,8 @@ using CheapLoc;
 namespace GubalLibrary;
 
 internal sealed record TranslationPart(
-    string Name, string Description, string[] Sheets, string? Warning = null, string? Image = null);
+    string Name, string Description, string[] Sheets, string? Warning = null, string? Image = null,
+    string[]? AdditionalImages = null);
 
 internal sealed record PartGroup(
     string Name, string Description, TranslationPart[] Parts, string? Warning = null, string? Image = null);
@@ -45,7 +46,8 @@ internal static class PackParts
                     Loc.Localize("Part.Cutscenes.Tooltip", "Translates the subtitle lines at the bottom of the screen during voiced cutscenes."),
                     [
                         "cut_scene/",
-                    ])
+                    ],
+                    Image: "cutscenes")
             ]),
 
         new PartGroup(
@@ -57,7 +59,8 @@ internal static class PackParts
                     Loc.Localize("Part.Talk.Tooltip", "NPC dialogue outside quests, speech balloons and shouts, including combat shouts. NPC service conversations are under Interface menus."),
                     [
                         "defaulttalk", "balloon", "npcyell",
-                    ]),
+                    ],
+                    Image: "NPCbubbles", AdditionalImages: ["smalltalk", "instance-dialogue"]),
                 new TranslationPart(
                     Loc.Localize("Part.Objects.Name", "Objects and information in the world"),
                     Loc.Localize("Part.Objects.Tooltip", "What a mechanism or lever tells you when used, plus documents, letters, signs and puzzle hints."),
@@ -199,15 +202,26 @@ internal static class PackParts
                         "contentstutorial", "contentstutorialpage", "multiplehelpstring", "multiplehelp", "descriptionstring",
                         "description", "descriptionstandalonetransient", "guidepagestring", "guidetitle",
                     ],
-                    Image: "help")
+                    Image: "help", AdditionalImages: ["contentguide"])
             ]),
 
         new PartGroup(
             Loc.Localize("Group.Interface.Name", "Interface menus"),
-            Loc.Localize("Group.Interface.Tooltip", "Windows, settings, shops and NPC services in one part."),
+            Loc.Localize("Group.Interface.Tooltip", "Title screen, main menus, windows and NPC services."),
             [
                 new TranslationPart(
-                    Loc.Localize("Part.Interface.Name", "Interface menus and NPC services"),
+                    Loc.Localize("Part.Lobby.Name", "Lobby"),
+                    Loc.Localize("Part.Lobby.Tooltip", "Title screen, character selection and character creation."),
+                    ["lobby"],
+                    Image: "lobby"),
+                new TranslationPart(
+                    Loc.Localize("Part.MainMenus.Name", "Main menus"),
+                    Loc.Localize("Part.MainMenus.Tooltip", "Main menu entries and categories."),
+                    ["maincommand", "maincommandcategory"],
+                    Warning: Loc.Localize("Part.MainMenus.Warning", "Plugins that read English menu entries may not recognize translated options."),
+                    Image: "mainmenus"),
+                new TranslationPart(
+                    Loc.Localize("Part.Interface.Name", "Other interface menus and NPC services"),
                     Loc.Localize("Part.Interface.Tooltip", "Buttons, settings, shops, retainers, travel and duty entry menus. Includes NPC topic menus and their dialogue and lore answers because each sheet is switched as a whole."),
                     [
                         "addon", "mcguffinuidata", "csbonustextdata", "contenttype", "gimmickyesno", "eventaction",
@@ -222,7 +236,7 @@ internal static class PackParts
                         "furniturecatalogcategory", "yardcatalogcategory", "companycraftdraftcategory", "companycraftmanufactorystate", "companycrafttype",
                         "emotecategory", "orchestrioncategory", "playersearchlocation", "playersearchsublocation", "weather",
                         "stain", "topicselect", "inclusionshopcategory", "treasure", "shop/",
-                        "maincommand", "maincommandcategory", "lobby", "retainertaskrandom", "custom/",
+                        "retainertaskrandom", "custom/",
                         "customtalk", "raid/", "content/", "guild_order/", "leve/",
                         "guildleveassignmenttalk", "transport/", "warp/", "warp", "system/",
                         "story/", "grandcompany",

@@ -500,10 +500,10 @@ internal sealed partial class ConfigWindow : Window
         }
 
         var explain = Explain(view, warning);
-        this.Tip(explain, image, view.Sheets);
+        this.Tip(explain, image, view.Sheets, view.Part.AdditionalImages);
         if (showMarker)
         {
-            this.Marker(explain, image, view.Sheets);
+            this.Marker(explain, image, view.Sheets, view.Part.AdditionalImages);
         }
     }
 
@@ -559,7 +559,8 @@ internal sealed partial class ConfigWindow : Window
     ///     to be the thing that answers when hovered. A marker that only says "there is something to
     ///     know here" spends a click and tells nobody anything.
     /// </remarks>
-    private void Marker(string tooltip, string? image, string[]? sheets = null)
+    private void Marker(string tooltip, string? image, string[]? sheets = null,
+        string[]? additionalImages = null)
     {
         ImGui.SameLine();
         ImGui.PushStyleColor(ImGuiCol.Text, Blue);
@@ -569,7 +570,7 @@ internal sealed partial class ConfigWindow : Window
         }
 
         ImGui.PopStyleColor();
-        this.Tip(tooltip, image, sheets);
+        this.Tip(tooltip, image, sheets, additionalImages);
     }
 
     /// <summary>A group's tooltip: its description, then its warning if it has one.</summary>
@@ -585,7 +586,8 @@ internal sealed partial class ConfigWindow : Window
     ///     the text and nothing else.
     /// </remarks>
     /// <param name="sheets">The footnote: which file this is, for somebody who has read the rest.</param>
-    private void Tip(string text, string? image, string[]? sheets = null)
+    private void Tip(string text, string? image, string[]? sheets = null,
+        string[]? additionalImages = null)
     {
         if (!ImGui.IsItemHovered())
         {
@@ -600,6 +602,11 @@ internal sealed partial class ConfigWindow : Window
         if (image is { Length: > 0 })
         {
             this.DrawComparison(image);
+        }
+
+        foreach (var additionalImage in additionalImages ?? [])
+        {
+            this.DrawComparison(additionalImage);
         }
 
         if (sheets is not null)
@@ -641,10 +648,13 @@ internal sealed partial class ConfigWindow : Window
             // A LONE HALF KEEPS THE FULL WIDTH: it is not competing with anything, and half a pair
             // is normal — the two halves of one are taken on different days.
             var only = off ?? on!;
+            var width = name == "mainmenus"
+                ? Math.Min(available, 400f * ImGuiHelpers.GlobalScale * only.Width / only.Height)
+                : available;
             this.Half(
                 off is null ? Loc.Localize("Parts.On", "Switched on") : Loc.Localize("Parts.Off", "Switched off"),
                 off is null ? Green : Amber,
-                only, available, only.Height * (available / only.Width));
+                only, width, only.Height * (width / only.Width));
             return;
         }
 
