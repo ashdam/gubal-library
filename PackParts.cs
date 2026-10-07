@@ -86,12 +86,28 @@ internal static class PackParts
                     Loc.Localize("Part.PlaceNames.Tooltip", "Names of regions, zones and locations on maps and inside dungeons and other instances."),
                     [
                         "placename",
-                    ]),
+                    ],
+                    Image: "placename"),
+                new TranslationPart(
+                    Loc.Localize("Part.NonBattleNpcNames.Name", "Non-battle NPC names"),
+                    Loc.Localize("Part.NonBattleNpcNames.Tooltip", "Names and titles of story characters, merchants and other NPCs used for story events and interaction."),
+                    [
+                        "enpcresident",
+                    ],
+                    Warning: Loc.Localize("Part.TargetNames.Warning", "Plugins that search for English object names may fail to find translated targets."),
+                    Image: "enpcname"),
+                new TranslationPart(
+                    Loc.Localize("Part.BattleNpcNames.Name", "Battle NPC names"),
+                    Loc.Localize("Part.BattleNpcNames.Tooltip", "Names of monsters, bosses and other combat NPCs, including allies and training dummies."),
+                    [
+                        "bnpcname",
+                    ],
+                    Warning: Loc.Localize("Part.TargetNames.Warning", "Plugins that search for English object names may fail to find translated targets.")),
                 new TranslationPart(
                     Loc.Localize("Part.TargetNames.Name", "Creatures and interactable objects"),
-                    Loc.Localize("Part.TargetNames.Tooltip", "Names of enemies, pets, aetherytes and objects you can select. Travel menus are under Interface menus."),
+                    Loc.Localize("Part.TargetNames.Tooltip", "Names of pets, aetherytes and objects you can select. Travel menus are under Interface menus."),
                     [
-                        "bnpcname", "pet", "aetheryte", "eobjname",
+                        "pet", "aetheryte", "eobjname",
                     ],
                     Warning: Loc.Localize("Part.TargetNames.Warning", "Plugins that search for English object names may fail to find translated targets."),
                     Image: "interactable")
