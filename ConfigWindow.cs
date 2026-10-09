@@ -143,6 +143,8 @@ internal sealed partial class ConfigWindow : Window
         Func<PageStatus> pageStatus,
         Func<PackContents> contents,
         ITextureProvider textures,
+        IDataManager data,
+        IGameGui gameGui,
         PackInstaller installer,
         Action onPackInstalled,
         Action checkForUpdate,
@@ -156,6 +158,8 @@ internal sealed partial class ConfigWindow : Window
         : base($"Gubal Library ({version})###GubalLibraryConfig")
     {
         this.isDev = isDev;
+        this.previewData = isDev ? data : null;
+        this.previewGui = isDev ? gameGui : null;
         this.canPreview = canPreview;
         this.shadowState = shadowState;
         this.config = config;
@@ -809,6 +813,8 @@ internal sealed partial class ConfigWindow : Window
     /// </remarks>
     private void DrawInstalledPack(PageStatus pages)
     {
+        this.DrawCompatibilityNotice(pages);
+
         if (this.restartReason is null)
         {
             this.DrawUpdateNotice(pages);
@@ -842,7 +848,7 @@ internal sealed partial class ConfigWindow : Window
         // The verdict lands on this line rather than under it. A clean check has nothing to add to
         // what the line already says — only that it is now known to be the newest — so it says it in
         // the colour and in three words, and no second line appears saying the same version again.
-        var clean = pages.Update.State == UpdateState.UpToDate;
+        var clean = pages.Update.State == UpdateState.UpToDate && pages.Compatibility is null;
 
         using (ImRaii.PushColor(ImGuiCol.Text, Green, clean))
         {
@@ -1930,4 +1936,5 @@ internal readonly record struct PageStatus(
     int FontsServedCount,
     string? Error,
     PackManifest? Manifest,
-    UpdateStatus Update);
+    UpdateStatus Update,
+    CompatibilitySelection? Compatibility = null);

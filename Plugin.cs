@@ -44,6 +44,7 @@ public sealed class Plugin : IDalamudPlugin
     private readonly CancellationTokenSource usageCancellation = new();
     private Task? usageTask;
     private readonly ConfigWindow configWindow;
+    private readonly LobbyUpdateNotice lobbyUpdateNotice;
     private readonly DialogueCodex dialogueCodex;
     private readonly IDalamudPluginInterface pluginInterface;
 
@@ -124,6 +125,7 @@ public sealed class Plugin : IDalamudPlugin
         Language.Apply(pluginInterface.UiLanguage, log);
 
         this.pluginInterface = pluginInterface;
+        this.lobbyUpdateNotice = new LobbyUpdateNotice(pluginInterface, textures, log);
         this.commands = commands;
         this.chat = chat;
         this.log = log;
@@ -180,7 +182,10 @@ public sealed class Plugin : IDalamudPlugin
                 this.config.LanguagePackPath,
                 this.Contents(),
                 this.config.DisabledSheets,
-                this.config.LifestreamCompatibility);
+                this.config.LifestreamCompatibility,
+                data,
+                Path.Combine(pluginInterface.GetPluginConfigDirectory(), "compatibility-cache"),
+                () => DalamudBootWait.IsOn(pluginInterface) is true);
 
             if (this.redirectorError is { Length: > 0 } error)
             {
@@ -217,6 +222,8 @@ public sealed class Plugin : IDalamudPlugin
             this.PageSnapshot,
             this.Contents,
             textures,
+            data,
+            gameGui,
             this.installer,
             this.OnPackInstalled,
             () => this.BeginUpdateCheck(verbose: false),
@@ -312,6 +319,8 @@ public sealed class Plugin : IDalamudPlugin
         this.dialogueCodex.DrawLinks();
         if (this.pluginInterface.UiBuilder.CutsceneActive)
             return;
+        this.configWindow.PreviewPluginUpdate = this.lobbyUpdateNotice.Draw(
+            this.clientState.IsLoggedIn, this.pluginInterface.IsDev && this.configWindow.PreviewPluginUpdate);
         this.windows.Draw();
         this.fileDialogs.Draw();
     }
@@ -529,7 +538,7 @@ public sealed class Plugin : IDalamudPlugin
     {
         return this.redirector is { } r
             ? new PageStatus(
-                true, r.PageCount, r.ServedCount, r.FontCount, r.FontsServedCount, null, r.Manifest, this.update)
+                true, r.PageCount, r.ServedCount, r.FontCount, r.FontsServedCount, null, r.Manifest, this.update, r.Compatibility)
             : new PageStatus(false, 0, 0, 0, 0, this.redirectorError, this.InstalledManifest(), this.update);
     }
 
@@ -636,7 +645,7 @@ public sealed class Plugin : IDalamudPlugin
     {
         var installed = PackManifest.Read(this.config.LanguagePackPath).Manifest;
 
-        if (await this.installer.CheckForUpdateAsync(installed, cancel).ConfigureAwait(false)
+        if (await this.installer.CheckForUpdateAsync(installed, cancel, ExdRedirector.RunningGameVersion()).ConfigureAwait(false)
             is not { State: UpdateState.Available, Published: { } published })
         {
             return null;
@@ -703,7 +712,8 @@ public sealed class Plugin : IDalamudPlugin
             // Caching it here would undo exactly that.
             var installed = this.redirector?.Manifest ?? this.InstalledManifest();
 
-            this.update = await this.installer.CheckForUpdateAsync(installed).ConfigureAwait(false);
+            this.update = await this.installer.CheckForUpdateAsync(installed,
+                runningGame: ExdRedirector.RunningGameVersion()).ConfigureAwait(false);
         }
         finally
         {
