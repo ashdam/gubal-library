@@ -143,6 +143,8 @@ internal sealed partial class ConfigWindow : Window
         Func<PageStatus> pageStatus,
         Func<PackContents> contents,
         ITextureProvider textures,
+        IDataManager data,
+        IGameGui gameGui,
         PackInstaller installer,
         Action onPackInstalled,
         Action checkForUpdate,
@@ -156,6 +158,8 @@ internal sealed partial class ConfigWindow : Window
         : base($"Gubal Library ({version})###GubalLibraryConfig")
     {
         this.isDev = isDev;
+        this.previewData = isDev ? data : null;
+        this.previewGui = isDev ? gameGui : null;
         this.canPreview = canPreview;
         this.shadowState = shadowState;
         this.config = config;
@@ -628,6 +632,12 @@ internal sealed partial class ConfigWindow : Window
     /// </remarks>
     private void DrawComparison(string name)
     {
+        if (name == "placename")
+        {
+            this.DrawPlaceNameExamples();
+            return;
+        }
+
         var off = this.Picture($"{name}-off");
         var on = this.Picture($"{name}-on");
 
@@ -688,6 +698,35 @@ internal sealed partial class ConfigWindow : Window
         this.Half(Loc.Localize("Parts.Off", "Switched off"), Amber, off, height * offRatio, height);
         ImGui.SameLine();
         this.Half(Loc.Localize("Parts.On", "Switched on"), Green, on, height * onRatio, height);
+    }
+
+    private void DrawPlaceNameExamples()
+    {
+        var map = this.Picture("placename-on-1");
+        var location = this.Picture("placename-on-2");
+        var menu = this.Picture("placename-on-3");
+        var available = PictureWidth * ImGuiHelpers.GlobalScale;
+        var caption = Loc.Localize("Parts.On", "Switched on");
+
+        ImGui.Spacing();
+        if (map is not null && menu is not null)
+        {
+            var mapRatio = (float)map.Width / map.Height;
+            var menuRatio = (float)menu.Width / menu.Height;
+            var height = (available - ImGui.GetStyle().ItemSpacing.X) / (mapRatio + menuRatio);
+            this.Half(caption, Green, map, height * mapRatio, height);
+            ImGui.SameLine();
+            this.Half(caption, Green, menu, height * menuRatio, height);
+        }
+        else if ((map ?? menu) is { } only)
+        {
+            this.Half(caption, Green, only, available, only.Height * (available / only.Width));
+        }
+
+        if (location is not null)
+        {
+            this.Half(caption, Green, location, available, location.Height * (available / location.Width));
+        }
     }
 
     /// <summary>One captioned picture, as a group so that <c>SameLine</c> puts the next one beside it.</summary>
@@ -774,6 +813,8 @@ internal sealed partial class ConfigWindow : Window
     /// </remarks>
     private void DrawInstalledPack(PageStatus pages)
     {
+        this.DrawCompatibilityNotice(pages);
+
         if (this.restartReason is null)
         {
             this.DrawUpdateNotice(pages);
@@ -807,7 +848,7 @@ internal sealed partial class ConfigWindow : Window
         // The verdict lands on this line rather than under it. A clean check has nothing to add to
         // what the line already says — only that it is now known to be the newest — so it says it in
         // the colour and in three words, and no second line appears saying the same version again.
-        var clean = pages.Update.State == UpdateState.UpToDate;
+        var clean = pages.Update.State == UpdateState.UpToDate && pages.Compatibility is null;
 
         using (ImRaii.PushColor(ImGuiCol.Text, Green, clean))
         {
@@ -1895,4 +1936,5 @@ internal readonly record struct PageStatus(
     int FontsServedCount,
     string? Error,
     PackManifest? Manifest,
-    UpdateStatus Update);
+    UpdateStatus Update,
+    CompatibilitySelection? Compatibility = null);

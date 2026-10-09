@@ -126,7 +126,8 @@ internal sealed unsafe class ExdRedirector : IDisposable
         IReadOnlyList<PackPage> screenImages,
         nint readFile,
         TextureLoader? textures,
-        PackManifest manifest)
+        PackManifest manifest,
+        CompatibilitySelection? compatibility)
     {
         this.log = log;
         this.pages = pages;
@@ -134,6 +135,7 @@ internal sealed unsafe class ExdRedirector : IDisposable
         this.readFile = (delegate* unmanaged<FileThread*, FileDescriptor*, int, byte, byte>)readFile;
         this.textures = textures;
         this.Manifest = manifest;
+        this.Compatibility = compatibility;
 
         this.fonts = new Dictionary<string, FontEntry>(StringComparer.OrdinalIgnoreCase);
         this.fontsByRooted = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
@@ -176,6 +178,8 @@ internal sealed unsafe class ExdRedirector : IDisposable
     /// <summary>What the loaded pack says about itself.</summary>
     public PackManifest Manifest { get; }
 
+    public CompatibilitySelection? Compatibility { get; }
+
     /// <summary>How many page redirections are in place.</summary>
     public int PageCount => this.pages.Count;
 
@@ -211,7 +215,10 @@ internal sealed unsafe class ExdRedirector : IDisposable
         string directory,
         PackContents contents,
         ICollection<string> disabledSheets,
-        bool lifestreamCompatibility)
+        bool lifestreamCompatibility,
+        IDataManager data,
+        string compatibilityCache,
+        Func<bool> canWait)
     {
         if (string.IsNullOrWhiteSpace(directory) || !Directory.Exists(directory))
         {
@@ -224,9 +231,12 @@ internal sealed unsafe class ExdRedirector : IDisposable
             return (null, manifestError);
         }
 
-        if (PackVersion.Error(manifest.GameVersion, RunningGameVersion()) is { } versionError)
+        var (compatibility, compatibilityError) = PackResourceCompatibility.Check(directory, manifest,
+            RunningGameVersion(), data.GameData.DataPath.FullName, compatibilityCache, canWait,
+            message => log.Warning(message));
+        if (compatibilityError is not null)
         {
-            return (null, versionError);
+            return (null, compatibilityError);
         }
 
         if (contents.TooLong > 0)
@@ -244,12 +254,39 @@ internal sealed unsafe class ExdRedirector : IDisposable
             return (null, "That folder holds no .exd files, so it is not a language pack.");
         }
 
-        // Fonts need ReadFile and the texture loader. Without them the pages are still served, and
-        // the fonts are refused with a line in the log rather than a client that never loads.
-        var readFile = nint.Zero;
-        TextureLoader? textures = null;
+        var pages = contents.Servable(disabledSheets, lifestreamCompatibility);
+        var layouts = contents.ServableLayouts(disabledSheets, lifestreamCompatibility);
         var fontFiles = contents.Fonts;
         IReadOnlyList<PackPage> screenImages = contents.ServableScreenImages(disabledSheets, lifestreamCompatibility);
+        if (compatibility is not null)
+        {
+            PackResourceCompatibility.Restrict(compatibility, pages.Keys.Concat(layouts.Keys)
+                .Concat(fontFiles.Select(file => file.GamePath)).Concat(screenImages.Select(file => file.GamePath)));
+            if (compatibility.RequiredFailed)
+                return (null, CheapLoc.Loc.Localize("Compatibility.FontsChanged",
+                    "The older pack's required fonts could not be verified. Translation is disabled until the pack is updated."));
+            pages = pages.Where(file => compatibility.Allows(file.Key))
+                .ToDictionary(file => file.Key, file => file.Value, StringComparer.OrdinalIgnoreCase);
+            layouts = layouts.Where(file => compatibility.Allows(file.Key))
+                .ToDictionary(file => file.Key, file => file.Value, StringComparer.OrdinalIgnoreCase);
+            fontFiles = fontFiles.Where(file => compatibility.Allows(file.GamePath)).ToList();
+            screenImages = screenImages.Where(file => compatibility.Allows(file.GamePath)).ToArray();
+            foreach (var (path, source) in compatibility.Excluded)
+                Diagnostics.Log(log, "Using the game original for {Path}: compatibility source {Source} changed or is unavailable.", path, source);
+        }
+
+        contents.LogOmissions(log, disabledSheets);
+        if (pages.Count == 0)
+        {
+            if (compatibility is { Excluded.Count: > 0 })
+                return (null, CheapLoc.Loc.Localize("Compatibility.NoPages",
+                    "No enabled translated pages match this game version. Update the language pack."));
+            return (null, "No pages are enabled. Check the translated parts and compatibility settings.");
+        }
+
+        // Required fonts must be served with their translated pages.
+        var readFile = nint.Zero;
+        TextureLoader? textures = null;
         if (fontFiles.Count + screenImages.Count > 0)
         {
             string? missing = null;
@@ -267,6 +304,12 @@ internal sealed unsafe class ExdRedirector : IDisposable
 
             if (missing is not null)
             {
+                if (fontFiles.Count > 0)
+                {
+                    textures?.Dispose();
+                    return (null, CheapLoc.Loc.Localize("Compatibility.FontsUnavailable",
+                        "The required pack fonts could not be loaded. Translation is disabled. Check the plugin log."));
+                }
                 log.Warning(
                     "{Count} font or screen-image file(s) are not being served: the client's {Function} was not found. "
                     + "The pages are served as usual.",
@@ -277,21 +320,9 @@ internal sealed unsafe class ExdRedirector : IDisposable
             }
         }
 
-        var pages = contents.Servable(disabledSheets, lifestreamCompatibility);
-        contents.LogOmissions(log, disabledSheets);
-
-        // Told apart from the empty folder above, because the two have opposite answers: one is a
-        // pack that is not there, the other a pack that is there and was asked to stay quiet.
-        if (pages.Count == 0)
-        {
-            return (null,
-                "No pages are enabled. Check the translated parts and compatibility settings.");
-        }
-
         try
         {
-            var layouts = contents.ServableLayouts(disabledSheets, lifestreamCompatibility);
-            return (new ExdRedirector(interop, log, pages, layouts, fontFiles, screenImages, readFile, textures, manifest), null);
+            return (new ExdRedirector(interop, log, pages, layouts, fontFiles, screenImages, readFile, textures, manifest, compatibility), null);
         }
         catch (Exception e)
         {

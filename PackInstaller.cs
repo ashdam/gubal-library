@@ -340,7 +340,8 @@ internal sealed class PackInstaller
     ///     captive portal serving HTML. The cost of being wrong is somebody carrying on with a pack
     ///     that works.
     /// </remarks>
-    public async Task<UpdateStatus> CheckForUpdateAsync(PackManifest? installed, CancellationToken cancel = default)
+    public async Task<UpdateStatus> CheckForUpdateAsync(PackManifest? installed, CancellationToken cancel = default,
+        string? runningGame = null)
     {
         // Silence, and no complaint: a pack that declares no address has promised nothing, which is a
         // legitimate way to publish one.
@@ -367,9 +368,12 @@ internal sealed class PackInstaller
 
             // Ordinal, not a version parse. The stamp is yyyy.MM.dd.HHmm, which sorts correctly as
             // text and has no meaning as a number.
-            return string.CompareOrdinal(latest, installed.TranslationVersion ?? string.Empty) > 0
+            var targetsCurrentGame = !string.IsNullOrWhiteSpace(runningGame) &&
+                string.Equals(published.GameVersion, runningGame, StringComparison.Ordinal) &&
+                !string.Equals(installed.GameVersion, runningGame, StringComparison.Ordinal);
+            return targetsCurrentGame || string.CompareOrdinal(latest, installed.TranslationVersion ?? string.Empty) > 0
                 ? UpdateStatus.Available(published)
-                : UpdateStatus.UpToDate;
+                : new UpdateStatus(UpdateState.UpToDate, published, null);
         }
         catch (Exception e)
         {
