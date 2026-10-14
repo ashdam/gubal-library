@@ -16,7 +16,7 @@ namespace GubalLibrary;
 ///         <c>Boot load started</c> are how it is confirmed.
 ///     </para>
 ///     <para>
-///         Hooks <c>FileThread.ReadSqPack</c>, which reads out of the archives â€” deliberately not the
+///         Hooks <c>FileThread.ReadSqPack</c>, which reads out of the archives — deliberately not the
 ///         <c>DoFileJob</c> that <see cref="ExdRedirector" /> needs, which decides <em>where</em> to
 ///         read from. A page served from disk therefore stops appearing here, so this checks the
 ///         redirection too, and neither hook stands on the other.
@@ -45,6 +45,8 @@ internal sealed unsafe class SqPackProbe : IDisposable
         }
         catch (Exception e)
         {
+            this.hook?.Dispose();
+            this.hook = null;
             log.Error(e, "SqPack probe could not attach.");
         }
     }

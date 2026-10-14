@@ -60,7 +60,7 @@ internal sealed partial class ConfigWindow
             {
                 ImGui.Bullet();
                 ImGui.SameLine();
-                ImGui.TextWrapped(PackParts.OtherGroupName);
+                ImGui.TextWrapped(PackParts.UncategorizedGroupName);
             }
             var visuals = this.compatibilityNoticeParts.GetValueOrDefault("ui/");
             if (visuals > 0)

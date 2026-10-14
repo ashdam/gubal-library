@@ -18,78 +18,27 @@ namespace GubalLibrary;
 /// <summary>
 ///     Serves the pack's EXD pages, fonts and ULD layouts from disk.
 /// </summary>
-/// <remarks>
-///     <para>
-///         The file route, owned rather than borrowed. With <c>LoadRequiredState: 2</c> this plugin
-///         attaches 2.1 seconds before the client's first Excel read, so a redirection installed in
-///         the constructor covers every sheet loaded at boot — including the ones a mid-session
-///         Penumbra mod could never reach.
-///     </para>
-///     <para>
-///         <b>The addresses for pages are not Penumbra's.</b> They come from FFXIVClientStructs,
-///         which is MIT, ships with Dalamud and is repaired by the ecosystem within hours of a
-///         patch — so the fragile part, finding a function in a recompiled client, is not this
-///         project's problem. Fonts need six patterns that are Penumbra's:
-///         <see cref="ReadFileSignature" /> here and five in <see cref="TextureLoader" />. When one
-///         of them is not found, the fonts are refused and the pages are served as usual.
-///     </para>
-///     <para>
-///         <b>The naming is crossed between the two projects.</b> Penumbra's <c>ReadSqPack</c> —
-///         <c>40 56 41 56 48 83 EC ?? 0F BE 02</c> — is FFXIVClientStructs'
-///         <see cref="FileThread.DoFileJob" />, whose fourth instruction reads
-///         <see cref="FileDescriptor.FileMode" />: the function that dispatches on HOW to read, which
-///         is what must be intercepted. FFXIVClientStructs also has a <c>FileThread.ReadSqPack</c>,
-///         which sees every read and can redirect none of them.
-///     </para>
-///     <para>
-///         The redirection is three fields: mode to <see cref="FileMode.LoadUnpackedResource" />,
-///         descriptor pointed at a scratch buffer holding the local path in UTF-16, then let the
-///         dispatcher take its loose-file branch. The page is read, parsed and drawn by the game's own
-///         code, which is why italics and inverted punctuation survive it.
-///     </para>
-/// </remarks>
 internal sealed unsafe class ExdRedirector : IDisposable
 {
     /// <summary>Where the loose-file branch expects the UTF-16 path inside the scratch buffer.</summary>
-    /// <remarks>The odd offset is deliberate: the path is not two-byte aligned and must not be made to be.</remarks>
     private const int ScratchPathOffset = 0x21;
 
     /// <summary>
     ///     Where the scratch buffer's address goes in the descriptor: <b>0x30, not 0x08</b>.
     /// </summary>
-    /// <remarks>
-    ///     This field crashed the client, so it is a named constant. FFXIVClientStructs calls 0x30
-    ///     <c>FileInterface</c> and 0x08 <c>FileBuffer</c>; the loose-file branch reads its path out
-    ///     of 0x30, and 0x08 holds the buffer the game means to read INTO — so writing there both
-    ///     leaves 0x30 stale and aims the game's own read at a dead stack address. Verified against
-    ///     Penumbra's <c>SeFileDescriptor</c>, which agrees on all four offsets and differs only in
-    ///     the names.
-    /// </remarks>
     private const int ScratchFieldOffset = 0x30;
 
     /// <summary>The descriptor's own path field is a fixed 260-character array.</summary>
-    /// <remarks>
-    ///     A longer local path is refused at registration with a line in the log rather than
-    ///     truncated into a file that does not exist. Penumbra works around it with a second hook on
-    ///     <c>CreateFileW</c>, which is worth it for arbitrary mod folders and not for one directory
-    ///     the user chose.
-    /// </remarks>
     internal const int MaxLocalPathLength = 259;
 
     /// <summary>
     ///     The game's own loose-file reader, the function Penumbra calls for every file it serves.
     /// </summary>
-    /// <remarks>
-    ///     Fonts go through it, and pages do not. A font must not go back to the original
-    ///     <see cref="FileThread.DoFileJob" /> with the mode switched: that route does not complete
-    ///     a texture. The pattern is Penumbra's, and the scan is unique in the current client.
-    /// </remarks>
     private const string ReadFileSignature =
         "48 89 5C 24 ?? 48 89 6C 24 ?? 48 89 74 24 ?? 57 41 54 41 55 41 56 41 57 48 81 EC ?? ?? ?? ?? "
         + "48 8B 05 ?? ?? ?? ?? 48 33 C4 48 89 84 24 ?? ?? ?? ?? 48 63 42";
 
     /// <summary>Where <c>SegmentLength</c> sits in the game's resource parameters. From Penumbra.</summary>
-    /// <remarks>A non-zero length is a partial read, and the hash then covers the segment too. Fonts are never read that way.</remarks>
     private const int SegmentLengthOffset = 20;
 
     private static readonly byte[] ExdSuffix = ".exd"u8.ToArray();
@@ -113,6 +62,7 @@ internal sealed unsafe class ExdRedirector : IDisposable
     /// <summary>Makes the client accept the pack's textures. Null when the pack has no fonts.</summary>
     private readonly TextureLoader? textures;
 
+    private readonly ResourceScope resources;
     private int servedPages;
     private int servedFonts;
     private int reported;
@@ -134,35 +84,46 @@ internal sealed unsafe class ExdRedirector : IDisposable
         this.layouts = layouts;
         this.readFile = (delegate* unmanaged<FileThread*, FileDescriptor*, int, byte, byte>)readFile;
         this.textures = textures;
+        this.resources = new ResourceScope(log);
+        if (textures is not null) this.resources.Own(textures);
         this.Manifest = manifest;
         this.Compatibility = compatibility;
+        this.FontCount = fontFiles.Count;
 
         this.fonts = new Dictionary<string, FontEntry>(StringComparer.OrdinalIgnoreCase);
         this.fontsByRooted = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-        foreach (var font in fontFiles.Concat(screenImages))
+        try
         {
-            var entry = new FontEntry(font.LocalPath);
-            this.fonts[font.GamePath] = entry;
-            this.fontsByRooted[entry.Rooted] = font.LocalPath;
+            foreach (var font in fontFiles.Concat(screenImages))
+            {
+                var entry = this.resources.Own(new FontEntry(font.LocalPath));
+                this.fonts[font.GamePath] = entry;
+                this.fontsByRooted[entry.Rooted] = font.LocalPath;
+            }
+
+            this.hook = this.resources.Own(interop.HookFromAddress<FileThread.Delegates.DoFileJob>(
+                FileThread.Addresses.DoFileJob.Value,
+                this.Detour));
+
+            // The resource hooks only exist when there are fonts: pages do not need them.
+            if (this.fonts.Count > 0)
+            {
+                this.getSync = this.resources.Own(interop.HookFromAddress<ResourceManager.Delegates.GetResourceSync>(
+                    ResourceManager.Addresses.GetResourceSync.Value,
+                    this.GetResourceSyncDetour));
+                this.getAsync = this.resources.Own(interop.HookFromAddress<ResourceManager.Delegates.GetResourceAsync>(
+                    ResourceManager.Addresses.GetResourceAsync.Value,
+                    this.GetResourceAsyncDetour));
+            }
+
+            this.hook.Enable();
+            this.getSync?.Enable();
+            this.getAsync?.Enable();
         }
-
-        this.hook = interop.HookFromAddress<FileThread.Delegates.DoFileJob>(
-            FileThread.Addresses.DoFileJob.Value,
-            this.Detour);
-
-        this.hook.Enable();
-
-        // The resource hooks only exist when there are fonts: pages do not need them.
-        if (this.fonts.Count > 0)
+        catch
         {
-            this.getSync = interop.HookFromAddress<ResourceManager.Delegates.GetResourceSync>(
-                ResourceManager.Addresses.GetResourceSync.Value,
-                this.GetResourceSyncDetour);
-            this.getAsync = interop.HookFromAddress<ResourceManager.Delegates.GetResourceAsync>(
-                ResourceManager.Addresses.GetResourceAsync.Value,
-                this.GetResourceAsyncDetour);
-            this.getSync.Enable();
-            this.getAsync.Enable();
+            this.resources.Dispose();
+            throw;
         }
 
         Diagnostics.Log(log,
@@ -186,21 +147,12 @@ internal sealed unsafe class ExdRedirector : IDisposable
     internal IReadOnlyDictionary<string, string> ServedPages => this.pages;
 
     /// <summary>How many font files are registered. See <see cref="PackContents.FontPrefix" />.</summary>
-    public int FontCount => this.fonts.Keys.Count(path => path.StartsWith(PackContents.FontPrefix, StringComparison.OrdinalIgnoreCase));
+    public int FontCount { get; }
 
     /// <summary>How many page reads have actually been answered from disk this session.</summary>
-    /// <remarks>
-    ///     The number that separates "registered" from "working". A redirection installed but never
-    ///     hit looks identical to one doing its job, which is the state the Penumbra route sat in for
-    ///     a whole session.
-    /// </remarks>
     public int ServedCount => this.servedPages;
 
     /// <summary>Font reads answered from disk. Counted apart from the pages.</summary>
-    /// <remarks>
-    ///     The client loads its fonts once, at boot. Fonts registered and never served means the
-    ///     client read them before this hook. The page count cannot show that.
-    /// </remarks>
     public int FontsServedCount => this.servedFonts;
 
     /// <summary>
@@ -330,31 +282,8 @@ internal sealed unsafe class ExdRedirector : IDisposable
         }
     }
 
-    public void Dispose()
-    {
-        this.getSync?.Disable();
-        this.getSync?.Dispose();
-        this.getAsync?.Disable();
-        this.getAsync?.Dispose();
-        this.hook?.Disable();
-        this.hook?.Dispose();
-        this.textures?.Dispose();
+    public void Dispose() => this.resources.Dispose();
 
-        // The game copies the path into the handle, so the buffers are ours to free.
-        foreach (var entry in this.fonts.Values)
-        {
-            entry.Dispose();
-        }
-    }
-
-    /// <summary>
-    ///     Answers a read from our folder when the path is one of ours, and stands aside otherwise.
-    /// </summary>
-    /// <remarks>
-    ///     Every path out calls the original, and the whole body is guarded. This sits on the one
-    ///     function every file in the game goes through — models, textures, sound — so an escaping
-    ///     exception would not lose a line of Spanish, it would take the client down.
-    /// </remarks>
     private byte Detour(FileThread* thread, FileDescriptor* descriptor, int priority, bool isSync)
     {
         string? local = null;
@@ -397,30 +326,38 @@ internal sealed unsafe class ExdRedirector : IDisposable
 
         var mode = descriptor->FileMode;
         var scratch = *(byte**)((byte*)descriptor + ScratchFieldOffset);
+        Span<char> originalPath = stackalloc char[MaxLocalPathLength + 1];
+        descriptor->FilePath.CopyTo(originalPath);
+        Exception? failure = null;
+        byte result = 0;
         try
         {
-            return this.Serve(thread, descriptor, priority, isSync, local, font, layout);
+            result = this.Serve(thread, descriptor, priority, isSync, local, font, layout);
         }
         catch (Exception e)
         {
-            // Both fields go back, not just the mode: a passthrough with our scratch pointer still in
-            // place aims the game's own read at a stack frame that is about to go away.
+            failure = e;
+        }
+        finally
+        {
+            // The descriptor must not retain a pointer to the reader's temporary stack buffer.
             descriptor->FileMode = mode;
             *(byte**)((byte*)descriptor + ScratchFieldOffset) = scratch;
-            this.log.Error(e, "Could not serve '{Path}'; falling back to the game's own copy.", local);
+            originalPath.CopyTo(descriptor->FilePath);
+        }
+
+        if (failure is not null)
+        {
+            this.log.Error(failure, "Could not serve '{Path}'; falling back to the game's own copy.", local);
             return this.hook!.Original(thread, descriptor, priority, isSync);
         }
+
+        return result;
     }
 
     /// <summary>
     ///     Points the descriptor at a file on disk and lets the game read it.
     /// </summary>
-    /// <remarks>
-    ///     The path is written twice on purpose: the loose-file branch reads it out of the scratch
-    ///     buffer, and the descriptor's own <c>FilePath</c> is what the rest of the client reports the
-    ///     file as. The scratch buffer is on the stack, which is sound because the call below
-    ///     completes before this frame goes away — asynchronous reads copy what they need out first.
-    /// </remarks>
     private byte Serve(
         FileThread* thread, FileDescriptor* descriptor, int priority, bool isSync, string local, bool font, bool layout)
     {
@@ -442,14 +379,9 @@ internal sealed unsafe class ExdRedirector : IDisposable
         descriptor->FileMode = FileMode.LoadUnpackedResource;
 
         // Trace each font and layout read, and the first page reads.
-        var trace = font || layout || this.reported < 5;
+        var trace = font || layout || Interlocked.Increment(ref this.reported) <= 5;
         if (trace)
         {
-            if (!font && !layout)
-            {
-                this.reported++;
-            }
-
             Diagnostics.Log(this.log, "Attempting '{Path}' from disk ({Sync}).", local, isSync ? "sync" : "async");
         }
 
@@ -479,7 +411,6 @@ internal sealed unsafe class ExdRedirector : IDisposable
     }
 
     /// <summary>True if the requested path starts with <see cref="PackContents.FontPrefix" />, in any case.</summary>
-    /// <remarks>ASCII case folding by hand, on the raw bytes. This runs for every file the client reads.</remarks>
     private static bool IsFontPath(ReadOnlySpan<byte> name)
     {
         if (name.Length <= FontPrefix.Length)
@@ -505,7 +436,6 @@ internal sealed unsafe class ExdRedirector : IDisposable
     }
 
     /// <summary>True if the path starts with a drive letter and a colon, or with a separator.</summary>
-    /// <remarks>Only our own redirections, and Penumbra's, put such a path in a resource handle.</remarks>
     private static bool IsRooted(ReadOnlySpan<byte> name) =>
         (name.Length >= 1 && name[0] is (byte)'/' or (byte)'\\')
         || (name.Length >= 2
@@ -562,11 +492,6 @@ internal sealed unsafe class ExdRedirector : IDisposable
     /// <summary>
     ///     The font to swap in for a requested resource, or null to leave the request alone.
     /// </summary>
-    /// <remarks>
-    ///     This is Penumbra's route. The resource must be created under the rooted path and its
-    ///     hash, so the client treats it as a loose file from the start. A redirection at read time
-    ///     only is not enough for a texture: see <see cref="TextureLoader" />.
-    /// </remarks>
     private FontEntry? FontFor(CStringPointer path, void* parameters)
     {
         try
@@ -634,7 +559,6 @@ internal sealed unsafe class ExdRedirector : IDisposable
     }
 
     /// <summary>The patch the client is running, from <c>ffxivgame.ver</c> beside the executable.</summary>
-    /// <remarks>The same file the pack builder stamps from, so both sides of the comparison share a source.</remarks>
     internal static string? RunningGameVersion()
     {
         try

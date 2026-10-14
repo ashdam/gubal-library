@@ -9,13 +9,16 @@ namespace GubalLibrary;
 internal readonly record struct PackPage(string GamePath, string LocalPath, string Sheet);
 
 /// <param name="Sheets">Only the sheets of this part that the installed pack actually holds.</param>
-internal sealed record PartView(TranslationPart Part, string[] Sheets);
+internal sealed record PartView(TranslationPart Part, string[] Sheets)
+{
+    public string SheetList { get; } = string.Join(", ", Sheets);
+}
 
 /// <param name="Description">Where this lot is seen in the game.</param>
 /// <param name="Warning">The group's own caveat, or null when it has none.</param>
 /// <param name="Image">Before-and-after picture for this group, or null when none was taken.</param>
 internal sealed record GroupView(
-    string Name, string Description, string? Warning, PartView[] Parts, string? Image);
+    string Id, string Name, string Description, string? Warning, PartView[] Parts, string? Image);
 
 /// <summary>
 ///     What an installed language pack holds, read once and kept.
@@ -300,7 +303,7 @@ internal sealed class PackContents
             if (parts.Count > 0)
             {
                 groups.Add(new GroupView(
-                    group.Name, group.Description, group.Warning, parts.ToArray(), group.Image));
+                    group.Id, group.Name, group.Description, group.Warning, parts.ToArray(), group.Image));
             }
         }
 
@@ -309,19 +312,17 @@ internal sealed class PackContents
             .Order(StringComparer.OrdinalIgnoreCase)
             .Select(s => new PartView(
                 new TranslationPart(
-                    s,
-                    Loc.Localize("Group.Other.PartDesc", "This build of the plugin has no name for this one."),
+                    "sheet:" + s, s,
+                    Loc.Localize("Group.Other.PartDesc", "This sheet has no assigned localization category."),
                     [s]), [s]))
             .ToArray();
 
         if (unknown.Length > 0)
         {
             groups.Add(new GroupView(
-                PackParts.OtherGroupName,
+                "uncategorized", PackParts.UncategorizedGroupName,
                 Loc.Localize("Group.Other.Tooltip",
-                    "Text this pack translates that this build of the plugin has no name for, listed "
-                    + "under the game's own name for it. A pack in another language may well cover "
-                    + "things this one does not."),
+                    "Sheets with no assigned localization category."),
                 null,
                 unknown,
                 null));

@@ -1,13 +1,4 @@
-<!--
-  No version on the SDK: it lives in global.json under msbuild-sdks. That is where MSBuild wants it
-  ("do not specify a version in your projects if a version is specified in the global.json file"),
-  and it is the only place Dependabot can see it, which is what gets the API level bumped at all.
-
-  The SDK version IS the published API level. DalamudPackager carries it as a constant and the SDK
-  pins which DalamudPackager gets used, so nothing in the build reads the installed Dalamud. Move
-  this pin or the plugin keeps declaring an old level forever, and Dalamud stops offering updates:
-  it requires the levels to match exactly.
--->
+<!-- The SDK version is set in global.json and determines the published Dalamud API level. -->
 <Project Sdk="Dalamud.NET.Sdk">
 
   <PropertyGroup>
@@ -16,7 +7,7 @@
     <Platforms>x64</Platforms>
     <AssemblyName>GubalLibrary</AssemblyName>
     <RootNamespace>GubalLibrary</RootNamespace>
-    <Version>0.6.0.0</Version>
+    <Version>0.6.1.0</Version>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
@@ -29,32 +20,6 @@
     <DefineConstants>$(DefineConstants);GUBAL_USAGE_LOCAL</DefineConstants>
   </PropertyGroup>
 
-  <!--
-    No translations are bundled, by design, and there is no longer even a sample.
-
-    A language pack is tens of MB across thousands of files, is derived from the game's own data,
-    and is regenerated whenever the game is patched, so it ships neither in the repository nor in
-    the distribution zip. The user points the plugin at a folder.
-
-    There used to be a two-line sample here, so that a correct install could be told from a broken
-    one. It went with the injection engine it was for: the file route cannot demonstrate itself on
-    two lines, because it only shows anything after a restart, and the settings window now answers
-    the same question directly by reporting how many reads have actually been served.
-
-    The screenshots below are not an exception to that: they are pictures OF a translation, not a
-    translation, and they are what the Localization settings tab shows when you hover a group. Two per
-    group, the same window with the part switched off and switched on, and with no caption inside
-    them, because the captions are drawn by the window and should stay editable.
-
-    They must never contain other players' names or chat. These are photographs of a live server.
-    The frames they are cut from are not in this repository for the same reason; see .gitignore.
-  -->
-
-  <!--
-    CheapLoc is the localization library Dalamud uses for its own interface, and it ships beside
-    Dalamud rather than as a package: referenced from the loader's own folder, and not copied, so a
-    plugin never carries a second copy of something the host already loaded.
-  -->
   <ItemGroup>
     <Reference Include="CheapLoc">
       <HintPath>$(DalamudLibPath)CheapLoc.dll</HintPath>
@@ -62,22 +27,15 @@
     </Reference>
   </ItemGroup>
 
+  <!-- Screenshots must not contain other players' names or chat. -->
   <ItemGroup>
     <EmbeddedResource Include="images\icon.png" />
     <EmbeddedResource Include="images\tooltips\*.png" />
-    <EmbeddedResource Include="images\example7.png" LogicalName="GubalLibrary.images.tooltips.codex-on.png" />
+    <EmbeddedResource Include="images\example7.png" LogicalName="GubalLibrary.images.tooltips.codex.png" />
     <EmbeddedResource Include="images\flags\*.png" />
     <EmbeddedResource Include="images\expansions\*.jpg" />
   </ItemGroup>
 
-  <!--
-    The settings window's own words, one file per language, in the format CheapLoc reads. English is
-    the fallback written beside every key in the code; loc/en.json is what Loc.ExportLocalizable writes from
-    them, kept as the key list a translation starts from. See Language.cs.
-
-    Only languages Dalamud can actually be set to are worth adding — its list is de, ja, fr, it, es,
-    ko, no, ru, zh, tw and English, so a file for anything else would never be chosen by anybody.
-  -->
   <ItemGroup>
     <EmbeddedResource Include="loc\*.json" LogicalName="GubalLibrary.loc.%(Filename)%(Extension)" />
   </ItemGroup>

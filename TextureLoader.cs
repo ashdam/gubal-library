@@ -10,20 +10,6 @@ namespace GubalLibrary;
 /// <summary>
 ///     Makes the client accept a texture that comes from disk instead of from its archives.
 /// </summary>
-/// <remarks>
-///     <para>
-///         A texture resource is not loaded like a page. On load, the client checks the file's
-///         CRC-64 with its RSF service, and a file it does not know fails the load. The client
-///         waits on a failed font texture and does not enter the world.
-///     </para>
-///     <para>
-///         This is Penumbra's answer, for our files only. The CRC check is hooked to say "unknown"
-///         for our textures and to flag the thread. The load function is hooked to see the flag
-///         after the failed load, and to call the client's own local-file texture loader instead.
-///         All five patterns are Penumbra's. If one of them is not found, fonts are refused at
-///         load and the pages are served as usual.
-///     </para>
-/// </remarks>
 internal sealed unsafe class TextureLoader : IDisposable
 {
     private const string CheckFileStateSignature = "E8 ?? ?? ?? ?? 48 85 C0 74 ?? 4C 8B C8 44 0F B6 C5";
@@ -38,6 +24,7 @@ internal sealed unsafe class TextureLoader : IDisposable
 
     private const string LodConfigSignature = "48 8B 05 ?? ?? ?? ?? B3";
 
+    private readonly ResourceScope resources;
     private readonly IPluginLog log;
     private readonly HashSet<ulong> ours;
     private readonly Hook<CheckFileStateDelegate> checkFileState;
@@ -66,10 +53,20 @@ internal sealed unsafe class TextureLoader : IDisposable
         this.updateCategory = (delegate* unmanaged<TextureResourceHandle*, void>)updateCategory;
         this.lodConfig = lodConfig;
 
-        this.checkFileState = interop.HookFromAddress<CheckFileStateDelegate>(checkFileState, this.CheckFileStateDetour);
-        this.onLoad = interop.HookFromAddress<TexHandleOnLoadDelegate>(onLoad, this.OnLoadDetour);
-        this.checkFileState.Enable();
-        this.onLoad.Enable();
+        this.resources = new ResourceScope(log);
+        this.resources.Own(this.failedOnPurpose);
+        try
+        {
+            this.checkFileState = this.resources.Own(interop.HookFromAddress<CheckFileStateDelegate>(checkFileState, this.CheckFileStateDetour));
+            this.onLoad = this.resources.Own(interop.HookFromAddress<TexHandleOnLoadDelegate>(onLoad, this.OnLoadDetour));
+            this.checkFileState.Enable();
+            this.onLoad.Enable();
+        }
+        catch
+        {
+            this.resources.Dispose();
+            throw;
+        }
     }
 
     private delegate nint CheckFileStateDelegate(nint service, ulong crc64);
@@ -128,17 +125,9 @@ internal sealed unsafe class TextureLoader : IDisposable
         }
     }
 
-    public void Dispose()
-    {
-        this.onLoad.Disable();
-        this.onLoad.Dispose();
-        this.checkFileState.Disable();
-        this.checkFileState.Dispose();
-        this.failedOnPurpose.Dispose();
-    }
+    public void Dispose() => this.resources.Dispose();
 
     /// <summary>The client's file key: CRC-32 of the folder in the high word, CRC-32 of the name in the low word, both lower case.</summary>
-    /// <remarks>The same key the archive index uses. See <see cref="GubalLumina" />.</remarks>
     private static ulong Crc64(string rootedPath)
     {
         var lower = rootedPath.ToLowerInvariant();
