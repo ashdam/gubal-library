@@ -9,29 +9,12 @@ using Dalamud.Plugin.Services;
 
 namespace GubalLibrary;
 
-/// <summary>
-///     Hands the game pre-translated Excel pages so it draws another language through its own
-///     text pipeline.
-/// </summary>
-/// <remarks>
-///     Reports startup usage and fetches pack updates; translation happens offline
-///     in a separate pipeline. <b>The file route, never UI injection.</b> Intercepting what the game
-///     is about to draw and swapping the text in a node cannot reach the sheets the client reads at
-///     boot, and costs thousands of lines to get that far.
-/// </remarks>
 public sealed class Plugin : IDalamudPlugin
 {
     private const string CommandName = "/gubal";
 
-    /// <summary>Identifies this plugin's one chat link. Scoped to the plugin, so any value will do.</summary>
     private const uint OpenConfigLinkId = 1;
 
-    /// <summary>How long the startup update may hold the game's boot before it is abandoned.</summary>
-    /// <remarks>
-    ///     A ceiling, not an expectation: what it bounds is a host that accepts the connection and
-    ///     then says nothing. Without it the ten-minute download timeout would be how long somebody's
-    ///     game sits at a black screen.
-    /// </remarks>
     private static readonly TimeSpan BootUpdateBudget = TimeSpan.FromMinutes(2);
 
     private readonly IChatGui chat;
@@ -48,25 +31,19 @@ public sealed class Plugin : IDalamudPlugin
     private readonly DialogueCodex dialogueCodex;
     private readonly IDalamudPluginInterface pluginInterface;
 
-    /// <summary>Not readonly: it is withdrawn again when the archive turns out to have failed, rather
-    /// than leave the client translated while every plugin reads the game own text.</summary>
     private ExdRedirector? redirector;
     private readonly string? redirectorError;
 
-    /// <summary>Whether the pack reached Dalamud and where from, or null when none was asked for.
-    /// Shown in the settings window: a silent success here looks the same as a silent failure.</summary>
     private readonly ShadowState? shadow;
 
-    /// <summary>Said once. A login happens on every zone change to a new world, and saying the same
-    /// thing every time somebody switches character is noise.</summary>
     private bool shadowAnnounced;
 
     private readonly PackInstaller installer;
+    private readonly PackOperations operations = null!;
+    private volatile bool disposed;
 
-    /// <summary>The installed pack's contents, read once per pack rather than once per frame.</summary>
     private PackContents? contents;
 
-    /// <summary>Which folder <see cref="contents" /> was read from, so a change is noticed.</summary>
     private string contentsPath = string.Empty;
 
     private string? manifestPath;
@@ -76,35 +53,17 @@ public sealed class Plugin : IDalamudPlugin
     private readonly IGameInteropProvider interop;
     private readonly WindowSystem windows = new("GubalLibrary");
 
-    /// <summary>Makes the words "open the settings" in the chat announcement clickable.</summary>
     private readonly DalamudLinkPayload openConfigLink;
 
-    /// <summary>What the background check made of the pack's declared update address.</summary>
     private UpdateStatus update;
 
-    /// <summary>The version taken during startup, or null when nothing was.</summary>
-    /// <remarks>
-    ///     Worth a line of chat precisely because there is nothing to do about it: a translation that
-    ///     silently improves is indistinguishable from one that silently broke unless it is said.
-    /// </remarks>
     private readonly string? bootUpdate;
 
-    /// <summary>Whether that line has been said, so a character change does not repeat it.</summary>
     private bool bootUpdateAnnounced;
 
-    /// <summary>True while a check is in flight, so a second one is not started on top of it.</summary>
-    /// <remarks>
-    ///     Every caller that sets it runs on the game's own thread; only the worker clears it, from a
-    ///     background thread, which is what <c>volatile</c> is for.
-    /// </remarks>
-    private volatile bool checking;
+    private bool checking;
 
-    /// <summary>The version already said out loud, so it is said once rather than once per login.</summary>
-    /// <remarks>
-    ///     Keyed on the version rather than a bare flag: switching character is a logout and a login,
-    ///     so a per-session flag would either repeat the line every alt or swallow a newer version.
-    /// </remarks>
-    private volatile string? announcedVersion;
+    private string? announcedVersion;
 
     public Plugin(
         IDalamudPluginInterface pluginInterface,
@@ -120,8 +79,6 @@ public sealed class Plugin : IDalamudPlugin
         IAddonLifecycle addonLifecycle,
         IPluginLog log)
     {
-        // Before anything else reads a string: CheapLoc answers "#Key" rather than the English
-        // fallback for an assembly it has not been set up for.
         Language.Apply(pluginInterface.UiLanguage, log);
 
         this.pluginInterface = pluginInterface;
@@ -132,132 +89,135 @@ public sealed class Plugin : IDalamudPlugin
         this.clientState = clientState;
         this.framework = framework;
 
-        this.config = pluginInterface.GetPluginConfig() as Configuration ?? new Configuration();
-
-        // Configs written before the field: nothing but installing wrote either, so the recorded
-        // source is the one it came from.
-        if (this.config.LanguagePackPath.Length > 0 && this.config.InstalledFrom.Length == 0)
+        try
         {
-            this.config.InstalledFrom = this.config.PackSource;
-        }
+            this.config = pluginInterface.GetPluginConfig() as Configuration ?? new Configuration();
 
-        // Same, for the folder that used to share PackSource. A source that is neither a link nor an
-        // archive is a folder somebody pointed at.
-        if (this.config.OwnPackFolder.Length == 0
-            && this.config.PackSource.Length > 0
-            && !PackInstaller.IsRemote(this.config.PackSource)
-            && !this.config.PackSource.Trim().EndsWith(".zip", StringComparison.OrdinalIgnoreCase))
-        {
-            this.config.OwnPackFolder = this.config.PackSource;
-        }
-
-        Directory.CreateDirectory(pluginInterface.GetPluginConfigDirectory());
-
-        // First, because what it measures is how early this plugin runs: anything queued ahead of it
-        // would be measuring itself.
-        this.interop = interop;
-        Diagnostics.Enabled = this.config.Debug;
-        this.probe = this.config.Debug ? new SqPackProbe(interop, log) : null;
-
-        this.installer = new PackInstaller(log, pluginInterface.GetPluginConfigDirectory());
-
-        // Before the redirector, and blocking, which is the point: what is fetched has to be on disk
-        // before the pages are enumerated, or it is a generation too late.
-        this.bootUpdate = this.UpdateBeforeTheGameReads(log);
-
-        // SERVING THE PACK MEANS SERVING IT TO BOTH, or serving nothing. A pack that reaches the
-        // screen and not Dalamud leaves every installed plugin comparing the game's own words against
-        // translated ones, and the only repair for what that breaks is a pull request against every
-        // plugin that ever wrote a string into its source. So there is no half: either both routes go
-        // in or neither does.
-        if (this.config.ServeLanguagePack && this.config.LanguagePackPath.Length > 0)
-        {
-            // Installed in the constructor and nowhere else — the whole reason the route works. The
-            // client reads its sheets about two seconds after plugins load and keeps them for the
-            // session, so a redirection put in place later is invisible for what it read.
-            (this.redirector, this.redirectorError) = ExdRedirector.Create(
-                interop,
-                sigScanner,
-                log,
-                this.config.LanguagePackPath,
-                this.Contents(),
-                this.config.DisabledSheets,
-                this.config.LifestreamCompatibility,
-                data,
-                Path.Combine(pluginInterface.GetPluginConfigDirectory(), "compatibility-cache"),
-                () => DalamudBootWait.IsOn(pluginInterface) is true);
-
-            if (this.redirectorError is { Length: > 0 } error)
+            if (this.config.LanguagePackPath.Length > 0 && this.config.InstalledFrom.Length == 0)
             {
-                log.Warning("Translated pages are not being served: {Error}", error);
+                this.config.InstalledFrom = this.config.PackSource;
             }
 
-            // Only packs accepted for the game can be served to other plugins.
-            if (this.redirector is not null)
+            if (this.config.OwnPackFolder.Length == 0
+                && this.config.PackSource.Length > 0
+                && !PackInstaller.IsRemote(this.config.PackSource)
+                && !this.config.PackSource.Trim().EndsWith(".zip", StringComparison.OrdinalIgnoreCase))
             {
-                this.shadow = GubalLumina.Install(
-                    data,
-                    this.redirector.ServedPages,
-                    GubalLumina.Folder(pluginInterface.GetPluginConfigDirectory()),
-                    log);
+                this.config.OwnPackFolder = this.config.PackSource;
+            }
 
-                if (!this.shadow.Ok)
+            Directory.CreateDirectory(pluginInterface.GetPluginConfigDirectory());
+
+            this.interop = interop;
+            Diagnostics.Enabled = this.config.Debug;
+            this.probe = this.config.Debug ? new SqPackProbe(interop, log) : null;
+
+            this.installer = new PackInstaller(log, pluginInterface.GetPluginConfigDirectory());
+
+            if (pluginInterface.Reason == PluginLoadReason.Boot && DalamudBootWait.IsOn(pluginInterface) is true)
+            {
+                var activated = this.installer.ActivatePending(this.config, this.SaveConfig);
+                if (activated is { Success: false } failure)
+                    log.Warning("The pending pack was not activated: {Error}", failure.Error ?? "Unknown activation error.");
+                else if (activated is { Success: true, Manifest: { } manifest })
+                    this.bootUpdate = manifest.TranslationVersion;
+            }
+            if (!this.installer.HasPending)
+                this.bootUpdate = this.UpdateBeforeTheGameReads(log) ?? this.bootUpdate;
+
+            if (this.config.ServeLanguagePack && this.config.LanguagePackPath.Length > 0)
+            {
+                // Install before the client caches its Excel pages.
+                (this.redirector, this.redirectorError) = ExdRedirector.Create(
+                    interop,
+                    sigScanner,
+                    log,
+                    this.config.LanguagePackPath,
+                    this.Contents(),
+                    this.config.DisabledSheets,
+                    this.config.LifestreamCompatibility,
+                    data,
+                    Path.Combine(pluginInterface.GetPluginConfigDirectory(), "compatibility-cache"),
+                    () => DalamudBootWait.IsOn(pluginInterface) is true);
+
+                if (this.redirectorError is { Length: > 0 } error)
                 {
-                    this.redirector.Dispose();
-                    this.redirector = null;
-                    log.Warning("[shadow] the pack was withdrawn from the client too, rather than serve half");
+                    log.Warning("Translated pages are not being served: {Error}", error);
                 }
 
-                Diagnostics.Log(log, $"[shadow] {this.shadow.Message} [{this.shadow.Folder}]");
+                // Only packs accepted for the game can be served to other plugins.
+                if (this.redirector is not null)
+                {
+                    this.shadow = GubalLumina.Install(
+                        data,
+                        this.redirector.ServedPages,
+                        GubalLumina.Folder(pluginInterface.GetPluginConfigDirectory()),
+                        log);
+
+                    // The game and other plugins must receive the same selected pages.
+                    if (!this.shadow.Ok)
+                    {
+                        this.redirector.Dispose();
+                        this.redirector = null;
+                        log.Warning("[shadow] the pack was withdrawn from the client too, rather than serve half");
+                    }
+
+                    Diagnostics.Log(log, $"[shadow] {this.shadow.Message} [{this.shadow.Folder}]");
+                }
             }
+
+            this.dialogueCodex = new DialogueCodex(this.config, data, gameGui, clientState,
+                addonLifecycle, framework, log, sigScanner, pluginInterface.UiBuilder);
+
+            this.operations = new PackOperations(this.installer, framework, log);
+            this.configWindow = new ConfigWindow(
+                this.config,
+                this.SaveConfig,
+                this.fileDialogs,
+                this.PageSnapshot,
+                this.Contents,
+                textures,
+                data,
+                gameGui,
+                this.operations,
+                this.OnPackPrepared,
+                () => this.BeginUpdateCheck(verbose: false),
+                this.SetAutoUpdate,
+                () => DalamudBootWait.IsOn(this.pluginInterface),
+                () => pluginInterface.OpenDalamudSettingsTo(SettingsOpenKind.General),
+                () => this.shadow,
+                pluginInterface.Manifest.AssemblyVersion.ToString(),
+                pluginInterface.IsDev,
+                () => this.clientState.IsLoggedIn);
+
+            this.configWindow.ConfigureDevPreview(addonLifecycle);
+            this.windows.AddWindow(this.configWindow);
+
+            this.openConfigLink = chat.AddChatLinkHandler(OpenConfigLinkId, (_, _) => this.OpenConfig());
+
+            this.clientState.Login += this.OnLogin;
+            pluginInterface.LanguageChanged += this.OnLanguageChanged;
+
+            this.BeginUpdateCheck(verbose: false);
+
+            this.commands.AddHandler(CommandName, new CommandInfo(this.OnCommand)
+            {
+                HelpMessage = "Open settings. See the plugin description for subcommands.",
+            });
+
+            pluginInterface.UiBuilder.Draw += this.DrawUi;
+            pluginInterface.UiBuilder.DisableCutsceneUiHide = true;
+            pluginInterface.UiBuilder.OpenConfigUi += this.OpenConfig;
+            pluginInterface.UiBuilder.OpenMainUi += this.OpenConfig;
+
+            this.ReportStartupUsage();
         }
-
-        this.dialogueCodex = new DialogueCodex(this.config, data, gameGui, clientState,
-            addonLifecycle, framework, log, sigScanner, pluginInterface.UiBuilder);
-
-        this.configWindow = new ConfigWindow(
-            this.config,
-            this.SaveConfig,
-            this.fileDialogs,
-            this.PageSnapshot,
-            this.Contents,
-            textures,
-            data,
-            gameGui,
-            this.installer,
-            this.OnPackInstalled,
-            () => this.BeginUpdateCheck(verbose: false),
-            this.SetAutoUpdate,
-            () => DalamudBootWait.IsOn(this.pluginInterface),
-            () => pluginInterface.OpenDalamudSettingsTo(SettingsOpenKind.General),
-            () => this.shadow,
-            pluginInterface.Manifest.AssemblyVersion.ToString(),
-            pluginInterface.IsDev,
-            () => this.clientState.IsLoggedIn);
-
-        this.configWindow.ConfigureDevPreview(addonLifecycle);
-        this.windows.AddWindow(this.configWindow);
-
-        this.openConfigLink = chat.AddChatLinkHandler(OpenConfigLinkId, (_, _) => this.OpenConfig());
-
-        // Announced when the check finishes, or at the next login if that is later: loaded at boot the
-        // answer arrives at the title screen, where chat goes nowhere.
-        this.clientState.Login += this.OnLogin;
-        pluginInterface.LanguageChanged += this.OnLanguageChanged;
-
-        this.BeginUpdateCheck(verbose: false);
-
-        this.commands.AddHandler(CommandName, new CommandInfo(this.OnCommand)
+        catch
         {
-            HelpMessage = "Open settings. See the plugin description for subcommands.",
-        });
-
-        pluginInterface.UiBuilder.Draw += this.DrawUi;
-        pluginInterface.UiBuilder.DisableCutsceneUiHide = true;
-        pluginInterface.UiBuilder.OpenConfigUi += this.OpenConfig;
-        pluginInterface.UiBuilder.OpenMainUi += this.OpenConfig;
-
-        this.ReportStartupUsage();
+            try { this.Dispose(); }
+            catch (Exception cleanupError) { log.Error(cleanupError, "Could not release all plugin resources after initialization failed."); }
+            throw;
+        }
     }
 
     private void ReportStartupUsage()
@@ -309,11 +269,6 @@ public sealed class Plugin : IDalamudPlugin
         }
     }
 
-    /// <summary>Draws the window set, then the file picker.</summary>
-    /// <remarks>
-    ///     The picker must be drawn outside any Begin/End pair, so it cannot live inside
-    ///     <see cref="ConfigWindow" />.Draw.
-    /// </remarks>
     private void DrawUi()
     {
         this.dialogueCodex.DrawLinks();
@@ -327,28 +282,36 @@ public sealed class Plugin : IDalamudPlugin
 
     public void Dispose()
     {
-        this.usageCancellation.Cancel();
-        if (this.usageTask is { } pendingUsage)
-            _ = pendingUsage.ContinueWith(_ => this.usageCancellation.Dispose(), TaskScheduler.Default);
-        else
-            this.usageCancellation.Dispose();
-        this.pluginInterface.UiBuilder.Draw -= this.DrawUi;
-        this.pluginInterface.UiBuilder.OpenConfigUi -= this.OpenConfig;
-        this.pluginInterface.UiBuilder.OpenMainUi -= this.OpenConfig;
+        if (this.disposed) return;
+        this.disposed = true;
+        try
+        {
+            this.operations?.Dispose();
+            this.usageCancellation.Cancel();
+            if (this.usageTask is { } pendingUsage)
+                _ = pendingUsage.ContinueWith(_ => this.usageCancellation.Dispose(), TaskScheduler.Default);
+            else
+                this.usageCancellation.Dispose();
+            this.pluginInterface.UiBuilder.Draw -= this.DrawUi;
+            this.pluginInterface.UiBuilder.OpenConfigUi -= this.OpenConfig;
+            this.pluginInterface.UiBuilder.OpenMainUi -= this.OpenConfig;
 
-        this.clientState.Login -= this.OnLogin;
-        this.pluginInterface.LanguageChanged -= this.OnLanguageChanged;
-        this.chat.RemoveChatLinkHandler();
+            this.clientState.Login -= this.OnLogin;
+            this.pluginInterface.LanguageChanged -= this.OnLanguageChanged;
+            this.chat.RemoveChatLinkHandler();
 
-        this.commands.RemoveHandler(CommandName);
-        this.fileDialogs.Reset();
-        this.dialogueCodex.Dispose();
+            this.commands.RemoveHandler(CommandName);
+            this.fileDialogs.Reset();
+            this.dialogueCodex?.Dispose();
 
-        this.redirector?.Dispose();
-        this.probe?.Dispose();
-
-        this.configWindow.DisposeDevPreview();
-        this.windows.RemoveAllWindows();
+            this.configWindow?.DisposeDevPreview();
+            this.windows.RemoveAllWindows();
+        }
+        finally
+        {
+            this.redirector?.Dispose();
+            this.probe?.Dispose();
+        }
     }
 
     private void OnCommand(string command, string arguments)
@@ -363,14 +326,10 @@ public sealed class Plugin : IDalamudPlugin
                 this.PrintStatus();
                 break;
 
-            // Reports only. There is no subcommand to switch a part on or off: the window does that,
-            // and a second way to write the same setting is a second way for it to disagree.
             case "parts":
                 this.PrintParts();
                 break;
 
-            // Verbose, unlike the check at load: somebody who asked is owed an answer even when it is
-            // "nothing to do", and a command that prints nothing reads as one that did nothing.
             case "check":
                 this.chat.Print(this.BeginUpdateCheck(verbose: true)
                     ? "[Gubal]Asking whether a newer language pack is published..."
@@ -378,9 +337,6 @@ public sealed class Plugin : IDalamudPlugin
                     : "[Gubal]A check is already running, and /gubal shows what it comes back with.");
                 break;
 
-            // Exists so recovering from a bad run needs no text editor: the route detours the function
-            // every file goes through, so getting it wrong is a crashed client — and a crashed client
-            // cannot be used to turn it off.
             case "usepack":
                 this.config.ServeLanguagePack = !this.config.ServeLanguagePack;
                 this.SaveConfig(this.config);
@@ -398,8 +354,6 @@ public sealed class Plugin : IDalamudPlugin
                     break;
                 }
 
-                // Said even when it worked, because it changes a setting that is not this plugin's and
-                // that governs how every plugin loads.
                 this.chat.Print(DalamudBootWait.IsOn(this.pluginInterface) is true
                     ? "[Gubal]Startup updates ON. Dalamud will hold the game's start while a newer pack is fetched."
                     : "[Gubal]Startup updates ON, but Dalamud is not waiting for plugins before the game loads "
@@ -442,8 +396,6 @@ public sealed class Plugin : IDalamudPlugin
             this.chat.Print(
                 $"[Gubal]{pages.PageCount:N0} page(s), built for game {pack.GameVersion ?? "unknown"}.");
 
-            // The number that separates "loaded" from "working": a route installed too late to matter
-            // reports the two lines above identically.
             this.chat.Print($"[Gubal]{pages.ServedCount:N0} read(s) answered from disk this session.");
 
             if (pages.FontCount > 0)
@@ -452,8 +404,6 @@ public sealed class Plugin : IDalamudPlugin
                     $"[Gubal]{pages.FontsServedCount:N0} of {pages.FontCount:N0} font file(s) served from the pack.");
             }
 
-            // One command away, because it is the first thing to rule out when a plugin misbehaves.
-            // The folder is named because 100 MB somebody cannot find is 100 MB they cannot delete.
             this.chat.Print(this.shadow is { Ok: true } served
                 ? $"[Gubal]Other plugins read the pack too, from {served.Folder}."
                 : $"[Gubal]Other plugins read the game{(char)39}s own text: {this.shadow?.Message ?? "no pack is being served"}.");
@@ -471,11 +421,6 @@ public sealed class Plugin : IDalamudPlugin
             $"[Gubal]No pages served. {pages.Error ?? "no language pack configured."}");
     }
 
-    /// <summary>Lists the parts of the translation and whether each is being served.</summary>
-    /// <remarks>
-    ///     Grouped rather than one checkbox at a time: nineteen lines of chat to answer "is the
-    ///     interface translated" would bury the answer in the question.
-    /// </remarks>
     private void PrintParts()
     {
         var pack = this.Contents();
@@ -507,14 +452,6 @@ public sealed class Plugin : IDalamudPlugin
         }
     }
 
-    /// <summary>What the installed pack holds, read from disk the first time and kept.</summary>
-    /// <remarks>
-    ///     Cached here rather than in the window because both need it and only one can afford to read
-    ///     it: the window calls this every frame and a pack is four thousand files. The path is
-    ///     compared each time, so pointing at a different folder is noticed. Read even when nothing is
-    ///     served — somebody choosing parts is usually looking at a pack that is off, or waiting for a
-    ///     restart.
-    /// </remarks>
     private PackContents Contents()
     {
         var path = this.config.LanguagePackPath;
@@ -528,12 +465,6 @@ public sealed class Plugin : IDalamudPlugin
         return this.contents;
     }
 
-    /// <summary>What the settings window and <c>/gubal status</c> report about the file route.</summary>
-    /// <remarks>
-    ///     Both counts, deliberately: pages registered says the folder was read, reads answered says
-    ///     the game is taking them, and only the second distinguishes a working route from one
-    ///     installed too late to matter.
-    /// </remarks>
     private PageStatus PageSnapshot()
     {
         return this.redirector is { } r
@@ -542,74 +473,37 @@ public sealed class Plugin : IDalamudPlugin
             : new PageStatus(false, 0, 0, 0, 0, this.redirectorError, this.InstalledManifest(), this.update);
     }
 
-    /// <summary>
-    ///     Called when a pack has just been installed, which invalidates what was known about updates.
-    /// </summary>
-    /// <remarks>
-    ///     The check ran against the pack being served, so once a different one is on disk that answer
-    ///     describes something on its way out — including, in the case that prompted this, a red "no
-    ///     connection" complaint left on screen after a successful install. Cleared rather than
-    ///     recomputed: the new pack is not served until the client restarts, so the honest thing to
-    ///     report about it is nothing.
-    /// </remarks>
-    private void OnPackInstalled()
+    private void OnPackPrepared()
     {
-        this.update = default;
-
-        // Dropped rather than reloaded: the folder may be the same one, so nothing else would notice
-        // it had changed underneath. The window rebuilds it on its next frame.
-        this.contents = null;
-        this.manifestPath = null;
-
-        // In chat as well as the window, because the window is where the person just was and chat is
-        // where they will be.
-        this.chat.Print("[Gubal]Language pack installed. RESTART THE GAME. The game reads its text once at startup.");
+        this.chat.Print("[Gubal]Language pack prepared. Restart the game to activate it.");
     }
 
-    /// <summary>
-    ///     Asks, in the background, whether the publisher has a newer generation.
-    /// </summary>
-    /// <remarks>
-    ///     Nothing is downloaded and nothing changed: it sets a field the window reads and may print
-    ///     one line of chat, because updating means replacing thousands of files and restarting.
-    ///     Never awaited — it reaches the network, and anywhere on the constructor's path it would
-    ///     spend the startup margin the whole design rests on.
-    /// </remarks>
-    /// <param name="verbose">Report every outcome in chat, not only a newer version.</param>
-    /// <returns>False when one was already running, so nothing new was started.</returns>
     private bool BeginUpdateCheck(bool verbose)
     {
-        if (this.checking)
+        if (this.disposed || this.checking)
         {
             return false;
         }
 
         this.checking = true;
 
-        // Back to Checking, the only honest thing to say while the question is open: otherwise the
-        // window keeps asserting the previous answer under a button just pressed to replace it.
         this.update = default;
 
-        _ = Task.Run(() => this.CheckForUpdateAsync(verbose));
+        var installed = this.redirector?.Manifest ?? this.InstalledManifest();
+        this.operations.Check(installed, ExdRedirector.RunningGameVersion(), result =>
+        {
+            this.update = result;
+            this.checking = false;
+            this.Announce(verbose);
+        });
         return true;
     }
 
-    /// <summary>
-    ///     Takes a newer pack during startup, while the game is still waiting for its plugins.
-    /// </summary>
-    /// <remarks>
-    ///     <b>Blocking, deliberately, and the only thing here that is.</b> Finish before the client's
-    ///     first read and the new translation is live this session rather than the next. It works only
-    ///     because Dalamud can be asked to hold the boot, which is the player's setting: with it off
-    ///     the client reads mid-download and the session loses its translation altogether, so the
-    ///     answer is checked rather than hoped for and "cannot tell" counts as no. The other
-    ///     preconditions each prevent damage done unasked — a pack the user pointed at is their folder
-    ///     to manage, and a non-URL source would re-unpack the same bytes on every boot forever.
-    /// </remarks>
-    /// <returns>The version now installed, or null when nothing was taken.</returns>
+    // Startup updates must finish while Dalamud holds the game boot.
     private string? UpdateBeforeTheGameReads(IPluginLog log)
     {
-        if (!this.config.AutoUpdatePack
+        if (this.pluginInterface.Reason != PluginLoadReason.Boot
+            || !this.config.AutoUpdatePack
             || !this.config.ServeLanguagePack
             || !PackInstaller.IsRemote(this.config.PackSource)
             || !string.Equals(
@@ -634,8 +528,6 @@ public sealed class Plugin : IDalamudPlugin
         }
         catch (Exception e)
         {
-            // Nothing below is expected to throw. This is here because the one thing that must not
-            // happen at this point is a plugin that fails to construct and takes the language with it.
             log.Error(e, "Updating the language pack during startup failed.");
             return null;
         }
@@ -682,15 +574,6 @@ public sealed class Plugin : IDalamudPlugin
         return result.Manifest?.TranslationVersion ?? "unversioned";
     }
 
-    /// <summary>
-    ///     Turns the startup update on or off, and Dalamud's boot wait along with it.
-    /// </summary>
-    /// <remarks>
-    ///     One decision from where the user sits — a box that says the game will wait and then does
-    ///     not wait is a broken box. <b>One direction only:</b> unticking leaves Dalamud alone,
-    ///     because the setting is global, governs how every plugin loads, and may have been wanted
-    ///     long before this box existed.
-    /// </remarks>
     private void SetAutoUpdate(bool value)
     {
         this.config.AutoUpdatePack = value;
@@ -703,43 +586,12 @@ public sealed class Plugin : IDalamudPlugin
         this.SaveConfig(this.config);
     }
 
-    private async Task CheckForUpdateAsync(bool verbose)
-    {
-        try
-        {
-            // From the pack rather than from the configuration: the address travels inside whatever
-            // is installed, so a publisher who moves hosts takes their existing users with them.
-            // Caching it here would undo exactly that.
-            var installed = this.redirector?.Manifest ?? this.InstalledManifest();
-
-            this.update = await this.installer.CheckForUpdateAsync(installed,
-                runningGame: ExdRedirector.RunningGameVersion()).ConfigureAwait(false);
-        }
-        finally
-        {
-            this.checking = false;
-        }
-
-        this.Announce(verbose);
-    }
-
-    /// <summary>
-    ///     Says in chat what the check found, if there is anybody there to read it.
-    /// </summary>
-    /// <remarks>
-    ///     <b>Only a newer version is announced unprompted.</b> An address that does not answer, or a
-    ///     pack that declares none, are said in the window and the log but are not worth a red line to
-    ///     somebody who has just sat down to play. Called from two places because the answer can
-    ///     arrive before the player does; <see cref="announcedVersion" /> keeps it from printing twice.
-    /// </remarks>
     private void Announce(bool verbose)
     {
         var status = this.update;
 
         if (status is { State: UpdateState.Available, Published: { TranslationVersion: { Length: > 0 } version } published })
         {
-            // Nothing at the title screen: chat does not exist there. The Login handler comes back to
-            // this the moment it does.
             if (!verbose && (version == this.announcedVersion || !this.clientState.IsLoggedIn))
             {
                 return;
@@ -755,8 +607,6 @@ public sealed class Plugin : IDalamudPlugin
             return;
         }
 
-        // The installer answers NotDeclared for both "no pack" and "a pack that names no address",
-        // which are one silence from its side and two sentences from the user's.
         var line = status.State switch
         {
             UpdateState.UpToDate => "[Gubal]The installed language pack is the latest one published.",
@@ -774,12 +624,6 @@ public sealed class Plugin : IDalamudPlugin
         }
     }
 
-    /// <summary>Redraws the window in the language Dalamud has just been switched to.</summary>
-    /// <remarks>
-    ///     The two caches have to go with it: the parts table is built out of localized strings, and
-    ///     the layout the window draws is built out of the table. Nothing else is language-dependent
-    ///     — a sheet key is the game's and does not move.
-    /// </remarks>
     private void OnLanguageChanged(string code)
     {
         Language.Apply(code, this.log);
@@ -787,7 +631,6 @@ public sealed class Plugin : IDalamudPlugin
         this.contents = null;
     }
 
-    /// <summary>Announces whatever the check found, now that there is a chat window to print into.</summary>
     private void OnLogin()
     {
         if (this.bootUpdate is { Length: > 0 } version && !this.bootUpdateAnnounced)
@@ -796,19 +639,11 @@ public sealed class Plugin : IDalamudPlugin
             this.chat.Print($"[Gubal]Language pack updated to {version} before this session started.");
         }
 
-        // Said here rather than only logged, and once. BOTH OUTCOMES ARE WORTH A LINE, and the
-        // successful one more than the failure: a player who turns this on and later meets an odd
-        // plugin has no reason to connect the two unless somebody told them. Silence on success is
-        // how a helpful feature becomes an unexplained bug report against somebody else's plugin.
         if (this.shadow is { } state && !this.shadowAnnounced)
         {
             this.shadowAnnounced = true;
             if (!state.Ok)
             {
-                // ONE MESSAGE. Two red lines in a row read as two things having gone wrong.
-                // Consequence first, then the cause. NO INSTRUCTION: nothing here is now a setting
-                // somebody can correct, so telling them to go and change one would be sending them
-                // to look for a box that does not exist. What is wanted is the report.
                 this.chat.PrintError(new SeStringBuilder()
                     .AddText($"[Gubal]Nothing is translated this session. {state.Message} ")
                     .Add(this.openConfigLink)
@@ -821,10 +656,6 @@ public sealed class Plugin : IDalamudPlugin
             }
             else
             {
-                // NOT an invitation to switch anything off — there is nothing to switch off, and the
-                // remedy for a plugin that misbehaves is to hear about it. What this line exists for
-                // is the connection: somebody who meets an odd plugin days from now has no reason to
-                // think of a translation unless it was said once, out loud, at the start.
                 this.chat.Print(new SeStringBuilder()
                     .AddText("[Gubal]Other plugins read the translation too. ")
                     .AddUiForeground(539)
@@ -838,11 +669,6 @@ public sealed class Plugin : IDalamudPlugin
         this.Announce(verbose: false);
     }
 
-    /// <summary>One line of chat, built here and printed where the game expects to be spoken to.</summary>
-    /// <remarks>
-    ///     The clickable part is what somebody will try to click anyway. Both the link and the command
-    ///     are in there, since a chat log scrolled past a link still has to be actionable.
-    /// </remarks>
     private static SeString BuildUpdateAnnouncement(PackManifest published, DalamudLinkPayload link)
     {
         var game = published.GameVersion is { Length: > 0 } built ? $", built for game {built}" : string.Empty;
@@ -858,12 +684,10 @@ public sealed class Plugin : IDalamudPlugin
             .Build();
     }
 
-    /// <summary>Prints from the game's own thread, wherever the caller happens to be.</summary>
+    // Queued callbacks must not outlive this plugin instance.
     private void Print(Action print)
     {
-        // A check outlives the plugin whenever somebody reloads it while one is in flight, which on a
-        // dev build is most of them. There is nobody left to tell, and the queue is being torn down.
-        if (this.framework.IsFrameworkUnloading)
+        if (this.disposed || this.framework.IsFrameworkUnloading)
         {
             return;
         }
@@ -874,14 +698,9 @@ public sealed class Plugin : IDalamudPlugin
             return;
         }
 
-        _ = this.framework.RunOnFrameworkThread(print);
+        _ = this.framework.RunOnFrameworkThread(() => { if (!this.disposed) print(); });
     }
 
-    /// <summary>The manifest of the configured pack when it is not being served.</summary>
-    /// <remarks>
-    ///     Someone who has turned the pack off, or installed one and not restarted, should still be
-    ///     told a newer one exists: those are the states where they are most likely to act on it.
-    /// </remarks>
     private PackManifest? InstalledManifest()
     {
         var path = this.config.LanguagePackPath;

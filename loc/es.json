@@ -1,4 +1,29 @@
 {
+  "Setup.ColAction": { "message": "Acción" },
+  "Setup.Active": { "message": "Activo" },
+  "Setup.Ready": { "message": "Preparado · Reinicio necesario" },
+  "Setup.UseEnglish": { "message": "Usar inglés" },
+  "Setup.Update": { "message": "Actualizar" },
+  "Setup.InstallTip": { "message": "Preparar este paquete de idioma para el próximo inicio del juego." },
+  "Part.Emotes.Name": { "message": "Gestos" },
+  "Part.Emotes.Tooltip": { "message": "Nombres, descripciones y categorías de gestos en su menú. Este ajuste no afecta a los comandos escritos en el chat." },
+  "Part.TextCommands.Name": { "message": "Comandos de texto" },
+  "Part.TextCommands.Tooltip": { "message": "Comandos del sistema y de gestos que se escriben en el chat." },
+  "Part.Achievements.Name": { "message": "Logros" },
+  "Part.Achievements.Tooltip": { "message": "Nombres de categorías en el menú de logros." },
+  "Part.Logs.Name": { "message": "Registros" },
+  "Part.Logs.Tooltip": { "message": "Entradas del registro de vistas, categorías del registro de desafíos y de los registros de fabricación y recolección, categorías de libros de reliquia, registro de la Isla de la Media Luna y registros de mazmorras variables." },
+  "Group.Misc.Name": { "message": "Otros" },
+  "Group.Misc.Tooltip": { "message": "Minijuegos, entregas de artesanía, contenido del adiestrador, logros, registros y entradas del códice." },
+  "Part.Jobs.Name": { "message": "Nombres de clases y oficios" },
+  "Part.Jobs.Tooltip": { "message": "Nombres de clases y oficios en todo el juego, incluidos los oficios de combate, fabricación y recolección." },
+  "Part.Traits.Name": { "message": "Rasgos" },
+  "Part.Traits.Tooltip": { "message": "Nombres y descripciones de rasgos." },
+  "Part.Status.Name": { "message": "Estados alterados" },
+  "Part.Status.Tooltip": { "message": "Nombres y descripciones de estados alterados, incluidas las acciones de compañía libre." },
+  "Group.Places.Name": { "message": "Nombres de lugares" },
+  "Group.Places.Tooltip": { "message": "Nombres que aparecen en mapas y dentro de instancias." },
+  "Parts.Sheets": { "message": "Hojas" },
   "Compatibility.Title": { "message": "Compatibilidad" },
 
   "Coverage.NoData": { "message": "Sin datos" },
@@ -13,19 +38,19 @@
   "Part.GoldSaucer.Tooltip": { "message": "Textos de los GATE, las máquinas recreativas, las carreras de chocobos, las cartas de Triple Triad, Lord of Verminion y el mahjong domano." },
 
   "Group.Other.Name": {
-    "message": "Otro texto de este language pack"
+    "message": "Sin categoría"
   },
 
-  "Group.Story.Name": { "message": "Misiones e historia" },
+  "Group.Story.Name": { "message": "Misiones" },
   "Group.Story.Tooltip": { "message": "Diálogos, objetivos y títulos de misiones y subtítulos de escenas." },
-  "Part.QuestText.Name": { "message": "Diálogos y objetivos de misiones" },
-  "Part.QuestText.Tooltip": { "message": "Conversaciones de misiones, entradas del diario, objetivos y descripciones de leves." },
+  "Part.QuestText.Name": { "message": "Diálogos y objetivos de la MSQ y las misiones" },
+  "Part.QuestText.Tooltip": { "message": "Conversaciones de misiones, entradas del diario y objetivos." },
   "Part.Cutscenes.Name": { "message": "Subtítulos de las escenas" },
   "Part.Cutscenes.Tooltip": { "message": "Traduce las líneas de subtítulos en la parte inferior de la pantalla durante las cinemáticas habladas." },
   "Part.QuestNames.Name": { "message": "Nombres de las misiones" },
   "Part.QuestNames.Tooltip": { "message": "Traduce únicamente los títulos de las misiones (en el tracker, diario y Unending Journey)." },
   "Part.Talk.Name": { "message": "Conversaciones ambientales y gritos" },
-  "Part.Talk.Tooltip": { "message": "Diálogos de NPC fuera de misiones, bocadillos y gritos, incluidos los de combate. Las conversaciones de servicios están en Menús de interfaz." },
+  "Part.Talk.Tooltip": { "message": "Diálogos de NPC fuera de misiones, bocadillos y gritos, incluidos los de combate." },
 
   "Group.Duties.Name": { "message": "Instancias y operaciones de campo" },
   "Group.Duties.Tooltip": { "message": "Objetivos, diálogos y sistemas de combate especiales de las instancias." },
@@ -36,26 +61,26 @@
   "Part.DeepDungeons.Name": { "message": "Efectos de mazmorras profundas" },
   "Part.DeepDungeons.Tooltip": { "message": "Efectos especiales que se aplican a las plantas de las mazmorras profundas." },
   "Part.DutyFinder.Name": { "message": "Nombres y descripciones de instancias" },
-  "Part.DutyFinder.Tooltip": { "message": "Entradas del buscador de instancias, nombres y descripciones de ruletas. Los menús de NPC de acceso están en Menús de interfaz." },
+  "Part.DutyFinder.Tooltip": { "message": "Entradas del buscador de instancias y nombres y descripciones de ruletas, leves, FATEs y enfrentamientos críticos. Los menús de NPC de acceso están en Menús de interfaz." },
 
   "Group.Interface.Name": { "message": "Menús de interfaz" },
   "Group.Interface.Tooltip": { "message": "Pantalla de inicio, menús principales, ventanas y servicios de NPC." },
   "Part.Interface.Name": { "message": "Otros menús de interfaz y servicios de NPC" },
-  "Part.Interface.Tooltip": { "message": "Botones, ajustes, tiendas, asistentes, viajes y menús de acceso a instancias. Incluye los menús de temas de NPC y sus diálogos y respuestas de trasfondo, porque cada hoja se activa o desactiva completa." },
+  "Part.Interface.Tooltip": { "message": "Botones, ajustes, tiendas, asistentes, compañías libres, vivienda, recolección, viajes y menús de acceso a instancias. Incluye menús de temas de NPC y sus diálogos y respuestas de trasfondo porque cada hoja se activa o desactiva entera." },
 
   "Group.Chat.Name": { "message": "Chat y mensajes del sistema" },
-  "Group.Chat.Tooltip": { "message": "Registros de combate, notificaciones y mensajes de error." },
+  "Group.Chat.Tooltip": { "message": "Mensajes de chat, diccionario de traducción automática, comandos de texto, notificaciones y errores." },
   "Part.Log.Name": { "message": "Chat y mensajes del sistema" },
-  "Part.Log.Tooltip": { "message": "Mensajes de combate, gestos, invitaciones, avisos del sistema y errores de conexión." },
+  "Part.Log.Tooltip": { "message": "Mensajes de combate, gestos, invitaciones, avisos del sistema, errores de conexión y diccionario de traducción automática." },
   "Part.Log.Warning": { "message": "Los analizadores de combate y otros plugins pueden depender de los mensajes del registro en inglés." },
   "Part.Items.Name": { "message": "Objetos" },
   "Part.Items.Tooltip": { "message": "Nombres y descripciones de objetos, incluidos los de misión, mazmorras profundas, Eureka, carreras de chocobos y Adiestrador." },
 
   "Group.Other.Tooltip": {
-    "message": "Texto que traduce este language pack y que esta versión del plugin no sabe nombrar, listado con el nombre que le da el juego. Un language pack en otro idioma puede cubrir cosas que este no."
+    "message": "Hojas sin una categoría de localización asignada."
   },
   "Group.Other.PartDesc": {
-    "message": "Esta versión del plugin no tiene nombre para esto."
+    "message": "Esta hoja no tiene una categoría de localización asignada."
   },
 
   "Tab.Pack": { "message": "Language pack" },
@@ -66,7 +91,7 @@
     "message": "No hay ningún language pack instalado."
   },
   "Parts.Intro": {
-    "message": "Desmarca una parte y vuelve al inglés en el próximo arranque. Pasa el ratón por una casilla para ver qué cubre."
+    "message": "Elige qué partes del juego quieres localizar."
   },
   "Parts.NextStart": {
     "message": "Los cambios de aquí surten efecto en el próximo arranque del juego."
@@ -81,7 +106,7 @@
     "message": "Has cambiado qué partes se traducen. El juego lee todo su texto una sola vez, al arrancar, así que esto surte efecto la próxima vez que arranque."
   },
   "Restart.Installed": {
-    "message": "El nuevo language pack está instalado, pero el juego no lo leerá hasta que vuelva a arrancar: carga todo su texto una vez, al inicio."
+    "message": "El nuevo paquete de idioma está preparado. Reinicia el juego para activarlo antes de que el juego lea sus archivos."
   },
 
   "Restart.Serving": {
@@ -158,7 +183,7 @@
     "message": "Está en la pestaña General, se llama «Wait for plugins before game loads»."
   },
 
-  "Install.Done": { "message": "Instalado {0} ({1})." },
+  "Install.Done": { "message": "Preparado {0} ({1}) para el siguiente inicio del juego." },
 
   "Help.ReportBug": { "message": "Informar de un error" },
   "Recruit.Ask": { "message": "Pregunta en GitHub Discussions" },
@@ -182,31 +207,29 @@
   "Codex.None": { "message": "No hay entradas desbloqueadas del Codex disponibles." },
   "Codex.Ready": { "message": "Listo. Abre un diálogo que mencione una entrada del Codex." },
   "Codex.Failed": { "message": "Los enlaces del Codex no están disponibles. Consulta /xllog para ver los detalles." },
-  "Part.Lore.Name": { "message": "Códice y registros de exploración" },
-  "Part.Lore.Tooltip": { "message": "El Códice perpetuo, el registro de la Isla de la Media Luna y los registros de mazmorras variables." },
+  "Part.Lore.Name": { "message": "Códice" },
+  "Part.Lore.Tooltip": { "message": "Entradas del Códice perpetuo." },
   "Group.World.Name": { "message": "Diálogos y trasfondo del mundo" },
-  "Group.World.Tooltip": { "message": "Conversaciones, bocadillos, objetos que se pueden leer y registros de trasfondo." },
+  "Group.World.Tooltip": { "message": "Conversaciones, bocadillos y objetos que se pueden leer." },
   "Part.TargetNames.Name": { "message": "Criaturas y objetos interactivos" },
-  "Part.TargetNames.Tooltip": { "message": "Nombres de mascotas, eteritas y objetos seleccionables. Los menús de viaje están en Menús de interfaz." },
+  "Part.TargetNames.Tooltip": { "message": "Nombres de mascotas, eteritas, puntos de recolección y objetos seleccionables. Los menús de viaje están en Menús de interfaz." },
   "Part.NonBattleNpcNames.Name": { "message": "Nombres de NPC fuera de combate" },
   "Part.NonBattleNpcNames.Tooltip": { "message": "Nombres y títulos de personajes, comerciantes y otros NPC de historia e interacción." },
   "Part.BattleNpcNames.Name": { "message": "Nombres de NPC de combate" },
   "Part.BattleNpcNames.Tooltip": { "message": "Nombres de monstruos, jefes y otros NPC de combate, incluidos aliados y muñecos de entrenamiento." },
   "Part.TargetNames.Warning": { "message": "Los plugins que buscan nombres de objetos en inglés pueden no encontrar los objetivos traducidos." },
-  "Group.Names.Name": { "message": "Nombres del mundo" },
-  "Group.Names.Tooltip": { "message": "Nombres que aparecen en mapas, personajes y objetos." },
-  "Part.Actions.Name": { "message": "Oficios, acciones y estados alterados" },
-  "Part.Actions.Tooltip": { "message": "Nombres de oficios, nombres y descripciones de acciones, rasgos y estados alterados." },
-  "Group.Combat.Name": { "message": "Combate y equipo" },
-  "Group.Combat.Tooltip": { "message": "Acciones, estados y atributos del personaje." },
+  "Group.Names.Name": { "message": "Nombres flotantes" },
+  "Group.Names.Tooltip": { "message": "Nombres que aparecen en personajes y objetos." },
+  "Part.Actions.Name": { "message": "Acciones" },
+  "Part.Actions.Tooltip": { "message": "Nombres y descripciones de acciones." },
+  "Group.Combat.Name": { "message": "Combate" },
+  "Group.Combat.Tooltip": { "message": "Oficios, acciones, rasgos, estados alterados y atributos del personaje." },
   "Part.FieldSystems.Name": { "message": "Jobs y acciones de operaciones de campo" },
   "Part.FieldSystems.Tooltip": { "message": "Jobs y rasgos fantasma de la Isla del Creciente y categorías de acciones perdidas de Bozja." },
   "Part.Crafting.Name": { "message": "Entregas de artesanía y recolección" },
   "Part.Crafting.Tooltip": { "message": "Requisitos de entregas del Equilibrio Cristalino, el Studium y Wachumeqimeqi." },
   "Part.Beastmaster.Name": { "message": "Adiestrador y Crisol" },
   "Part.Beastmaster.Tooltip": { "message": "Descripciones de bestias, propiedades de acciones y objetivos de puntuación." },
-  "Group.Activities.Name": { "message": "Otras actividades" },
-  "Group.Activities.Tooltip": { "message": "Minijuegos, entregas de artesanía y contenido del adiestrador." },
   "Part.Guides.Name": { "message": "Tutoriales y manuales del juego" },
   "Part.Guides.Tooltip": { "message": "Ayuda activa, guías de indicadores de oficio y manuales de combate, vivienda, minijuegos y exploración." },
   "Group.Guides.Name": { "message": "Tutoriales y guías" },
@@ -215,7 +238,7 @@
   "Group.Items.Name": { "message": "Objetos" },
   "Group.Items.Tooltip": { "message": "Nombres y descripciones de objetos, incluidos los de misión y de actividades especiales." },
   "Part.Attributes.Name": { "message": "Atributos del personaje" },
-  "Part.Attributes.Tooltip": { "message": "Nombres y descripciones de atributos del personaje, como Fuerza y Golpe crítico." },
+  "Part.Attributes.Tooltip": { "message": "Nombres y descripciones de atributos del personaje en todo el juego, como Fuerza y Golpe crítico. Este ajuste afecta a todos los usos de estos atributos, no solo al combate." },
   "Parts.TurnAllOff": { "message": "Desactivarlo todo" },
   "Compatibility.AutoRetainer": { "message": "Compatible. Confirmado con AutoRetainer 4.6.2.11." },
   "Setup.EnglishNotSpecified": { "message": "Sin especificar" },

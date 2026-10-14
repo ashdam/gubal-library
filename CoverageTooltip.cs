@@ -107,12 +107,13 @@ internal sealed partial class ConfigWindow
         var percentFontSize = countFontSize * 1.5f;
         var rowY = size.Y - 22f * scale - percentFontSize;
         draw.AddText(ImGui.GetFont(), percentFontSize,
-            start + new Vector2(inset, rowY), ImGui.GetColorU32(gold), label);
+            start + new Vector2(size.X - inset - ImGui.CalcTextSize(label).X * rowScale * 1.5f, rowY),
+            ImGui.GetColorU32(gold), label);
         if (coverage is { Total: > 0 })
         {
             draw.AddText(ImGui.GetFont(), countFontSize,
-                start + new Vector2(size.X - inset - ImGui.CalcTextSize(count).X * rowScale,
-                    rowY + percentFontSize - countFontSize), ImGui.GetColorU32(Vector4.One), count);
+                start + new Vector2(inset, rowY + percentFontSize - countFontSize),
+                ImGui.GetColorU32(Vector4.One), count);
             var bar = start + new Vector2(inset, size.Y - 12f * scale);
             var barSize = new Vector2(size.X - inset * 2, 3f * scale);
             draw.AddRectFilled(bar, bar + barSize, ImGui.GetColorU32(gold with { W = 0.2f }));
