@@ -25,17 +25,18 @@ internal static class DalamudBootWait
         return FromFile(pluginInterface);
     }
 
-    public static bool TryTurnOn()
+    public static bool EnsureOn(IDalamudPluginInterface pluginInterface)
     {
+        if (IsOn(pluginInterface) is true) return true;
         try
         {
-            if (!Configuration(out var config, out var property)) return false;
+            if (!Configuration(out var config, out var property) || !property.CanWrite) return false;
             var save = config.GetType().GetMethod("QueueSave", BindingFlags.Public | BindingFlags.Instance,
                 null, Type.EmptyTypes, null);
             if (save is null) return false;
             property.SetValue(config, true);
             save.Invoke(config, null);
-            return property.GetValue(config) is true;
+            return IsOn(pluginInterface) is true;
         }
         catch (Exception) { return false; }
     }
@@ -65,7 +66,7 @@ internal static class DalamudBootWait
                 .GetMethod("Get", BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic);
 
             if (get?.Invoke(null, null) is not { } instance
-                || configType.GetProperty(PropertyName) is not { CanRead: true, CanWrite: true, PropertyType: var valueType } found
+                || configType.GetProperty(PropertyName) is not { CanRead: true, PropertyType: var valueType } found
                 || valueType != typeof(bool))
             {
                 return false;

@@ -1,4 +1,5 @@
 {
+  "Setup.WaitRequired": { "message": "Setup required" },
   "Setup.ColAction": { "message": "Action" },
   "Setup.Active": { "message": "Active" },
   "Setup.Ready": { "message": "Ready · Restart required" },
@@ -211,7 +212,7 @@
     "description": "ConfigWindow.DrawAutoUpdateRow"
   },
   "Boot.NotWaiting": {
-    "message": "Dalamud is not waiting for plugins at startup, so nothing is fetched then. Turn it on in Dalamud's settings.",
+    "message": "Enable \"Wait for plugins before game loads\" in Dalamud's General settings to allow language pack activation and startup updates.",
     "description": "ConfigWindow.DrawBootWaitState"
   },
   "Boot.OpenSettings": {
