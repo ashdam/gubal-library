@@ -1,4 +1,5 @@
 {
+  "Setup.WaitRequired": { "message": "Configuración necesaria" },
   "Setup.ColAction": { "message": "Acción" },
   "Setup.Active": { "message": "Activo" },
   "Setup.Ready": { "message": "Preparado · Reinicio necesario" },
@@ -176,7 +177,7 @@
   "Setup.PickerTitle": { "message": "Elige la carpeta en la que se construyó tu language pack" },
 
   "Boot.NotWaiting": {
-    "message": "Dalamud no espera a los plugins al arrancar, así que entonces no se descarga nada. Actívalo en los ajustes de Dalamud."
+    "message": "Activa «Wait for plugins before game loads» en la pestaña General de los ajustes de Dalamud para permitir la activación de paquetes y las actualizaciones al iniciar."
   },
   "Boot.OpenSettings": { "message": "Abrir los ajustes de Dalamud" },
   "Boot.WhereTip": {

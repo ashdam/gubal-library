@@ -346,6 +346,7 @@ internal sealed partial class ConfigWindow : Window
 
         if (!pages.Active || pages.Manifest is null)
         {
+            if (this.operations.HasPending && this.config.ServeLanguagePack) return;
             var (icon, colour, text) = pages.Error is { Length: > 0 } error
                 ? (FontAwesomeIcon.ExclamationTriangle, Red, error)
                 : this.config.LanguagePackPath.Length == 0
@@ -442,6 +443,14 @@ internal sealed partial class ConfigWindow : Window
 
     private void DrawRestartBanner()
     {
+        if (this.operations.HasPending && this.config.ServeLanguagePack && this.dalamudWaits() is not true)
+        {
+            ImGui.Separator();
+            ImGui.TextColored(Amber, Loc.Localize("Setup.WaitRequired", "Setup required"));
+            this.DrawBootWaitState();
+            ImGui.Separator();
+            return;
+        }
         if (this.restartReason is not { Length: > 0 } reason)
         {
             return;
@@ -456,7 +465,6 @@ internal sealed partial class ConfigWindow : Window
 
         ImGui.SetWindowFontScale(1f);
         ImGui.TextWrapped(reason);
-        if (this.operations.HasPending && this.config.ServeLanguagePack) this.DrawBootWaitState();
         ImGui.Separator();
     }
 
@@ -513,6 +521,7 @@ internal sealed partial class ConfigWindow : Window
             var actionWidth = new[]
             {
                 Loc.Localize("Setup.Ready", "Ready · Restart required"),
+                Loc.Localize("Setup.WaitRequired", "Setup required"),
                 Loc.Localize("Setup.UseEnglish", "Use English"),
                 Loc.Localize("Setup.UseFolder", "Use this folder"),
                 Loc.Localize("Setup.Install", "Install"),
@@ -773,7 +782,9 @@ internal sealed partial class ConfigWindow : Window
         }
         if (this.config.ServeLanguagePack && SameSource(source, this.operations.PendingSource))
         {
-            ImGui.TextColored(Amber, Loc.Localize("Setup.Ready", "Ready · Restart required"));
+            ImGui.TextColored(Amber, this.dalamudWaits() is true
+                ? Loc.Localize("Setup.Ready", "Ready · Restart required")
+                : Loc.Localize("Setup.WaitRequired", "Setup required"));
             return true;
         }
         if (this.config.ServeLanguagePack && active)
@@ -896,8 +907,7 @@ internal sealed partial class ConfigWindow : Window
 
         ImGui.PushStyleColor(ImGuiCol.Text, Amber);
         ImGui.TextWrapped(Loc.Localize("Boot.NotWaiting",
-            "Dalamud is not waiting for plugins at startup, so nothing is fetched then. Turn it on in "
-            + "Dalamud's settings."));
+            "Enable \"Wait for plugins before game loads\" in Dalamud's General settings to allow language pack activation and startup updates."));
         ImGui.PopStyleColor();
 
         if (ImGui.Button($"{Loc.Localize("Boot.OpenSettings", "Open Dalamud settings")}##bootWait"))

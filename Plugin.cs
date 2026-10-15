@@ -30,6 +30,7 @@ public sealed class Plugin : IDalamudPlugin
     private readonly LobbyUpdateNotice lobbyUpdateNotice;
     private readonly DialogueCodex dialogueCodex;
     private readonly IDalamudPluginInterface pluginInterface;
+    private readonly bool waitedForPluginsAtBoot;
 
     private ExdRedirector? redirector;
     private readonly string? redirectorError;
@@ -88,10 +89,15 @@ public sealed class Plugin : IDalamudPlugin
         this.log = log;
         this.clientState = clientState;
         this.framework = framework;
+        // Changing the wait setting cannot pause a game that has already started.
+        this.waitedForPluginsAtBoot = pluginInterface.Reason == PluginLoadReason.Boot
+            && DalamudBootWait.IsOn(pluginInterface) is true;
 
         try
         {
             this.config = pluginInterface.GetPluginConfig() as Configuration ?? new Configuration();
+            if (!DalamudBootWait.EnsureOn(pluginInterface))
+                log.Warning("Could not enable startup waiting. Enable 'Wait for plugins before game loads' in Dalamud settings.");
 
             if (this.config.LanguagePackPath.Length > 0 && this.config.InstalledFrom.Length == 0)
             {
@@ -114,7 +120,7 @@ public sealed class Plugin : IDalamudPlugin
 
             this.installer = new PackInstaller(log, pluginInterface.GetPluginConfigDirectory());
 
-            if (pluginInterface.Reason == PluginLoadReason.Boot && DalamudBootWait.IsOn(pluginInterface) is true)
+            if (this.waitedForPluginsAtBoot)
             {
                 var activated = this.installer.ActivatePending(this.config, this.SaveConfig);
                 if (activated is { Success: false } failure)
@@ -138,7 +144,7 @@ public sealed class Plugin : IDalamudPlugin
                     this.config.LifestreamCompatibility,
                     data,
                     Path.Combine(pluginInterface.GetPluginConfigDirectory(), "compatibility-cache"),
-                    () => DalamudBootWait.IsOn(pluginInterface) is true);
+                    () => this.waitedForPluginsAtBoot);
 
                 if (this.redirectorError is { Length: > 0 } error)
                 {
@@ -475,7 +481,9 @@ public sealed class Plugin : IDalamudPlugin
 
     private void OnPackPrepared()
     {
-        this.chat.Print("[Gubal]Language pack prepared. Restart the game to activate it.");
+        this.chat.Print(DalamudBootWait.IsOn(this.pluginInterface) is true
+            ? "[Gubal]Language pack prepared. Restart the game to activate it."
+            : "[Gubal]Language pack prepared. Enable 'Wait for plugins before game loads' in Dalamud settings to continue.");
     }
 
     private bool BeginUpdateCheck(bool verbose)
@@ -512,12 +520,11 @@ public sealed class Plugin : IDalamudPlugin
             return null;
         }
 
-        if (DalamudBootWait.IsOn(this.pluginInterface) is not true)
+        if (!this.waitedForPluginsAtBoot)
         {
             log.Warning(
-                "Not updating the language pack during startup: Dalamud is not waiting for plugins "
-                + "before the game loads, so the client would read its text while the download was "
-                + "still running. Turn that on in Dalamud's settings, or update from the window.");
+                "Skipping the startup pack update: Dalamud was not waiting for plugins when this session started. "
+                + "Startup waiting must be enabled before restarting the game.");
             return null;
         }
 
@@ -577,11 +584,6 @@ public sealed class Plugin : IDalamudPlugin
     private void SetAutoUpdate(bool value)
     {
         this.config.AutoUpdatePack = value;
-
-        if (value && DalamudBootWait.IsOn(this.pluginInterface) is not true)
-        {
-            DalamudBootWait.TryTurnOn();
-        }
 
         this.SaveConfig(this.config);
     }
