@@ -278,10 +278,9 @@ public sealed class Plugin : IDalamudPlugin
     private void DrawUi()
     {
         this.dialogueCodex.DrawLinks();
-        if (this.pluginInterface.UiBuilder.CutsceneActive)
-            return;
-        this.configWindow.PreviewPluginUpdate = this.lobbyUpdateNotice.Draw(
-            this.clientState.IsLoggedIn, this.pluginInterface.IsDev && this.configWindow.PreviewPluginUpdate);
+        if (!this.pluginInterface.UiBuilder.CutsceneActive)
+            this.configWindow.PreviewPluginUpdate = this.lobbyUpdateNotice.Draw(
+                this.clientState.IsLoggedIn, this.pluginInterface.IsDev && this.configWindow.PreviewPluginUpdate);
         this.windows.Draw();
         this.fileDialogs.Draw();
     }

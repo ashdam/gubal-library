@@ -140,8 +140,8 @@ internal static class PackParts
                 new TranslationPart(
                     "actions",
                     Loc.Localize("Part.Actions.Name", "Actions"),
-                    Loc.Localize("Part.Actions.Tooltip", "Action names and descriptions."),
-                    ["action", "actiontransient"],
+                    Loc.Localize("Part.Actions.Tooltip", "Action names, descriptions and categories, including crafting and gathering actions."),
+                    ["action", "actiontransient", "actioncategory"],
                     Image: "actions"),
                 new TranslationPart(
                     "traits",
@@ -174,7 +174,7 @@ internal static class PackParts
                     Loc.Localize("Part.Items.Name", "Items"),
                     Loc.Localize("Part.Items.Tooltip", "Item names and descriptions, including quest items, Deep Dungeon items, Eureka items, chocobo race items and Beastmaster items."),
                     [
-                        "item", "eventitem", "eventitemhelp", "itemspecialbonus",
+                        "item", "eventitem", "eventitemhelp", "eventitemcategory", "itemspecialbonus",
                         "deepdungeonitem", "deepdungeonequipment", "deepdungeondemiclone",
                         "eurekaaetheritem", "chocoboraceitem", "xbmitem", "xbmitemtype",
                     ])
@@ -198,7 +198,7 @@ internal static class PackParts
                     Loc.Localize("Part.DutyFinder.Name", "Duty names and descriptions"),
                     Loc.Localize("Part.DutyFinder.Tooltip", "Duty Finder entries and names and descriptions of roulettes, levequests, FATEs and critical engagements. Entry NPC menus are under Interface menus."),
                     [
-                        "contentfindercondition", "contentfinderconditiontransient", "contentroulette", "leve", "fate", "dynamicevent",
+                        "contentfindercondition", "contentfinderconditiontransient", "contentroulette", "leve", "fate", "dynamicevent", "dynamiceventenemytype",
                     ],
                     Image: "duty"),
                 new TranslationPart(
@@ -267,6 +267,7 @@ internal static class PackParts
                         "inclusionshop", "inclusionshopwelcomtext", "gcshopitemcategory", "collectablesshop", "collectablesshopitemgroup",
                         "itemsearchcategory", "itemuicategory", "cabinetsubcategory", "journalcategory", "journalgenre",
                         "journalsection", "crafttype", "leveassignmenttype", "notebookdivision", "recipesubcategory", "secretrecipebook",
+                        "gatheringtype", "questredochapteruicategory",
                         "classjobactionuicategory", "contentuicategory", "onlinestatus", "circleactivity", "fcchestname",
                         "fchierarchy", "fcprofile", "fcreputation", "fcrights", "gcrankgridaniafemaletext",
                         "gcrankgridaniamaletext", "gcranklimsafemaletext", "gcranklimsamaletext", "gcrankuldahfemaletext", "gcrankuldahmaletext",
@@ -317,7 +318,7 @@ internal static class PackParts
                     Loc.Localize("Part.GoldSaucer.Tooltip", "Text for GATEs, arcade games, chocobo racing, Triple Triad cards, Lord of Verminion and Doman Mahjong."),
                     [
                         "goldsaucertextdata", "goldsaucerarcademachine", "rideshootingtextdata", "gfateclimbing", "gfatestelth",
-                        "emjaddon", "chocoboraceability", "chocoboracechallenge", "racingchocobonamecategory",
+                        "emjaddon", "fgsaddon", "chocoboraceability", "chocoboracechallenge", "racingchocobonamecategory",
                         "racingchocoboparam", "minionrace", "minionrules", "minionskilltype", "minionstage",
                         "tripletriadcard", "tripletriadcardtype", "tripletriadcompetition", "tripletriadrule", "goldsaucertalk",
                     ]),
@@ -344,8 +345,8 @@ internal static class PackParts
                 new TranslationPart(
                     "logs",
                     Loc.Localize("Part.Logs.Name", "Logs"),
-                    Loc.Localize("Part.Logs.Tooltip", "Sightseeing Log entries, Challenge Log and crafting and gathering log categories, relic book categories, Occult Record and Variant Dungeon records."),
-                    ["adventure", "contentsnotecategory", "notebookdivisioncategory", "relicnotecategory", "mkdlore", "vvdnotebookcontents", "vvdnotebookseries"]),
+                    Loc.Localize("Part.Logs.Tooltip", "Sightseeing Log, Challenge Log, Wondrous Tails, crafting and gathering log categories, relic book categories and Phantom Weapon objectives, Bozja Field Record, Occult Record and Variant Dungeon records."),
+                    ["adventure", "contentsnote", "contentsnotecategory", "weeklybingotext", "notebookdivisioncategory", "relicnotecategory", "phantomweaponextododetailtxt", "mycwarresultnotebook", "mkdlore", "vvdnotebookcontents", "vvdnotebookseries"]),
                 new TranslationPart(
                     "lore",
                     Loc.Localize("Part.Lore.Name", "Codex"),

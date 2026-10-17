@@ -101,6 +101,8 @@ internal sealed partial class ConfigWindow : Window
         this.dalamudWaits = dalamudWaits;
         this.openDalamudSettings = openDalamudSettings;
 
+        this.Size = new Vector2(1000, 600);
+        this.SizeCondition = ImGuiCond.FirstUseEver;
         this.SizeConstraints = new WindowSizeConstraints
         {
             // Keep the pack version and translation columns readable.
