@@ -3,7 +3,7 @@
     "Author": "ashdam",
     "Name": "Gubal Library",
     "InternalName": "GubalLibrary",
-    "AssemblyVersion": "0.6.1.1",
+    "AssemblyVersion": "0.6.1.2",
     "Punchline": "Localize your game in Spanish, Italian, Polish or Brazilian Portuguese.",
     "Description": "Gubal Library localizes FINAL FANTASY XIV through community language packs available in Spanish, Italian, Polish, and Brazilian Portuguese, and adds dialogue links to unlocked Unending Codex entries.",
     "ApplicableVersion": "any",
@@ -25,7 +25,7 @@
     "IsHide": false,
     "IsTestingExclusive": false,
     "DownloadCount": 0,
-    "LastUpdate": 1792106390,
+    "LastUpdate": 1792275156,
     "DownloadLinkInstall": "https://github.com/ashdam/gubal-library/releases/latest/download/latest.zip",
     "DownloadLinkUpdate": "https://github.com/ashdam/gubal-library/releases/latest/download/latest.zip",
     "DownloadLinkTesting": "https://github.com/ashdam/gubal-library/releases/latest/download/latest.zip"
