@@ -196,7 +196,7 @@ public sealed class Plugin : IDalamudPlugin
                 pluginInterface.IsDev,
                 () => this.clientState.IsLoggedIn);
 
-            this.configWindow.ConfigureDevPreview(addonLifecycle);
+            this.configWindow.ConfigureDevPreview(addonLifecycle, sigScanner, framework);
             this.windows.AddWindow(this.configWindow);
 
             this.openConfigLink = chat.AddChatLinkHandler(OpenConfigLinkId, (_, _) => this.OpenConfig());

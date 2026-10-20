@@ -321,7 +321,7 @@ internal sealed unsafe class ExdRedirector : IDisposable
 
         if (local is null)
         {
-            return this.hook!.Original(thread, descriptor, priority, isSync);
+            return this.hook!.OriginalDisposeSafe(thread, descriptor, priority, isSync);
         }
 
         var mode = descriptor->FileMode;
@@ -349,7 +349,7 @@ internal sealed unsafe class ExdRedirector : IDisposable
         if (failure is not null)
         {
             this.log.Error(failure, "Could not serve '{Path}'; falling back to the game's own copy.", local);
-            return this.hook!.Original(thread, descriptor, priority, isSync);
+            return this.hook!.OriginalDisposeSafe(thread, descriptor, priority, isSync);
         }
 
         return result;
@@ -395,7 +395,7 @@ internal sealed unsafe class ExdRedirector : IDisposable
         }
         else
         {
-            result = this.hook!.Original(thread, descriptor, priority, isSync);
+            result = this.hook!.OriginalDisposeSafe(thread, descriptor, priority, isSync);
             if (!layout)
             {
                 this.servedPages++;
@@ -461,11 +461,11 @@ internal sealed unsafe class ExdRedirector : IDisposable
         var entry = this.FontFor(path, parameters);
         if (entry is null)
         {
-            return this.getSync!.Original(manager, category, type, hash, path, parameters, debugPtr, debugInt);
+            return this.getSync!.OriginalDisposeSafe(manager, category, type, hash, path, parameters, debugPtr, debugInt);
         }
 
         var ours = entry.Hash;
-        return this.getSync!.Original(manager, category, type, &ours, entry.Utf8, parameters, debugPtr, debugInt);
+        return this.getSync!.OriginalDisposeSafe(manager, category, type, &ours, entry.Utf8, parameters, debugPtr, debugInt);
     }
 
     private ResourceHandle* GetResourceAsyncDetour(
@@ -482,11 +482,11 @@ internal sealed unsafe class ExdRedirector : IDisposable
         var entry = this.FontFor(path, parameters);
         if (entry is null)
         {
-            return this.getAsync!.Original(manager, category, type, hash, path, parameters, isUnknown, debugPtr, debugInt);
+            return this.getAsync!.OriginalDisposeSafe(manager, category, type, hash, path, parameters, isUnknown, debugPtr, debugInt);
         }
 
         var ours = entry.Hash;
-        return this.getAsync!.Original(manager, category, type, &ours, entry.Utf8, parameters, isUnknown, debugPtr, debugInt);
+        return this.getAsync!.OriginalDisposeSafe(manager, category, type, &ours, entry.Utf8, parameters, isUnknown, debugPtr, debugInt);
     }
 
     /// <summary>

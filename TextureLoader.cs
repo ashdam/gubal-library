@@ -144,13 +144,13 @@ internal sealed unsafe class TextureLoader : IDisposable
             return nint.Zero;
         }
 
-        return this.checkFileState.Original(service, crc64);
+        return this.checkFileState.OriginalDisposeSafe(service, crc64);
     }
 
     /// <summary>After a load that failed on our flag, loads the texture with the client's local-file loader.</summary>
     private byte OnLoadDetour(TextureResourceHandle* handle, FileDescriptor* descriptor, byte unk)
     {
-        var result = this.onLoad.Original(handle, descriptor, unk);
+        var result = this.onLoad.OriginalDisposeSafe(handle, descriptor, unk);
         if (!this.failedOnPurpose.Value)
         {
             return result;
