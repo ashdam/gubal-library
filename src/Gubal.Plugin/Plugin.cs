@@ -118,7 +118,7 @@ public sealed class Plugin : IDalamudPlugin
             Diagnostics.Enabled = this.config.Debug;
             this.probe = this.config.Debug ? new SqPackProbe(interop, log) : null;
 
-            this.installer = new PackInstaller(log, pluginInterface.GetPluginConfigDirectory());
+            this.installer = DalamudPackInstaller.Create(log, pluginInterface.GetPluginConfigDirectory());
 
             if (this.waitedForPluginsAtBoot)
             {

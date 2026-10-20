@@ -2,6 +2,7 @@ using System.Net;
 using System.Net.Http;
 using System.Net.Http.Json;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 
 namespace GubalLibrary;
 
@@ -30,11 +31,12 @@ internal sealed record UsageSnapshot(string? Pack, string? PackVersion, string S
 }
 
 internal sealed record UsageReport(int SchemaVersion, Guid InstallationId, long Sequence,
-    string GubalVersion, string? Pack, string? PackVersion, string Status)
+    string GubalVersion, string? Pack, string? PackVersion, string Status,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? Client = null)
 {
     public static UsageReport Create(Guid installationId, long sequence, string gubalVersion,
-        UsageSnapshot snapshot) => new(1, installationId, sequence, gubalVersion,
-            snapshot.Pack, snapshot.PackVersion, snapshot.Status);
+        UsageSnapshot snapshot, string? client = null) => new(client is null ? 1 : 2, installationId, sequence, gubalVersion,
+            snapshot.Pack, snapshot.PackVersion, snapshot.Status, client);
 }
 
 internal static class UsageReporter

@@ -1,4 +1,4 @@
-using CheapLoc;
+using Loc = GubalLibrary.CoreLanguage;
 
 namespace GubalLibrary;
 

@@ -1,7 +1,6 @@
 using System.IO.Compression;
 using System.Net.Http;
 using System.Text.Json;
-using Dalamud.Plugin.Services;
 
 namespace GubalLibrary;
 
@@ -21,10 +20,10 @@ internal sealed class PackInstaller
 
     private static readonly TimeSpan ManifestTimeout = TimeSpan.FromSeconds(20);
 
-    private readonly IPluginLog log;
+    private readonly IPackInstallLog log;
     private readonly string configDirectory;
 
-    public PackInstaller(IPluginLog log, string configDirectory)
+    public PackInstaller(IPackInstallLog log, string configDirectory)
     {
         this.log = log;
         this.configDirectory = configDirectory;
@@ -123,7 +122,7 @@ internal sealed class PackInstaller
     }
 
     // Call only during game boot, before any resource hooks are installed.
-    public InstallResult? ActivatePending(Configuration config, Action<Configuration> save)
+    public InstallResult? ActivatePending(Action<string, string> applySelection)
     {
         try
         {
@@ -149,21 +148,9 @@ internal sealed class PackInstaller
             var result = selection.Folder is { } custom ? this.Adopt(custom) : ValidateArchive(root);
             if (!result.Success) return result;
             var activePath = selection.Folder ?? this.InstalledPath;
-            var previous = (config.LanguagePackPath, config.InstalledFrom, config.PackSource);
             void Apply()
             {
-                try
-                {
-                    config.LanguagePackPath = activePath;
-                    config.InstalledFrom = selection.Source;
-                    config.PackSource = selection.Source;
-                    save(config);
-                }
-                catch
-                {
-                    (config.LanguagePackPath, config.InstalledFrom, config.PackSource) = previous;
-                    throw;
-                }
+                applySelection(activePath, selection.Source);
             }
             if (selection.Folder is null && root != this.InstalledPath)
                 this.ReplaceDirectory(root, this.InstalledPath, backup, Apply);
@@ -294,7 +281,7 @@ internal sealed class PackInstaller
         var target = Path.Combine(this.configDirectory, DownloadFile);
         DeleteFileIfPresent(target);
 
-        Diagnostics.Log(this.log, "Downloading a language pack from {Url}.", url);
+        this.log.Information("Downloading a language pack from {Url}.", url);
         progress?.Report(InstallProgress.Working("Connecting"));
 
         using var response = await client.GetAsync(url, HttpCompletionOption.ResponseHeadersRead, cancel)

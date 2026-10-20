@@ -1,0 +1,85 @@
+name: "Build packages"
+
+on:
+  workflow_call:
+
+permissions:
+  contents: read
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  build:
+    name: "Build Windows packages on Linux"
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: "Checkout"
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: "Set up .NET"
+        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          dotnet-version: "10.0.x"
+      - name: "Fetch Dalamud"
+        run: |
+          curl --fail --location --retry 3 https://goatcorp.github.io/dalamud-distrib/latest.zip -o "$RUNNER_TEMP/dalamud.zip"
+          unzip -q "$RUNNER_TEMP/dalamud.zip" -d "$RUNNER_TEMP/dalamud"
+      - name: "Build plugin"
+        env:
+          DALAMUD_HOME: ${{ runner.temp }}/dalamud
+        run: dotnet build src/Gubal.Plugin/GubalLibrary.csproj -c Release --nologo
+      - name: "Build Desktop package"
+        env:
+          DALAMUD_HOME: ${{ runner.temp }}/dalamud
+        run: dotnet build src/Gubal.Desktop/Gubal.Desktop.csproj -c Release -t:Package --nologo
+      - name: "Check packages"
+        run: |
+          RELEASE_VERSION=$(dotnet msbuild src/Gubal.Plugin/GubalLibrary.csproj -getProperty:Version -p:Configuration=Release)
+          manifest=bin/x64/Release/win-x64/GubalLibrary.json
+          jq -e --arg version "$RELEASE_VERSION" '.InternalName == "GubalLibrary" and .AssemblyVersion == $version' "$manifest" >/dev/null
+          released=$(curl --fail --location --retry 3 https://goatcorp.github.io/dalamud-distrib/version | jq -r '.AssemblyVersion')
+          jq -e --argjson level "${released%%.*}" '.DalamudApiLevel == $level' "$manifest" >/dev/null
+          plugin=bin/x64/Release/win-x64/GubalLibrary/latest.zip
+          files=$(unzip -Z1 "$plugin")
+          grep -Fxq Gubal.Core.dll <<< "$files"
+          grep -Fxq Gubal.Game.dll <<< "$files"
+          if grep -Eq 'GubalDesktop|GubalStandalone|Velopack|coreclr|hostfxr' <<< "$files"; then
+            echo 'The plugin package must not include Desktop or its runtime.' >&2
+            exit 1
+          fi
+          desktop=dist/desktop/GubalDesktop.App-desktop-win-Portable.zip
+          for file in current/GubalDesktop.runtimeconfig.json current/engine/GubalStandalone.Runtime.runtimeconfig.json current/engine/GubalStandalone.Launcher.runtimeconfig.json; do
+            unzip -p "$desktop" "$file" | jq -e '.runtimeOptions | has("framework") == false and has("frameworks") == false and (.includedFrameworks | length > 0)' >/dev/null
+          done
+          IFS=. read -r major minor build revision <<< "$RELEASE_VERSION"
+          jq -e --arg version "$major.$minor.$build-rev.$revision" '
+            (.Assets | length) == 1 and .Assets[0].PackageId == "GubalDesktop.App" and
+            .Assets[0].Version == $version and .Assets[0].Type == "Full"
+          ' dist/desktop/releases.desktop-win.json >/dev/null
+          hash=$(jq -r '.Assets[0].SHA256' dist/desktop/releases.desktop-win.json)
+          package=$(jq -r '.Assets[0].FileName' dist/desktop/releases.desktop-win.json)
+          printf '%s  %s\n' "$hash" "dist/desktop/$package" | sha256sum --check
+      - name: "Upload plugin artifact"
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: plugin
+          path: |
+            bin/x64/Release/win-x64/GubalLibrary/latest.zip
+            bin/x64/Release/win-x64/GubalLibrary/GubalLibrary.json
+          if-no-files-found: error
+          retention-days: 7
+      - name: "Upload Desktop artifact"
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: desktop
+          path: |
+            dist/desktop/*-Portable.zip
+            dist/desktop/*-full.nupkg
+            dist/desktop/releases.desktop-win.json
+          if-no-files-found: error
+          retention-days: 7

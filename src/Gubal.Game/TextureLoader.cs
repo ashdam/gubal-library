@@ -1,6 +1,3 @@
-using Dalamud.Game;
-using Dalamud.Hooking;
-using Dalamud.Plugin.Services;
 using FFXIVClientStructs.FFXIV.Client.System.File;
 using FFXIVClientStructs.FFXIV.Client.System.Resource.Handle;
 using Lumina.Misc;
@@ -24,11 +21,11 @@ internal sealed unsafe class TextureLoader : IDisposable
 
     private const string LodConfigSignature = "48 8B 05 ?? ?? ?? ?? B3";
 
-    private readonly ResourceScope resources;
-    private readonly IPluginLog log;
+    private readonly List<IDisposable> resources = [];
+    private readonly IPackInstallLog log;
     private readonly HashSet<ulong> ours;
-    private readonly Hook<CheckFileStateDelegate> checkFileState;
-    private readonly Hook<TexHandleOnLoadDelegate> onLoad;
+    private readonly INativeHook<CheckFileStateDelegate> checkFileState;
+    private readonly INativeHook<TexHandleOnLoadDelegate> onLoad;
     private readonly delegate* unmanaged<TextureResourceHandle*, int, FileDescriptor*, byte, byte> loadTexFileLocal;
     private readonly delegate* unmanaged<TextureResourceHandle*, void> updateCategory;
     private readonly nint lodConfig;
@@ -37,8 +34,8 @@ internal sealed unsafe class TextureLoader : IDisposable
     private readonly ThreadLocal<bool> failedOnPurpose = new(() => false);
 
     private TextureLoader(
-        IGameInteropProvider interop,
-        IPluginLog log,
+        INativeHooks interop,
+        IPackInstallLog log,
         HashSet<ulong> ours,
         nint checkFileState,
         nint onLoad,
@@ -53,18 +50,19 @@ internal sealed unsafe class TextureLoader : IDisposable
         this.updateCategory = (delegate* unmanaged<TextureResourceHandle*, void>)updateCategory;
         this.lodConfig = lodConfig;
 
-        this.resources = new ResourceScope(log);
-        this.resources.Own(this.failedOnPurpose);
+        this.resources.Add(this.failedOnPurpose);
         try
         {
-            this.checkFileState = this.resources.Own(interop.HookFromAddress<CheckFileStateDelegate>(checkFileState, this.CheckFileStateDetour));
-            this.onLoad = this.resources.Own(interop.HookFromAddress<TexHandleOnLoadDelegate>(onLoad, this.OnLoadDetour));
+            this.checkFileState = interop.Create<CheckFileStateDelegate>(checkFileState, this.CheckFileStateDetour);
+            this.resources.Add(this.checkFileState);
+            this.onLoad = interop.Create<TexHandleOnLoadDelegate>(onLoad, this.OnLoadDetour);
+            this.resources.Add(this.onLoad);
             this.checkFileState.Enable();
             this.onLoad.Enable();
         }
         catch
         {
-            this.resources.Dispose();
+            this.Dispose();
             throw;
         }
     }
@@ -73,15 +71,11 @@ internal sealed unsafe class TextureLoader : IDisposable
 
     private delegate byte TexHandleOnLoadDelegate(TextureResourceHandle* handle, FileDescriptor* descriptor, byte unk);
 
-    /// <summary>
-    ///     Finds the five functions and installs the two hooks, or says which pattern failed.
-    /// </summary>
-    /// <param name="rootedTexturePaths">The textures to accept, as the rooted paths their resources carry.</param>
-    public static (TextureLoader? Loader, string? Error) Create(
-        IGameInteropProvider interop,
-        ISigScanner sigScanner,
-        IPluginLog log,
-        IEnumerable<string> rootedTexturePaths)
+    private sealed record Addresses(nint CheckFileState, nint OnLoad, nint LoadLocal, nint UpdateCategory, nint LodConfig);
+
+    public static string? ValidateSignatures(INativeSignatures scanner) => Resolve(scanner).Error;
+
+    private static (Addresses? Values, string? Error) Resolve(INativeSignatures sigScanner)
     {
         if (!sigScanner.TryScanText(CheckFileStateSignature, out var checkFileState))
         {
@@ -108,6 +102,14 @@ internal sealed unsafe class TextureLoader : IDisposable
             return (null, "LodConfig");
         }
 
+        return (new(checkFileState, onLoad, loadTexFileLocal, updateCategory, lodConfig), null);
+    }
+
+    public static (TextureLoader? Loader, string? Error) Create(INativeHooks interop,
+        INativeSignatures scanner, IPackInstallLog log, IEnumerable<string> rootedTexturePaths)
+    {
+        var (addresses, error) = Resolve(scanner);
+        if (addresses is null) return (null, error);
         var ours = new HashSet<ulong>();
         foreach (var path in rootedTexturePaths)
         {
@@ -117,7 +119,8 @@ internal sealed unsafe class TextureLoader : IDisposable
         try
         {
             return (new TextureLoader(
-                interop, log, ours, checkFileState, onLoad, loadTexFileLocal, updateCategory, lodConfig), null);
+                interop, log, ours, addresses.CheckFileState, addresses.OnLoad, addresses.LoadLocal,
+                addresses.UpdateCategory, addresses.LodConfig), null);
         }
         catch (Exception e)
         {
@@ -125,7 +128,15 @@ internal sealed unsafe class TextureLoader : IDisposable
         }
     }
 
-    public void Dispose() => this.resources.Dispose();
+    public void Dispose()
+    {
+        for (var i = this.resources.Count - 1; i >= 0; i--)
+        {
+            try { this.resources[i].Dispose(); }
+            catch (Exception error) { this.log.Error(error, "Could not release a texture resource."); }
+        }
+        this.resources.Clear();
+    }
 
     /// <summary>The client's file key: CRC-32 of the folder in the high word, CRC-32 of the name in the low word, both lower case.</summary>
     private static ulong Crc64(string rootedPath)
@@ -144,13 +155,13 @@ internal sealed unsafe class TextureLoader : IDisposable
             return nint.Zero;
         }
 
-        return this.checkFileState.OriginalDisposeSafe(service, crc64);
+        return this.checkFileState.Original(service, crc64);
     }
 
     /// <summary>After a load that failed on our flag, loads the texture with the client's local-file loader.</summary>
     private byte OnLoadDetour(TextureResourceHandle* handle, FileDescriptor* descriptor, byte unk)
     {
-        var result = this.onLoad.OriginalDisposeSafe(handle, descriptor, unk);
+        var result = this.onLoad.Original(handle, descriptor, unk);
         if (!this.failedOnPurpose.Value)
         {
             return result;
@@ -162,7 +173,7 @@ internal sealed unsafe class TextureLoader : IDisposable
         {
             result = this.loadTexFileLocal(handle, this.Lod(handle), descriptor, unk);
             this.updateCategory(handle);
-            Diagnostics.Log(this.log, "Texture '{Path}' loaded as a local file (result {Result}).", handle->FileName.ToString(), result);
+            this.log.Information("Texture '{Path}' loaded as a local file (result {Result}).", handle->FileName.ToString(), result);
         }
         catch (Exception e)
         {

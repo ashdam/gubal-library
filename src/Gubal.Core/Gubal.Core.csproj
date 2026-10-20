@@ -1,0 +1,13 @@
+<Project Sdk="Microsoft.NET.Sdk" TreatAsLocalProperty="SelfContained">
+  <PropertyGroup>
+    <SelfContained>false</SelfContained>
+  </PropertyGroup>
+  <ItemGroup>
+    <Reference Include="CheapLoc"><HintPath>$(GameDependencyPath)\CheapLoc.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="Lumina"><HintPath>$(GameDependencyPath)\Lumina.dll</HintPath><Private>false</Private></Reference>
+    <InternalsVisibleTo Include="GubalLibrary" />
+    <InternalsVisibleTo Include="GubalDesktop" />
+    <InternalsVisibleTo Include="GubalStandalone.Runtime" />
+    <InternalsVisibleTo Include="Gubal.Game" />
+  </ItemGroup>
+</Project>

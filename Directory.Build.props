@@ -1,5 +1,18 @@
 <Project>
   <PropertyGroup>
+    <Version>0.7.1.0</Version>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <EnableWindowsTargeting>true</EnableWindowsTargeting>
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+    <Platforms>x64</Platforms>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <GubalRepositoryRoot>$(MSBuildThisFileDirectory)</GubalRepositoryRoot>
+    <GameDependencyPath Condition="'$(DALAMUD_HOME)' != ''">$(DALAMUD_HOME)</GameDependencyPath>
+    <GameDependencyPath Condition="'$(GameDependencyPath)' == ''">$(AppData)\XIVLauncher\addon\Hooks\dev</GameDependencyPath>
     <Platform Condition="'$(Platform)' == '' Or '$(Platform)' == 'Any CPU' Or '$(Platform)' == 'AnyCPU'">x64</Platform>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(GubalUsageLocal)' == 'true'">
+    <DefineConstants>$(DefineConstants);GUBAL_USAGE_LOCAL</DefineConstants>
   </PropertyGroup>
 </Project>

@@ -1,4 +1,3 @@
-using System.Runtime.InteropServices;
 using System.Text;
 using Dalamud.Game;
 using Dalamud.Hooking;
@@ -7,7 +6,6 @@ using FFXIVClientStructs.FFXIV.Client.System.File;
 using FFXIVClientStructs.FFXIV.Client.System.Resource;
 using FFXIVClientStructs.FFXIV.Client.System.Resource.Handle;
 using InteropGenerator.Runtime;
-using Lumina.Misc;
 
 // The game's read modes, not System.IO's. Both are called FileMode and this file names one of them
 // in a line where getting it wrong is a wrong constant rather than a compiler error.
@@ -50,7 +48,7 @@ internal sealed unsafe class ExdRedirector : IDisposable
     private readonly Hook<FileThread.Delegates.DoFileJob>? hook;
 
     /// <summary>The fonts by game path, for the resource hooks.</summary>
-    private readonly Dictionary<string, FontEntry> fonts;
+    private readonly Dictionary<string, RootedResource> fonts;
 
     /// <summary>The fonts by the rooted path the resource now carries, for the read hook.</summary>
     private readonly Dictionary<string, string> fontsByRooted;
@@ -90,13 +88,13 @@ internal sealed unsafe class ExdRedirector : IDisposable
         this.Compatibility = compatibility;
         this.FontCount = fontFiles.Count;
 
-        this.fonts = new Dictionary<string, FontEntry>(StringComparer.OrdinalIgnoreCase);
+        this.fonts = new Dictionary<string, RootedResource>(StringComparer.OrdinalIgnoreCase);
         this.fontsByRooted = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
         try
         {
             foreach (var font in fontFiles.Concat(screenImages))
             {
-                var entry = this.resources.Own(new FontEntry(font.LocalPath));
+                var entry = this.resources.Own(new RootedResource(font.LocalPath));
                 this.fonts[font.GamePath] = entry;
                 this.fontsByRooted[entry.Rooted] = font.LocalPath;
             }
@@ -251,7 +249,7 @@ internal sealed unsafe class ExdRedirector : IDisposable
                 var rootedTextures = fontFiles.Concat(screenImages)
                     .Where(f => f.GamePath.EndsWith(".tex", StringComparison.OrdinalIgnoreCase))
                     .Select(f => f.LocalPath.Replace('\\', '/'));
-                (textures, missing) = TextureLoader.Create(interop, sigScanner, log, rootedTextures);
+                (textures, missing) = DalamudTextureLoader.Create(interop, sigScanner, log, rootedTextures);
             }
 
             if (missing is not null)
@@ -492,7 +490,7 @@ internal sealed unsafe class ExdRedirector : IDisposable
     /// <summary>
     ///     The font to swap in for a requested resource, or null to leave the request alone.
     /// </summary>
-    private FontEntry? FontFor(CStringPointer path, void* parameters)
+    private RootedResource? FontFor(CStringPointer path, void* parameters)
     {
         try
         {
@@ -526,36 +524,6 @@ internal sealed unsafe class ExdRedirector : IDisposable
             this.log.Error(e, "Could not inspect a resource request; it is being passed through.");
             return null;
         }
-    }
-
-    /// <summary>One font file of the pack, in the forms the two hooks need.</summary>
-    private sealed unsafe class FontEntry : IDisposable
-    {
-        /// <summary>The path hash the client keys the resource by: CRC-32 of the lower-case rooted path.</summary>
-        public uint Hash { get; }
-
-        public FontEntry(string localPath)
-        {
-            // Forward slashes, as Penumbra passes them. Windows accepts both.
-            this.Rooted = localPath.Replace('\\', '/');
-            this.Hash = Crc32.Get(this.Rooted.ToLowerInvariant());
-
-            var bytes = Encoding.UTF8.GetBytes(this.Rooted);
-            this.Utf8 = (byte*)NativeMemory.Alloc((nuint)bytes.Length + 1);
-            bytes.CopyTo(new Span<byte>(this.Utf8, bytes.Length));
-            this.Utf8[bytes.Length] = 0;
-        }
-
-        /// <summary>The path with forward slashes, as the resource handle will carry it.</summary>
-        public string Rooted { get; }
-
-        /// <summary>The same path as a null-terminated UTF-8 buffer, alive as long as the redirector.</summary>
-        public byte* Utf8 { get; }
-
-        /// <summary>Set after the first line in the log about this font.</summary>
-        public bool Reported { get; set; }
-
-        public void Dispose() => NativeMemory.Free(this.Utf8);
     }
 
     /// <summary>The patch the client is running, from <c>ffxivgame.ver</c> beside the executable.</summary>

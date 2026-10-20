@@ -1,7 +1,7 @@
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
-using CheapLoc;
+using Loc = GubalLibrary.CoreLanguage;
 using Lumina;
 using Lumina.Data;
 

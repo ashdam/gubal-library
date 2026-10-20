@@ -65,7 +65,9 @@ internal static class Language
                 if (stream is not null)
                 {
                     using var reader = new StreamReader(stream);
-                    Loc.Setup(reader.ReadToEnd());
+                    var translations = reader.ReadToEnd();
+                    Loc.Setup(translations);
+                    CoreLanguage.Apply(translations);
                     Current = wanted.ToLowerInvariant();
                     Diagnostics.Log(log, "Settings window language: {Code}.", Current);
                     return;
@@ -75,11 +77,13 @@ internal static class Language
             }
 
             Loc.SetupWithFallbacks();
+            CoreLanguage.Apply(null);
         }
         catch (Exception e)
         {
             log.Error(e, "Could not load the settings window's translation; using English.");
             Loc.SetupWithFallbacks();
+            CoreLanguage.Apply(null);
         }
     }
 }
