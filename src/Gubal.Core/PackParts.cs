@@ -198,7 +198,7 @@ internal static class PackParts
                     Loc.Localize("Part.DutyFinder.Name", "Duty names and descriptions"),
                     Loc.Localize("Part.DutyFinder.Tooltip", "Duty Finder entries and names and descriptions of roulettes, levequests, FATEs and critical engagements. Entry NPC menus are under Interface menus."),
                     [
-                        "contentfindercondition", "contentfinderconditiontransient", "contentroulette", "leve", "fate", "dynamicevent", "dynamiceventenemytype",
+                        "contentfindercondition", "contentfinderconditiontransient", "contentroulette", "leve", "fate", "dynamicevent", "dynamiceventenemytype", "deepdungeon",
                     ],
                     Image: "duty"),
                 new TranslationPart(

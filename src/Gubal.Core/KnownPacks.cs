@@ -42,8 +42,7 @@ internal static class KnownPacks
     /// repository or this is a 404.</summary>
     public const string Discussions = "https://github.com/ashdam/gubal-library/discussions";
 
-    /// <summary>The author's Discord handle. Not a link: Discord has no address to open one at.</summary>
-    public const string Discord = "miniashdam";
+    public static readonly string[] ContactEmails = ["mini@eorzealocalized.com", "shin@eorzealocalized.com"];
 
     /// <summary>Where a language's translators are pointed: one tutorial page per language.</summary>
     private const string Tutorial = "https://eorzealocalized.com/localize/";

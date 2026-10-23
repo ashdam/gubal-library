@@ -189,7 +189,7 @@
   "Help.ReportBug": { "message": "Informar de un error" },
   "Recruit.Ask": { "message": "Pregunta en GitHub Discussions" },
 
-  "Contact.Discord": { "message": "Discord" },
+  "Contact.Email": { "message": "Correo electrónico" },
   "Contact.Copy": { "message": "Haz clic para copiarlo." },
 
   "Pack.NothingServed": { "message": "ESTA SESIÓN NO TIENE NADA TRADUCIDO" },

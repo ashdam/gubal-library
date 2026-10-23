@@ -985,19 +985,19 @@ internal sealed partial class ConfigWindow : Window
         ImGui.Separator();
         ImGui.Spacing();
 
-        Icon(FontAwesomeIcon.Comments, Blue);
-        ImGui.TextDisabled(Loc.Localize("Contact.Discord", "Discord"));
+        Icon(FontAwesomeIcon.Envelope, Blue);
+        ImGui.TextDisabled(Loc.Localize("Contact.Email", "Email"));
         ImGui.PopStyleColor();
         ImGui.SameLine();
 
-        // Selectable rather than text: a handle has to be copyable to be worth anything.
-        if (ImGui.Selectable(KnownPacks.Discord, false, ImGuiSelectableFlags.None,
-                ImGui.CalcTextSize(KnownPacks.Discord)))
+        var emailX = ImGui.GetCursorPosX();
+        foreach (var email in KnownPacks.ContactEmails)
         {
-            ImGui.SetClipboardText(KnownPacks.Discord);
+            ImGui.SetCursorPosX(emailX);
+            if (ImGui.Selectable(email, false, ImGuiSelectableFlags.None, ImGui.CalcTextSize(email)))
+                ImGui.SetClipboardText(email);
+            SetTooltip(Loc.Localize("Contact.Copy", "Click to copy."));
         }
-
-        SetTooltip(Loc.Localize("Contact.Copy", "Click to copy."));
     }
 
     private static string? PackTracker(PageStatus pages, int chosen)
