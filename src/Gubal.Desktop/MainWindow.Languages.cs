@@ -41,18 +41,14 @@ internal sealed partial class MainWindow
         var englishHeight = Math.Max(LogicalToDeviceUnits(56), lineHeight + LogicalToDeviceUnits(24));
         var headerHeight = lineHeight + LogicalToDeviceUnits(12);
         var height = headerHeight + rowHeight * KnownPacks.All.Length + englishHeight;
-        var reviewLabel = UiText.Get("LocalizationType");
         var choices = new TableLayoutPanel { ColumnCount = 2, RowCount = KnownPacks.All.Length + 2, AutoSize = false,
             Height = height, MinimumSize = new Size(0, height),
             GrowStyle = TableLayoutPanelGrowStyle.FixedSize, Width = 700, Margin = new Padding(0, 2, 0, 12) };
         choices.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
-        choices.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute,
-            TextRenderer.MeasureText(reviewLabel, Font).Width + LogicalToDeviceUnits(24)));
+        choices.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, LogicalToDeviceUnits(56)));
         choices.RowStyles.Add(new RowStyle(SizeType.Absolute, headerHeight));
         choices.Controls.Add(new Label { Text = UiText.Get("Language"), Dock = DockStyle.Fill,
             ForeColor = muted, TextAlign = ContentAlignment.MiddleLeft }, 0, 0);
-        choices.Controls.Add(new Label { Text = reviewLabel, Dock = DockStyle.Fill,
-            ForeColor = muted, TextAlign = ContentAlignment.MiddleCenter }, 1, 0);
         for (var index = 0; index < KnownPacks.All.Length; index++)
         {
             var pack = KnownPacks.All[index];
