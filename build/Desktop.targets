@@ -1,0 +1,34 @@
+<Project>
+  <Target Name="Package" DependsOnTargets="Publish">
+    <Error Condition="'$(RuntimeIdentifier)' != 'win-x64' Or '$(SelfContained)' != 'true'" Text="Desktop packages require a self-contained win-x64 build." />
+    <MSBuild Projects="../Gubal.Runtime/Gubal.Runtime.csproj;../Gubal.Launcher/Gubal.Launcher.csproj"
+             Targets="Publish;GetGubalPublishDirectory" Properties="Configuration=$(Configuration)">
+      <Output TaskParameter="TargetOutputs" ItemName="EnginePublishDirectories" />
+    </MSBuild>
+    <PropertyGroup>
+      <PortableDirectory>$(MSBuildProjectDirectory)/$(IntermediateOutputPath)portable/</PortableDirectory>
+      <DesktopReleaseDirectory Condition="'$(DesktopReleaseDirectory)' == ''">$(GubalRepositoryRoot)dist/desktop</DesktopReleaseDirectory>
+      <DesktopPackageVersion>$([System.Version]::Parse('$(Version)').Major).$([System.Version]::Parse('$(Version)').Minor).$([System.Version]::Parse('$(Version)').Build)-rev.$([System.Version]::Parse('$(Version)').Revision)</DesktopPackageVersion>
+    </PropertyGroup>
+    <RemoveDir Directories="$(PortableDirectory)" />
+    <ItemGroup>
+      <DesktopFiles Include="$(PublishDir)**/*" Exclude="$(PublishDir)**/*.pdb;$(PublishDir)engine/**/*" />
+      <RuntimeFiles Include="%(EnginePublishDirectories.Identity)**/*" Exclude="%(EnginePublishDirectories.Identity)**/*.pdb"
+                    Condition="'%(EnginePublishDirectories.AssemblyName)' == 'GubalStandalone.Runtime'" />
+      <LauncherFiles Include="%(EnginePublishDirectories.Identity)%(EnginePublishDirectories.AssemblyName).*" Exclude="%(EnginePublishDirectories.Identity)*.pdb"
+                     Condition="'%(EnginePublishDirectories.AssemblyName)' == 'GubalStandalone.Launcher'" />
+    </ItemGroup>
+    <Copy SourceFiles="@(DesktopFiles)" DestinationFiles="@(DesktopFiles->'$(PortableDirectory)%(RecursiveDir)%(Filename)%(Extension)')" />
+    <Copy SourceFiles="@(RuntimeFiles)" DestinationFiles="@(RuntimeFiles->'$(PortableDirectory)engine/%(RecursiveDir)%(Filename)%(Extension)')" />
+    <Copy SourceFiles="@(LauncherFiles)" DestinationFiles="@(LauncherFiles->'$(PortableDirectory)engine/%(Filename)%(Extension)')" />
+    <Copy SourceFiles="$(GubalRepositoryRoot)LICENSE;$(GubalRepositoryRoot)build/Desktop.README.txt"
+          DestinationFiles="$(PortableDirectory)Gubal-LICENSE.txt;$(PortableDirectory)README.txt" />
+    <ItemGroup>
+      <RequiredFile Include="GubalDesktop.exe;Gubal.Core.dll;CheapLoc.dll;Lumina.dll;System.Windows.Forms.dll;coreclr.dll;engine/Gubal.Core.dll;engine/Gubal.Game.dll;engine/GubalStandalone.Runtime.exe;engine/GubalStandalone.Launcher.exe;engine/GubalStandalone.Bootstrap.dll;engine/GubalStandalone.HostCheck.exe;engine/FFXIVClientStructs.dll;engine/Lumina.dll;engine/hostfxr.dll;engine/hostpolicy.dll;engine/coreclr.dll" />
+    </ItemGroup>
+    <Error Condition="!Exists('$(PortableDirectory)%(RequiredFile.Identity)')" Text="The Desktop package is missing %(RequiredFile.Identity)." />
+    <Exec Command="dotnet tool restore" WorkingDirectory="$(GubalRepositoryRoot)" />
+    <Exec Command="dotnet vpk [win] pack --packId GubalDesktop.App --packVersion $(DesktopPackageVersion) --packTitle &quot;Gubal Desktop&quot; --packAuthors ashdam --mainExe GubalDesktop.exe --runtime win-x64 --channel desktop-win --packDir &quot;$(PortableDirectory)&quot; --outputDir &quot;$(DesktopReleaseDirectory)&quot; --icon &quot;$(MSBuildProjectDirectory)/Assets/gubal.ico&quot; --delta None --noInst" WorkingDirectory="$(GubalRepositoryRoot)" />
+    <Message Text="Desktop packages: $(DesktopReleaseDirectory)" Importance="high" />
+  </Target>
+</Project>

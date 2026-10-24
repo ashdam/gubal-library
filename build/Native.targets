@@ -1,0 +1,53 @@
+<Project>
+  <PropertyGroup>
+    <ZigVersion>0.15.2</ZigVersion>
+    <ZigCacheDirectory>$(GubalRepositoryRoot).cache/</ZigCacheDirectory>
+    <ZigHost Condition="$([MSBuild]::IsOSPlatform('Windows'))">x86_64-windows</ZigHost>
+    <ZigHost Condition="$([MSBuild]::IsOSPlatform('Linux'))">x86_64-linux</ZigHost>
+    <ZigArchiveExtension Condition="'$(ZigHost)' == 'x86_64-windows'">zip</ZigArchiveExtension>
+    <ZigArchiveExtension Condition="'$(ZigHost)' == 'x86_64-linux'">tar.xz</ZigArchiveExtension>
+    <ZigArchiveHash Condition="'$(ZigHost)' == 'x86_64-windows'">3A0ED1E8799A2F8CE2A6E6290A9FF22E6906F8227865911FB7DDEDC3CC14CB0C</ZigArchiveHash>
+    <ZigArchiveHash Condition="'$(ZigHost)' == 'x86_64-linux'">02AA270F183DA276E5B5920B1DAC44A63F1A49E55050EBDE3AECC9EB82F93239</ZigArchiveHash>
+    <ZigArchiveName>zig-$(ZigHost)-$(ZigVersion).$(ZigArchiveExtension)</ZigArchiveName>
+    <ZigExecutable Condition="'$(ZigExecutable)' == '' And '$(ZIG_EXE)' != ''">$(ZIG_EXE)</ZigExecutable>
+    <ZigExecutable Condition="'$(ZigExecutable)' == ''">$(ZigCacheDirectory)zig-$(ZigHost)-$(ZigVersion)/zig</ZigExecutable>
+    <ZigExecutable Condition="'$(ZigHost)' == 'x86_64-windows' And !$([System.String]::Copy('$(ZigExecutable)').EndsWith('.exe'))">$(ZigExecutable).exe</ZigExecutable>
+  </PropertyGroup>
+
+  <Target Name="AcquireNativeCompiler" Condition="!Exists('$(ZigExecutable)')">
+    <Error Condition="'$(ZigHost)' == ''" Text="The native build requires an x64 Windows or Linux host." />
+    <MakeDir Directories="$(ZigCacheDirectory)" />
+    <DownloadFile SourceUrl="https://ziglang.org/download/$(ZigVersion)/$(ZigArchiveName)" DestinationFolder="$(ZigCacheDirectory)" DestinationFileName="$(ZigArchiveName)" />
+    <VerifyFileHash File="$(ZigCacheDirectory)$(ZigArchiveName)" Hash="$(ZigArchiveHash)" Algorithm="SHA256" />
+    <Unzip Condition="'$(ZigHost)' == 'x86_64-windows'" SourceFiles="$(ZigCacheDirectory)$(ZigArchiveName)" DestinationFolder="$(ZigCacheDirectory)" />
+    <Exec Condition="'$(ZigHost)' == 'x86_64-linux'" Command="tar -xf &quot;$(ZigCacheDirectory)$(ZigArchiveName)&quot; -C &quot;$(ZigCacheDirectory)&quot;" />
+    <Error Condition="!Exists('$(ZigExecutable)')" Text="The native compiler was not found at $(ZigExecutable)." />
+  </Target>
+
+  <Target Name="BuildNativeBootstrap" BeforeTargets="CoreCompile" DependsOnTargets="AcquireNativeCompiler"
+          Condition="'$(DesignTimeBuild)' != 'true'"
+          Inputs="$(GubalRepositoryRoot)native/Bootstrap/bootstrap.c;$(MSBuildThisFileFullPath);$(ZigExecutable)"
+          Outputs="$(TargetDir)GubalStandalone.Bootstrap.dll;$(TargetDir)GubalStandalone.HostCheck.exe">
+    <Exec Command="&quot;$(ZigExecutable)&quot; version" ConsoleToMSBuild="true" StandardOutputImportance="low">
+      <Output TaskParameter="ConsoleOutput" PropertyName="DetectedZigVersion" />
+    </Exec>
+    <Error Condition="'$(DetectedZigVersion)' != '$(ZigVersion)'" Text="Zig $(ZigVersion) is required." />
+    <MakeDir Directories="$(TargetDir);$(ZigCacheDirectory)zig-global;$(ZigCacheDirectory)zig-local" />
+    <Exec Command="&quot;$(ZigExecutable)&quot; cc -target x86_64-windows-gnu -shared -O2 &quot;$(GubalRepositoryRoot)native/Bootstrap/bootstrap.c&quot; -o &quot;$(TargetDir)GubalStandalone.Bootstrap.dll&quot;"
+          EnvironmentVariables="ZIG_GLOBAL_CACHE_DIR=$(ZigCacheDirectory)zig-global;ZIG_LOCAL_CACHE_DIR=$(ZigCacheDirectory)zig-local" />
+    <Exec Command="&quot;$(ZigExecutable)&quot; cc -target x86_64-windows-gnu -DGUBAL_HOST_CHECK -municode -O2 &quot;$(GubalRepositoryRoot)native/Bootstrap/bootstrap.c&quot; -o &quot;$(TargetDir)GubalStandalone.HostCheck.exe&quot;"
+          EnvironmentVariables="ZIG_GLOBAL_CACHE_DIR=$(ZigCacheDirectory)zig-global;ZIG_LOCAL_CACHE_DIR=$(ZigCacheDirectory)zig-local" />
+    <ItemGroup>
+      <FileWrites Include="$(TargetDir)GubalStandalone.Bootstrap.dll;$(TargetDir)GubalStandalone.HostCheck.exe" />
+    </ItemGroup>
+  </Target>
+
+  <Target Name="PublishNativeBootstrap" AfterTargets="ComputeFilesToPublish">
+    <ItemGroup>
+      <ResolvedFileToPublish Include="$(TargetDir)GubalStandalone.Bootstrap.dll"
+                             RelativePath="GubalStandalone.Bootstrap.dll" CopyToPublishDirectory="PreserveNewest" />
+      <ResolvedFileToPublish Include="$(TargetDir)GubalStandalone.HostCheck.exe"
+                             RelativePath="GubalStandalone.HostCheck.exe" CopyToPublishDirectory="PreserveNewest" />
+    </ItemGroup>
+  </Target>
+</Project>

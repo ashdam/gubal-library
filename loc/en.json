@@ -248,8 +248,8 @@
     "description": "ConfigWindow.DrawPackDetail"
   },
   "Help.ReportBug": { "message": "Report a bug" },
-  "Contact.Discord": {
-    "message": "Discord",
+  "Contact.Email": {
+    "message": "Email",
     "description": "ConfigWindow.DrawHelpTab"
   },
   "Contact.Copy": {

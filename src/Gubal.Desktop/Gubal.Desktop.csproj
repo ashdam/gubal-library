@@ -1,0 +1,32 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <SelfContained>true</SelfContained>
+    <UseWindowsForms>true</UseWindowsForms>
+    <AssemblyName>GubalDesktop</AssemblyName>
+    <RootNamespace>GubalDesktop</RootNamespace>
+    <ApplicationIcon>Assets/gubal.ico</ApplicationIcon>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Velopack" Version="1.2.161" />
+    <Reference Include="CheapLoc"><HintPath>$(GameDependencyPath)\CheapLoc.dll</HintPath></Reference>
+    <Reference Include="Lumina"><HintPath>$(GameDependencyPath)\Lumina.dll</HintPath></Reference>
+    <ProjectReference Include="../Gubal.Core/Gubal.Core.csproj" />
+    <ProjectReference Include="../Gubal.Runtime/Gubal.Runtime.csproj" ReferenceOutputAssembly="false" Private="false" />
+    <ProjectReference Include="../Gubal.Launcher/Gubal.Launcher.csproj" ReferenceOutputAssembly="false" Private="false" />
+    <EmbeddedResource Include="../../images/icon.png" LogicalName="GubalDesktop.icon.png" />
+    <EmbeddedResource Include="../../images/flags/*.png" LogicalName="GubalDesktop.flags.%(Filename)%(Extension)" />
+    <Content Include="Assets/Fonts/*" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+  </ItemGroup>
+  <Target Name="BundleStandaloneComponents" AfterTargets="Build">
+    <MSBuild Projects="../Gubal.Runtime/Gubal.Runtime.csproj;../Gubal.Launcher/Gubal.Launcher.csproj" Targets="GetTargetPath" Properties="Configuration=$(Configuration)">
+      <Output TaskParameter="TargetOutputs" ItemName="StandaloneTargets" />
+    </MSBuild>
+    <ItemGroup>
+      <StandaloneFiles Include="%(StandaloneTargets.RootDir)%(StandaloneTargets.Directory)*" />
+    </ItemGroup>
+    <Copy SourceFiles="@(StandaloneFiles)" DestinationFolder="$(TargetDir)engine" SkipUnchangedFiles="true" />
+    <Error Condition="!Exists('$(TargetDir)engine/GubalStandalone.Bootstrap.dll')" Text="The Runtime build must include the native host." />
+  </Target>
+  <Import Project="../../build/Desktop.targets" />
+</Project>

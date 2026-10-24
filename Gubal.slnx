@@ -1,0 +1,13 @@
+<Solution>
+  <Configurations>
+    <Platform Name="x64" />
+  </Configurations>
+  <Folder Name="/src/">
+    <Project Path="src/Gubal.Core/Gubal.Core.csproj"><Platform Project="x64" /></Project>
+    <Project Path="src/Gubal.Desktop/Gubal.Desktop.csproj"><Platform Project="x64" /></Project>
+    <Project Path="src/Gubal.Game/Gubal.Game.csproj"><Platform Project="x64" /></Project>
+    <Project Path="src/Gubal.Launcher/Gubal.Launcher.csproj"><Platform Project="x64" /></Project>
+    <Project Path="src/Gubal.Plugin/GubalLibrary.csproj"><Platform Project="x64" /></Project>
+    <Project Path="src/Gubal.Runtime/Gubal.Runtime.csproj"><Platform Project="x64" /></Project>
+  </Folder>
+</Solution>

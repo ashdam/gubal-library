@@ -1,0 +1,13 @@
+Gubal Desktop, Preview / Alpha for Windows x64
+
+Extract the full ZIP into a folder and open Gubal Desktop.exe.
+You do not need to install .NET or run as administrator.
+Select a language, install its pack and start FFXIV. Sign in through the official launcher.
+Packs and settings are stored in %LOCALAPPDATA%\GubalDesktop.
+Desktop checks GitHub Releases for application updates. The download and update button restarts Desktop after the update.
+Close FFXIV and its launchers before you apply a Desktop update.
+Close FFXIV and its launchers before you install a pack or start from Gubal.
+Keep Gubal Desktop open until it shows Translation loaded.
+The application loads compatible text, layouts, images and fonts from the pack.
+After a game update, compatible resources remain translated. Changed resources use the game's originals.
+Desktop checks the required game functions before startup. If translation startup fails, the window shows an error. Wait for a Gubal Desktop update before trying again.

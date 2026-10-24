@@ -1,0 +1,299 @@
+<?xml version='1.0' encoding='utf-8'?>
+<root>
+  <resheader name="resmimetype">
+    <value>text/microsoft-resx</value>
+  </resheader>
+  <resheader name="version">
+    <value>2.0</value>
+  </resheader>
+  <resheader name="reader">
+    <value>System.Resources.ResXResourceReader, System.Windows.Forms</value>
+  </resheader>
+  <resheader name="writer">
+    <value>System.Resources.ResXResourceWriter, System.Windows.Forms</value>
+  </resheader>
+  <data name="Settings" xml:space="preserve">
+    <value>Ajustes</value>
+  </data>
+  <data name="FinishLogin" xml:space="preserve">
+    <value>Termina el acceso en el launcher oficial o ciérralo antes de cerrar Gubal.</value>
+  </data>
+  <data name="Cancelling" xml:space="preserve">
+    <value>Cancelando la operación…</value>
+  </data>
+  <data name="FindingGame" xml:space="preserve">
+    <value>Buscando la instalación de FFXIV…</value>
+  </data>
+  <data name="ContinueLauncher" xml:space="preserve">
+    <value>Continúa en el launcher oficial</value>
+  </data>
+  <data name="PreparationDone" xml:space="preserve">
+    <value>Gubal ha terminado la preparación.</value>
+  </data>
+  <data name="EnglishLoaded" xml:space="preserve">
+    <value>English · Sin localización</value>
+  </data>
+  <data name="TranslationLoaded" xml:space="preserve">
+    <value> · Traducción cargada</value>
+  </data>
+  <data name="CanClose" xml:space="preserve">
+    <value>Puedes cerrar esta ventana y continuar en el juego.</value>
+  </data>
+  <data name="Back" xml:space="preserve">
+    <value>Volver</value>
+  </data>
+  <data name="Welcome" xml:space="preserve">
+    <value>Tu juego, en tu idioma.</value>
+  </data>
+  <data name="ChooseLanguage" xml:space="preserve">
+    <value>Elige el idioma en el que quieres jugar.</value>
+  </data>
+  <data name="StartSelected" xml:space="preserve">
+    <value>Inicia el juego con tu idioma seleccionado.</value>
+  </data>
+  <data name="GameFound" xml:space="preserve">
+    <value>✓ Instalación de FFXIV encontrada</value>
+  </data>
+  <data name="ChooseGameFolder" xml:space="preserve">
+    <value>Selecciona la carpeta donde está instalado FFXIV.</value>
+  </data>
+  <data name="BrowseGame" xml:space="preserve">
+    <value>Buscar carpeta del juego</value>
+  </data>
+  <data name="UseEnglish" xml:space="preserve">
+    <value>Usar inglés</value>
+  </data>
+  <data name="DownloadPrepare" xml:space="preserve">
+    <value>Descargar y preparar</value>
+  </data>
+  <data name="EnglishNoDownload" xml:space="preserve">
+    <value>Sin localización · No se necesita descargar ningún pack.</value>
+  </data>
+  <data name="GameUpdated" xml:space="preserve">
+    <value>El juego se ha actualizado</value>
+  </data>
+  <data name="CompatibilityParts" xml:space="preserve">
+    <value>Tu pack está en modo de compatibilidad. Estas partes usarán el idioma original:
+</value>
+  </data>
+  <data name="NewPack" xml:space="preserve">
+    <value>Hay una nueva versión del pack</value>
+  </data>
+  <data name="UpdateOffline" xml:space="preserve">
+    <value>Sin conexión con el servidor de actualizaciones. Se conserva el pack instalado.</value>
+  </data>
+  <data name="StartOriginal" xml:space="preserve">
+    <value>Iniciar sin traducción</value>
+  </data>
+  <data name="UpdateStart" xml:space="preserve">
+    <value>Actualizar pack e iniciar FFXIV</value>
+  </data>
+  <data name="StartGame" xml:space="preserve">
+    <value>Iniciar FFXIV</value>
+  </data>
+  <data name="AutoUpdate" xml:space="preserve">
+    <value>Actualizar el pack antes de iniciar</value>
+  </data>
+  <data name="Cancel" xml:space="preserve">
+    <value>Cancelar</value>
+  </data>
+  <data name="Cancelled" xml:space="preserve">
+    <value>Operación cancelada. El pack anterior se conserva.</value>
+  </data>
+  <data name="SelectFolderFirst" xml:space="preserve">
+    <value>Selecciona primero la carpeta de FFXIV en Ajustes.</value>
+  </data>
+  <data name="EnglishSelected" xml:space="preserve">
+    <value>Inglés seleccionado. No se ha descargado ningún pack.</value>
+  </data>
+  <data name="Unpublished" xml:space="preserve">
+    <value>Este pack aún no está publicado.</value>
+  </data>
+  <data name="Downloading" xml:space="preserve">
+    <value>Descargando</value>
+  </data>
+  <data name="Connecting" xml:space="preserve">
+    <value>Conectando</value>
+  </data>
+  <data name="Unpacking" xml:space="preserve">
+    <value>Extrayendo</value>
+  </data>
+  <data name="CheckingPack" xml:space="preserve">
+    <value>Comprobando el pack</value>
+  </data>
+  <data name="PreparingPack" xml:space="preserve">
+    <value>Preparando el pack</value>
+  </data>
+  <data name="ActivationFailed" xml:space="preserve">
+    <value>No se pudo activar el pack preparado.</value>
+  </data>
+  <data name="PackReady" xml:space="preserve">
+    <value>Pack preparado. Ya puedes iniciar FFXIV.</value>
+  </data>
+  <data name="CheckingUpdates" xml:space="preserve">
+    <value>Buscando actualizaciones del language pack…</value>
+  </data>
+  <data name="UpdateTitle" xml:space="preserve">
+    <value>Actualizar language pack</value>
+  </data>
+  <data name="SelectFolder" xml:space="preserve">
+    <value>Selecciona la carpeta de FFXIV.</value>
+  </data>
+  <data name="OriginalLauncherOpen" xml:space="preserve">
+    <value>Launcher oficial abierto sin localización.</value>
+  </data>
+  <data name="PendingFailed" xml:space="preserve">
+    <value>No se pudo activar el pack pendiente.</value>
+  </data>
+  <data name="UpdateFailedPrompt" xml:space="preserve">
+    <value>No se pudo actualizar el pack. ¿Quieres comprobar y usar el que tienes instalado?</value>
+  </data>
+  <data name="UpdateUnavailable" xml:space="preserve">
+    <value>Actualización no disponible</value>
+  </data>
+  <data name="GameVersionUnknown" xml:space="preserve">
+    <value>No se pudo leer la versión del juego. Comprueba la carpeta seleccionada.</value>
+  </data>
+  <data name="CheckingCompatibility" xml:space="preserve">
+    <value>Comprobando el pack y la compatibilidad con el juego…</value>
+  </data>
+  <data name="PackCannotActivate" xml:space="preserve">
+    <value>No se puede activar este pack con el juego actual. Consulta desktop.log para ver el motivo.</value>
+  </data>
+  <data name="RuntimeCannotLoad" xml:space="preserve">
+    <value>No se pudo cargar el componente de traducción de Gubal. El juego no se ha abierto.</value>
+  </data>
+  <data name="NativeIncompatibleTitle" xml:space="preserve">
+    <value>No se puede iniciar la traducción con este cliente</value>
+  </data>
+  <data name="NativeStartupFailed" xml:space="preserve">
+    <value>Algo ha ido mal y no se pudo iniciar la traducción. Espera a una actualización de Gubal Desktop antes de volver a intentarlo.</value>
+  </data>
+  <data name="ClientVersions" xml:space="preserve">
+    <value>Gubal Desktop {0} · FFXIV {1}</value>
+  </data>
+  <data name="CompatibilityPrompt" xml:space="preserve">
+    <value>El pack se usará en modo de compatibilidad. Estas partes usarán texto original:
+
+</value>
+  </data>
+  <data name="ContinuePrompt" xml:space="preserve">
+    <value>
+
+¿Quieres continuar?</value>
+  </data>
+  <data name="CompatibilityTitle" xml:space="preserve">
+    <value>Modo de compatibilidad</value>
+  </data>
+  <data name="LoginPrompt" xml:space="preserve">
+    <value>Continúa en el launcher oficial. Inicia sesión normalmente para abrir FFXIV.</value>
+  </data>
+  <data name="LaunchFailed" xml:space="preserve">
+    <value>No se pudo completar el arranque.
+</value>
+  </data>
+  <data name="GameLoaded" xml:space="preserve">
+    <value>Traducción cargada. Puedes cerrar Gubal Desktop y continuar en el juego.</value>
+  </data>
+  <data name="ComponentFailed" xml:space="preserve">
+    <value>No se pudo iniciar el componente de Gubal.</value>
+  </data>
+  <data name="SettingsTitle" xml:space="preserve">
+    <value>Ajustes de Gubal Desktop</value>
+  </data>
+  <data name="GameFolder" xml:space="preserve">
+    <value>Carpeta de FFXIV</value>
+  </data>
+  <data name="BrowseFolder" xml:space="preserve">
+    <value>Buscar carpeta…</value>
+  </data>
+  <data name="FolderPrompt" xml:space="preserve">
+    <value>Selecciona la carpeta de FFXIV, la que contiene boot y game</value>
+  </data>
+  <data name="InvalidFolder" xml:space="preserve">
+    <value>La carpeta no contiene una instalación de FFXIV.</value>
+  </data>
+  <data name="Save" xml:space="preserve">
+    <value>Guardar</value>
+  </data>
+  <data name="ChooseInstallation" xml:space="preserve">
+    <value>Elige tu instalación de FFXIV</value>
+  </data>
+  <data name="UseInstallation" xml:space="preserve">
+    <value>Usar esta instalación</value>
+  </data>
+  <data name="CheckUpdates" xml:space="preserve">
+    <value>Buscar actualización del pack</value>
+  </data>
+  <data name="PackUpToDate" xml:space="preserve">
+    <value>Actualizado</value>
+  </data>
+  <data name="Close" xml:space="preserve">
+    <value>Cerrar</value>
+  </data>
+  <data name="OpenDetails" xml:space="preserve">
+    <value>Abrir detalles</value>
+  </data>
+  <data name="EnglishTooltip" xml:space="preserve">
+    <value>Usa el idioma original del juego. No descarga ni carga un language pack.</value>
+  </data>
+  <data name="ProgressUnavailable" xml:space="preserve">
+    <value>Progreso no disponible</value>
+  </data>
+  <data name="LoadingProgress" xml:space="preserve">
+    <value>Consultando progreso…</value>
+  </data>
+  <data name="CoverageScope" xml:space="preserve">
+    <value>
+
+El porcentaje corresponde al contenido incluido en el inventario de localización.</value>
+  </data>
+  <data name="ChangeLanguage" xml:space="preserve">
+    <value>Cambiar idioma</value>
+  </data>
+  <data name="AlreadyOpen" xml:space="preserve">
+    <value>Gubal Desktop ya está abierto.</value>
+  </data>
+  <data name="CloseGameFirst" xml:space="preserve">
+    <value>Cierra FFXIV y los launchers antes de instalar o iniciar desde Gubal.</value>
+  </data>
+  <data name="EnglishOption" xml:space="preserve">
+    <value>English (no localization)</value>
+  </data>
+  <data name="NewPackPrompt" xml:space="preserve">
+    <value>Hay un nuevo pack: {0}. ¿Quieres instalarlo?</value>
+  </data>
+  <data name="InstalledPack" xml:space="preserve">
+    <value>Pack instalado · {0}</value>
+  </data>
+  <data name="CoveragePercent" xml:space="preserve">
+    <value>{0:0.#} % localizado</value>
+  </data>
+  <data name="PackNotInstalled" xml:space="preserve">
+    <value>Instala el language pack seleccionado para usarlo.</value>
+  </data>
+  <data name="KeepWindowOpen" xml:space="preserve">
+    <value>No cierres Gubal Desktop hasta que termine el inicio del juego.</value>
+  </data>
+  <data name="DesktopUpdatePrompt" xml:space="preserve">
+    <value>Gubal Desktop {0} está disponible. ¿Quieres descargarlo e instalarlo ahora? Gubal Desktop se reiniciará después de actualizarse.</value>
+  </data>
+  <data name="DesktopCheckUpdates" xml:space="preserve">
+    <value>Buscar actualizaciones de Gubal Desktop</value>
+  </data>
+  <data name="DesktopDownloading" xml:space="preserve">
+    <value>Descargando Gubal Desktop · {0}%</value>
+  </data>
+  <data name="DesktopUpToDate" xml:space="preserve">
+    <value>Gubal Desktop está actualizado.</value>
+  </data>
+  <data name="DesktopUpdateOffline" xml:space="preserve">
+    <value>No se pudieron comprobar las actualizaciones de Gubal Desktop. Inténtalo más tarde.</value>
+  </data>
+  <data name="DesktopUpdateDevelopment" xml:space="preserve">
+    <value>Usa la versión portable para actualizar Gubal Desktop. Las versiones de desarrollo se actualizan al compilar.</value>
+  </data>
+  <data name="PreviewDisclaimer" xml:space="preserve">
+    <value>Esta es una versión preliminar. Para una mejor experiencia, usa Gubal Library como plugin de Dalamud.</value>
+  </data>
+</root>

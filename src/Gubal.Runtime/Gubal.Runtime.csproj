@@ -1,0 +1,24 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <SelfContained>true</SelfContained>
+    <AssemblyName>GubalStandalone.Runtime</AssemblyName>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../Gubal.Core/Gubal.Core.csproj" />
+    <ProjectReference Include="../Gubal.Game/Gubal.Game.csproj" />
+    <Reference Include="FFXIVClientStructs"><HintPath>$(GameDependencyPath)\FFXIVClientStructs.dll</HintPath></Reference>
+    <Reference Include="InteropGenerator.Runtime"><HintPath>$(GameDependencyPath)\InteropGenerator.Runtime.dll</HintPath></Reference>
+    <Reference Include="Lumina"><HintPath>$(GameDependencyPath)\Lumina.dll</HintPath></Reference>
+    <Reference Include="CheapLoc"><HintPath>$(GameDependencyPath)\CheapLoc.dll</HintPath></Reference>
+    <Reference Include="Newtonsoft.Json"><HintPath>$(GameDependencyPath)\Newtonsoft.Json.dll</HintPath></Reference>
+    <Reference Include="goatcorp.Reloaded.Hooks"><HintPath>$(GameDependencyPath)\goatcorp.Reloaded.Hooks.dll</HintPath></Reference>
+    <Reference Include="Reloaded.Hooks.Definitions"><HintPath>$(GameDependencyPath)\Reloaded.Hooks.Definitions.dll</HintPath></Reference>
+    <Reference Include="Iced"><HintPath>$(GameDependencyPath)\Iced.dll</HintPath></Reference>
+    <Reference Include="goatcorp.Reloaded.Memory.Buffers"><HintPath>$(GameDependencyPath)\goatcorp.Reloaded.Memory.Buffers.dll</HintPath></Reference>
+    <Reference Include="Reloaded.Memory.Buffers"><HintPath>$(GameDependencyPath)\Reloaded.Memory.Buffers.dll</HintPath></Reference>
+    <Reference Include="Reloaded.Memory"><HintPath>$(GameDependencyPath)\Reloaded.Memory.dll</HintPath></Reference>
+  </ItemGroup>
+  <Import Project="../../build/Native.targets" />
+</Project>

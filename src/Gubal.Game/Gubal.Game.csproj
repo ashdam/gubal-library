@@ -1,0 +1,14 @@
+<Project Sdk="Microsoft.NET.Sdk" TreatAsLocalProperty="SelfContained">
+  <PropertyGroup>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <SelfContained>false</SelfContained>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../Gubal.Core/Gubal.Core.csproj" />
+    <Reference Include="FFXIVClientStructs"><HintPath>$(GameDependencyPath)\FFXIVClientStructs.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="InteropGenerator.Runtime"><HintPath>$(GameDependencyPath)\InteropGenerator.Runtime.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="Lumina"><HintPath>$(GameDependencyPath)\Lumina.dll</HintPath><Private>false</Private></Reference>
+    <InternalsVisibleTo Include="GubalLibrary" />
+    <InternalsVisibleTo Include="GubalStandalone.Runtime" />
+  </ItemGroup>
+</Project>

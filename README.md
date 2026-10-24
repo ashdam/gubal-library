@@ -111,6 +111,43 @@ Click outside a name to advance the dialogue. Links use the native game cursor a
 It exists to check that the plugin still attaches before the game's first read, which is the
 one property this whole approach depends on.
 
+## Development
+
+`Gubal.slnx` contains the plugin and Desktop. `Directory.Build.props` sets their shared version.
+
+| Project | Purpose |
+| --- | --- |
+| `Gubal.Core` | Pack installation, updates, compatibility and usage reports. |
+| `Gubal.Game` | Shared texture loading and native resource paths. |
+| `Gubal.Plugin` | Dalamud services and the in-game interface. |
+| `Gubal.Desktop` | Windows Forms interface and Desktop settings. |
+| `Gubal.Runtime` | File redirection inside FFXIV without Dalamud. |
+| `Gubal.Launcher` | Official launcher startup and runtime loading. |
+
+Set `DALAMUD_HOME` to the downloaded Dalamud distribution for its SDK and dependency assemblies.
+Local builds also accept the XIVLauncher development distribution. Core and Runtime do not load Dalamud.
+
+```powershell
+dotnet build src/Gubal.Plugin/GubalLibrary.csproj -c Release
+dotnet build Gubal.slnx -c Release
+dotnet build src/Gubal.Desktop/Gubal.Desktop.csproj -c Release -t:Package
+```
+
+The plugin builds to `bin/x64/Release/win-x64`. Desktop builds to
+`src/Gubal.Desktop/bin/x64/Release/net10.0-windows/win-x64`.
+Runtime builds its native host with the pinned Zig compiler and checks the download's SHA-256 hash.
+
+The Desktop `Package` target creates the portable ZIP and update feed in `dist/desktop`, with .NET included.
+The Dalamud package is `bin/x64/Release/win-x64/GubalLibrary/latest.zip` and contains no Desktop files.
+Desktop stores packs and settings in `%LOCALAPPDATA%/GubalDesktop`. Its reporting identity is separate from the plugin.
+
+GitHub Actions builds both Windows packages with the Linux .NET SDK on Ubuntu.
+Release checks use Bash and jq. Their tests are defined in the release checks workflow.
+
+Desktop uses Velopack and GitHub Releases for application updates. It applies updates only while FFXIV is closed.
+Package versions map `0.7.1.0` to `0.7.1-rev.0`; the interface keeps the four-part application version.
+For local update checks, set `GUBAL_DESKTOP_UPDATE_SOURCE` to a directory containing the generated update feed.
+
 ## Contributors
 
 - **Mini Ashdam** — [Lodestone profile](https://eu.finalfantasyxiv.com/lodestone/character/1580162/)
