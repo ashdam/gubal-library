@@ -25,6 +25,8 @@ internal sealed class Configuration : IPluginConfiguration
 
     public bool Debug { get; set; }
 
+    public bool? ShowDevTab { get; set; }
+
     public bool EnableCodexLinks { get; set; }
 
     public bool LifestreamCompatibility { get; set; }

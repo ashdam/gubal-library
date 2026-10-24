@@ -193,9 +193,9 @@ public sealed class Plugin : IDalamudPlugin
                 () => pluginInterface.OpenDalamudSettingsTo(SettingsOpenKind.General),
                 () => this.shadow,
                 pluginInterface.Manifest.AssemblyVersion.ToString(),
-                pluginInterface.IsDev,
                 () => this.clientState.IsLoggedIn);
 
+            this.configWindow.ConfigureActionFont(pluginInterface.UiBuilder);
             this.configWindow.ConfigureDevPreview(addonLifecycle, sigScanner, framework);
             this.windows.AddWindow(this.configWindow);
 
@@ -280,7 +280,7 @@ public sealed class Plugin : IDalamudPlugin
         this.dialogueCodex.DrawLinks();
         if (!this.pluginInterface.UiBuilder.CutsceneActive)
             this.configWindow.PreviewPluginUpdate = this.lobbyUpdateNotice.Draw(
-                this.clientState.IsLoggedIn, this.pluginInterface.IsDev && this.configWindow.PreviewPluginUpdate);
+                this.clientState.IsLoggedIn, this.configWindow.DevToolsEnabled && this.configWindow.PreviewPluginUpdate);
         this.windows.Draw();
         this.fileDialogs.Draw();
     }
@@ -311,6 +311,7 @@ public sealed class Plugin : IDalamudPlugin
 
             this.configWindow?.DisposeDevPreview();
             this.windows.RemoveAllWindows();
+            this.configWindow?.DisposeActionFont();
         }
         finally
         {
@@ -365,6 +366,13 @@ public sealed class Plugin : IDalamudPlugin
                       + "and could not be set to. Turn it on in Dalamud's settings or this does nothing.");
                 break;
 
+            case "dev":
+                this.chat.Print(this.configWindow.ToggleDevTab()
+                    ? "[Gubal]Dev tab enabled."
+                    : "[Gubal]Dev tab disabled.");
+                this.OpenConfig();
+                break;
+
             case "debug":
             case "debug on":
             case "debug off":
@@ -386,7 +394,7 @@ public sealed class Plugin : IDalamudPlugin
                 break;
 
             default:
-                this.chat.Print("[Gubal]Usage: /gubal [status|parts|check|usepack|autoupdate|debug on|debug off]");
+                this.chat.Print("[Gubal]Usage: /gubal [status|parts|check|usepack|autoupdate|dev|debug on|debug off]");
                 break;
         }
     }

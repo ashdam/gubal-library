@@ -29,6 +29,8 @@
   <!-- Screenshots must not contain other players' names or chat. -->
   <ItemGroup>
     <EmbeddedResource Include="../../images/icon.png" LogicalName="GubalLibrary.images.icon.png" />
+    <EmbeddedResource Include="../../images/reviewer.png" LogicalName="GubalLibrary.images.reviewer.png" />
+    <EmbeddedResource Include="../../images/links/*.png" LogicalName="GubalLibrary.images.links.%(Filename)%(Extension)" />
     <EmbeddedResource Include="../../images/tooltips/*.png" LogicalName="GubalLibrary.images.tooltips.%(Filename)%(Extension)" />
     <EmbeddedResource Include="../../images/example7.png" LogicalName="GubalLibrary.images.tooltips.codex.png" />
     <EmbeddedResource Include="../../images/flags/*.png" LogicalName="GubalLibrary.images.flags.%(Filename)%(Extension)" />

@@ -296,4 +296,7 @@ Progress covers the content included in the localization inventory.</value>
   <data name="PreviewDisclaimer" xml:space="preserve">
     <value>This is a preview version. For a better experience, use Gubal Library as a Dalamud plugin.</value>
   </data>
+  <data name="Language" xml:space="preserve"><value>Language</value></data>
+  <data name="LocalizationType" xml:space="preserve"><value>Type</value></data>
+  <data name="Reviewers" xml:space="preserve"><value>Reviewers</value></data>
 </root>

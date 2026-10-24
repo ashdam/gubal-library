@@ -31,7 +31,7 @@
   "Coverage.Unavailable": { "message": "Questo pacchetto non include i dati per espansione." },
   "Coverage.Count": { "message": "{0:N0} / {1:N0} testi tradotti" },
   "Coverage.ByExpansion": { "message": "Traduzione per espansione" },
-  "Setup.ColGameVersion": { "message": "Versione del gioco" },
+  "Setup.PackVersion": { "message": "Versione {0} ({1})" },
   "Part.PlaceNames.Name": { "message": "Nomi dei luoghi" },
   "Part.PlaceNames.Tooltip": { "message": "Nomi di regioni, zone e luoghi sulle mappe, nei dungeon e nelle altre istanze." },
   "Part.GoldSaucer.Name": { "message": "Gold Saucer e minigiochi" },
@@ -193,7 +193,7 @@
 
   "Pack.NothingServed": { "message": "QUESTA SESSIONE NON HA NIENTE DI TRADOTTO" },
   "Setup.ColLanguage": { "message": "Lingua" },
-  "Setup.ColLocalized": { "message": "Localizzato" },
+  "Setup.LocalizationProgress": { "message": "Avanzamento della localizzazione" },
   "Setup.ColEnglish": { "message": "Localizzazioni in corso e future" },
   "Setup.NoPackYet": { "message": "Ancora nessun pack" },
   "Setup.CoverageLoading": { "message": "Caricamento..." },
@@ -252,7 +252,6 @@
   "PluginUpdate.OpenInstaller": { "message": "Apri il catalogo dei plugin" },
   "PluginUpdate.CatalogHint": { "message": "Nel catalogo, premi «Aggiorna plugin»." },
   "PluginUpdate.InstallerError": { "message": "Impossibile aprire il gestore dei plugin di Dalamud." },
-  "PluginUpdate.PreviewToggle": { "message": "Anteprima avviso di aggiornamento nella lobby" },
   "PluginUpdate.AutoClose": { "message": "Si chiude tra {0} secondi" },
   "Compatibility.WaitRequired": { "message": "Attiva in Dalamud la attesa dei plugin prima del caricamento del gioco e riavvia per verificare questo pack precedente." },
   "Compatibility.Invalid": { "message": "Impossibile verificare i metadati di compatibilità del pack precedente. Aggiorna il language pack." },
@@ -271,5 +270,11 @@
   "Compatibility.NothingDisabled": { "message": "Nessuna parte è stata disattivata. Tutte le parti attive restano localizzate." },
   "Compatibility.AffectedParts": { "message": "Queste parti usano ora i testi o le immagini originali del gioco:" },
   "Compatibility.Details": { "message": "Dettagli tecnici" },
-  "Compatibility.InterfaceAssets": { "message": "Immagini e struttura dell’interfaccia" }
+  "Compatibility.InterfaceAssets": { "message": "Immagini e struttura dell’interfaccia" },
+  "Setup.ColType": { "message": "Tipo" },
+  "Setup.Reviewers": { "message": "Revisori" },
+  "Setup.Reviewer": { "message": "Revisore" },
+  "Setup.EnglishDescription": { "message": "Usa i testi originali del gioco in inglese." },
+  "Setup.PendingPercent": { "message": "% da tradurre" },
+  "Setup.LanguageEnglishTitle": { "message": "Inglese" }
 }

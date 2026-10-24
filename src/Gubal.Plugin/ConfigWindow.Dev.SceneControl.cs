@@ -46,7 +46,7 @@ internal sealed partial class ConfigWindow
             var child = this.IsScreenInfo(controller)
                 ? *(nint*)((byte*)controller + 0x290 + index * 8) : 0;
             if (child == 0 || *(int*)((byte*)child + 0x258) != index)
-                throw new InvalidOperationException("El componente nativo de títulos de lugar no está disponible. Reinicia el cliente para restaurarlo.");
+                throw new InvalidOperationException("The native location title component is not available. Restart the game client to restore it.");
         }
         this.previewSceneMode = mode;
         this.previewSceneIndex = index;

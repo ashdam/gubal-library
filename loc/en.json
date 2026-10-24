@@ -31,7 +31,7 @@
   "Coverage.Unavailable": { "message": "This pack has no expansion breakdown." },
   "Coverage.Count": { "message": "{0:N0} / {1:N0} texts translated" },
   "Coverage.ByExpansion": { "message": "Translation by expansion" },
-  "Setup.ColGameVersion": { "message": "Game version" },
+  "Setup.PackVersion": { "message": "Version {0} ({1})" },
   "Part.PlaceNames.Name": { "message": "Place names" },
   "Part.PlaceNames.Tooltip": { "message": "Names of regions, zones and locations on maps and inside dungeons and other instances." },
   "Part.GoldSaucer.Name": { "message": "Gold Saucer and minigames" },
@@ -315,8 +315,8 @@
     "message": "Language",
     "description": "ConfigWindow.DrawLanguageChooser"
   },
-  "Setup.ColLocalized": {
-    "message": "Localized",
+  "Setup.LocalizationProgress": {
+    "message": "Localization progress",
     "description": "ConfigWindow.DrawLanguageChooser"
   },
   "Setup.ColEnglish": {
@@ -398,7 +398,6 @@
   "PluginUpdate.OpenInstaller": { "message": "Open plugin catalog" },
   "PluginUpdate.CatalogHint": { "message": "In the catalog, click \"Update plugins\"." },
   "PluginUpdate.InstallerError": { "message": "Could not open the Dalamud installer." },
-  "PluginUpdate.PreviewToggle": { "message": "Preview lobby update notice" },
   "PluginUpdate.AutoClose": { "message": "Closes in {0} seconds" },
   "Compatibility.WaitRequired": { "message": "Enable Dalamud's wait for plugins before the game loads, then restart to check this older pack." },
   "Compatibility.Invalid": { "message": "The older pack's compatibility metadata could not be verified. Update the language pack." },
@@ -417,5 +416,11 @@
   "Compatibility.NothingDisabled": { "message": "Nothing has been disabled. All enabled parts remain translated." },
   "Compatibility.AffectedParts": { "message": "These parts now use the game's original text or images:" },
   "Compatibility.Details": { "message": "Technical details" },
-  "Compatibility.InterfaceAssets": { "message": "Interface images and layout" }
+  "Compatibility.InterfaceAssets": { "message": "Interface images and layout" },
+  "Setup.ColType": { "message": "Type" },
+  "Setup.Reviewers": { "message": "Reviewers" },
+  "Setup.Reviewer": { "message": "Reviewer" },
+  "Setup.EnglishDescription": { "message": "Use the game's original English text." },
+  "Setup.PendingPercent": { "message": "% pending" },
+  "Setup.LanguageEnglishTitle": { "message": "English" }
 }

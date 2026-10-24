@@ -71,7 +71,7 @@ internal sealed partial class ConfigWindow
                 ImGui.TextWrapped(name);
             }
         }
-        if (this.isDev && compatibility.Excluded.Count > 0 && ImGui.TreeNode(Loc.Localize("Compatibility.Details", "Technical details")))
+        if (this.DevToolsEnabled && compatibility.Excluded.Count > 0 && ImGui.TreeNode(Loc.Localize("Compatibility.Details", "Technical details")))
         {
             foreach (var path in compatibility.Requested.Where(compatibility.Excluded.ContainsKey).Order(StringComparer.Ordinal))
                 ImGui.TextWrapped($"{path}: {compatibility.Excluded[path]}");

@@ -30,6 +30,12 @@ internal sealed class PackManifest
 
     [JsonPropertyName("author")] public string? Author { get; init; }
 
+    [JsonPropertyName("reviewers")] public List<string>? Reviewers { get; init; }
+
+    [JsonIgnore] public IEnumerable<string> ReviewerNames => (this.Reviewers ?? [])
+        .Where(name => !string.IsNullOrWhiteSpace(name)).Select(name => name.Trim())
+        .Distinct(StringComparer.OrdinalIgnoreCase);
+
     /// <summary>
     ///     A manifest to fetch to find out whether a newer generation exists. Optional.
     /// </summary>

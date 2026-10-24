@@ -1,81 +1,52 @@
-using System.Runtime.InteropServices;
-using Dalamud.Plugin.Services;
-using Lumina.Excel.Sheets;
+using System.Text.Json;
 
 namespace GubalLibrary;
 
 internal sealed partial class ConfigWindow
 {
-    private nint nativeImageModes;
-    private nint nativeImageIndex;
-    private nint nativeCompanyImages;
-    private readonly Dictionary<int, PreviewScene> gameBannerScenes = [];
-
-    private void ConfigureSceneCatalog(ISigScanner scanner)
+    private Dictionary<int, PreviewScene> ReadNativeScenes()
     {
-        if (scanner.TryScanText("BA 02 00 00 00 41 83 FA 30 73 09 41 0F BE 94 0A ?? ?? ?? ?? 8B 84 24", out var modes))
-            this.nativeImageModes = scanner.Module.BaseAddress + Marshal.ReadInt32(modes + 16);
-        scanner.TryScanText("83 FA 4D 0F 87 ?? ?? ?? ?? 8B C2 48 8D 15 ?? ?? ?? ?? 8B 8C 82", out this.nativeImageIndex);
-        if (scanner.TryScanText("4C 8D 25 ?? ?? ?? ?? 42 8B 1C 27 48 8D 4D 80", out var companies))
-            this.nativeCompanyImages = companies + 7 + Marshal.ReadInt32(companies + 3);
-    }
-
-    private unsafe int NativeSceneIndex(int mode)
-    {
-        if (this.nativeImageIndex == 0 || mode is < 0 or > 77) return -1;
-        var lookup = (delegate* unmanaged<nint, int, int>)this.nativeImageIndex;
-        var index = lookup(0, mode);
-        return index is >= 0 and < 69 ? index : -1;
-    }
-
-    private int NativeImageMode(int type)
-    {
-        if (this.nativeImageModes == 0 || type is < 1 or >= 48) return -1;
-        // These types use the native short location title dispatcher.
-        if (type is 16 or 23 or 33) return 6;
-        var mode = Marshal.ReadByte(this.nativeImageModes + type);
-        return this.NativeSceneIndex(mode) >= 0 ? mode : -1;
-    }
-
-    private void ReadGameBannerScenes()
-    {
-        this.gameBannerScenes.Clear();
-        if (this.previewData is null) return;
-        foreach (var screen in this.previewData.GetExcelSheet<ScreenImage>()!.OrderBy(row => row.RowId))
-            if (screen.Lang && this.NativeImageMode(screen.Type) >= 0)
-                this.gameBannerScenes.TryAdd((int)screen.Image, new(ScreenImageId: screen.RowId));
-        foreach (var cut in this.previewData.GetExcelSheet<CutScreenImage>()!.OrderBy(row => row.RowId))
+        var path = Path.Combine(this.previewCatalogPath!, "dev", "banner-native-scenes.json");
+        using var doc = JsonDocument.Parse(File.ReadAllBytes(path));
+        if (doc.RootElement.GetProperty("version").GetInt32() != 2)
+            throw new InvalidDataException("Unsupported native banner catalog version.");
+        if (doc.RootElement.GetProperty("gameVersion").GetString() != this.RunningGame())
+            throw new InvalidDataException("The native banner catalog does not match the running game. Rebuild the catalog and pack.");
+        if (this.previewData?.Language != Dalamud.Game.ClientLanguage.English)
+            throw new InvalidDataException("Native banner previews require the English game client.");
+        var result = new Dictionary<int, PreviewScene>();
+        foreach (var row in doc.RootElement.GetProperty("scenes").EnumerateArray())
         {
-            if (this.NativeImageMode(cut.Type) < 0) continue;
-            var scene = new PreviewScene(CutScreenImageId: cut.RowId);
-            foreach (var image in this.SceneImages(scene)) this.gameBannerScenes.TryAdd(image, scene);
-        }
-        foreach (var territory in this.previewData.GetExcelSheet<TerritoryType>()!.OrderBy(row => row.RowId))
-        {
-            if (territory.PlaceNameIcon > 0)
-                this.gameBannerScenes.TryAdd(territory.PlaceNameIcon, new(TerritoryId: territory.RowId));
-            if (territory.PlaceNameRegionIcon > 0)
-                this.gameBannerScenes.TryAdd(territory.PlaceNameRegionIcon, new(TerritoryId: territory.RowId));
-        }
-        if (this.nativeCompanyImages != 0)
-            for (var company = 1; company <= 3; company++)
+            var id = row.GetProperty("textureId").GetInt32();
+            var mode = row.GetProperty("mode").GetInt32();
+            var index = row.GetProperty("index").GetInt32();
+            var images = row.GetProperty("images").EnumerateArray().Select(value => value.GetInt32()).ToArray();
+            var requests = row.GetProperty("requestImages").EnumerateArray().Select(value => value.GetInt32()).ToArray();
+            uint Required(string name)
             {
-                var image = Marshal.ReadInt32(this.nativeCompanyImages + company * 8 + 4);
-                if (image > 0) this.gameBannerScenes.TryAdd(image, new(CompanyId: (uint)company));
+                var value = row.GetProperty(name).GetUInt32();
+                return value > 0 ? value : throw new InvalidDataException($"Invalid {name} for native banner {id}.");
             }
-    }
-
-    private int SceneMode(PreviewScene scene)
-    {
-        if (scene.CutScreenImageId != 0)
-            return this.NativeImageMode(this.previewData!.GetExcelSheet<CutScreenImage>()!.GetRow(scene.CutScreenImageId).Type);
-        if (scene.ScreenImageId != 0)
-            return this.NativeImageMode(this.previewData!.GetExcelSheet<ScreenImage>()!.GetRow(scene.ScreenImageId).Type);
-        if (scene.Streak != 0) return 30;
-        if (scene.ManeuverStreak != 0) return 31;
-        if (scene.TerritoryId != 0) return 10;
-        if (scene.CompanyId != 0) return (int)this.previewData!.Language is 0 or >= 4 ? 19 : 18;
-        if (scene.ImageId != 0) return scene.DisplayType switch { 0 => 2, 1 => 9, 2 => 16, 3 => 29, _ => -1 };
-        return -1;
+            var scene = row.GetProperty("type").GetString() switch
+            {
+                "screenImage" => new PreviewScene(ScreenImageId: Required("rowId")),
+                "cutScreenImage" => new PreviewScene(CutScreenImageId: Required("rowId")),
+                "streak" when Required("value") is 1 or 2 => new PreviewScene(Streak: (int)Required("value")),
+                "maneuverStreak" when Required("value") == 1 => new PreviewScene(ManeuverStreak: 1),
+                "companyRank" when Required("companyId") is >= 1 and <= 3 => new PreviewScene(CompanyId: Required("companyId")),
+                "directImage" when row.GetProperty("displayType").GetInt32() is >= 0 and <= 3 =>
+                    new PreviewScene(ImageId: (uint)id, DisplayType: row.GetProperty("displayType").GetInt32()),
+                "locationTitle" => new PreviewScene(TerritoryId: Required("territoryId"),
+                    LocationImageId: row.TryGetProperty("replacementTitleId", out _) ? Required("replacementTitleId") : 0,
+                    SourceTitleId: row.TryGetProperty("sourceTitleId", out _) ? Required("sourceTitleId") : 0),
+                _ => throw new InvalidDataException($"Unsupported native banner type for {id}."),
+            };
+            if (id is < 120000 or >= 130000 || mode is < 0 or > 77 || index is < 0 or >= 69
+                || images.Length is < 1 or > 8 || requests.Length is < 1 or > 8 || !images.Contains(id)
+                || images.Concat(requests).Any(image => image is < 120000 or >= 130000)
+                || !result.TryAdd(id, scene with { Mode = mode, Index = index, Images = images, RequestImages = requests }))
+                throw new InvalidDataException($"Invalid or duplicate native banner configuration: {id}.");
+        }
+        return result;
     }
 }

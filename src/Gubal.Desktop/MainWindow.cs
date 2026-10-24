@@ -73,7 +73,7 @@ internal sealed partial class MainWindow : Form
             else { operation.Cancel(); SetStatus(UiText.Get("Cancelling")); }
         };
         content.SizeChanged += (_, _) => ResizeContent();
-        FormClosed += (_, _) => { usage.Dispose(); desktopUpdateCancellation.Cancel(); desktopUpdateCancellation.Dispose(); catalogCancellation.Cancel(); catalogCancellation.Dispose(); tooltips.Dispose(); foreach (var image in flags.Values) image.Dispose(); };
+        FormClosed += (_, _) => { usage.Dispose(); desktopUpdateCancellation.Cancel(); desktopUpdateCancellation.Dispose(); catalogCancellation.Cancel(); catalogCancellation.Dispose(); tooltips.Dispose(); reviewerImage?.Dispose(); foreach (var image in flags.Values) image.Dispose(); };
     }
 
     private async Task InitializeAsync()

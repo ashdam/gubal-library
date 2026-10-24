@@ -166,12 +166,12 @@ internal sealed partial class ConfigWindow
         if (pressed) on = !on;
         var hovered = ImGui.IsItemHovered();
         var draw = ImGui.GetWindowDrawList();
-        var color = on ? Green with { W = hovered ? 0.8f : 0.6f }
+        var color = on ? hovered ? ThemeColor(0xf2d99b) : ThemeGold
             : ImGui.GetStyle().Colors[(int)(hovered ? ImGuiCol.FrameBgHovered : ImGuiCol.FrameBg)];
         draw.AddRectFilled(start, start + new Vector2(width, height), ImGui.GetColorU32(color), height / 2);
         var radius = Math.Max(1f, height / 2 - 3f * ImGuiHelpers.GlobalScale);
         draw.AddCircleFilled(start + new Vector2(on ? width - height / 2 : height / 2, height / 2),
-            radius, ImGui.GetColorU32(ImGuiCol.Text));
+            radius, ImGui.GetColorU32(on ? ThemeInk : ImGui.GetStyle().Colors[(int)ImGuiCol.Text]));
         if (ImGui.IsItemFocused())
             draw.AddRect(start, start + new Vector2(width, height), ImGui.GetColorU32(Blue), height / 2);
         if (alignRight)

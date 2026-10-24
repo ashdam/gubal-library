@@ -296,4 +296,7 @@ El porcentaje corresponde al contenido incluido en el inventario de localizació
   <data name="PreviewDisclaimer" xml:space="preserve">
     <value>Esta es una versión preliminar. Para una mejor experiencia, usa Gubal Library como plugin de Dalamud.</value>
   </data>
+  <data name="Language" xml:space="preserve"><value>Idioma</value></data>
+  <data name="LocalizationType" xml:space="preserve"><value>Tipo</value></data>
+  <data name="Reviewers" xml:space="preserve"><value>Revisores</value></data>
 </root>

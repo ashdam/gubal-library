@@ -8,7 +8,9 @@ internal sealed partial class MainWindow
     private readonly CancellationTokenSource catalogCancellation = new();
     private readonly Dictionary<string, PackManifest?> catalog = new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<string, RadioButton> languageButtons = new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<string, PictureBox> reviewerIcons = new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<string, Image> flags = new(StringComparer.OrdinalIgnoreCase);
+    private Image? reviewerImage;
     private Button? languageAction;
 
     private async Task LoadCatalogAsync()
@@ -33,30 +35,45 @@ internal sealed partial class MainWindow
     private void AddLanguageChoices()
     {
         languageButtons.Clear();
+        reviewerIcons.Clear();
         var lineHeight = TextRenderer.MeasureText("Ag", Font).Height;
         var rowHeight = Math.Max(LogicalToDeviceUnits(68), lineHeight * 2 + LogicalToDeviceUnits(24));
         var englishHeight = Math.Max(LogicalToDeviceUnits(56), lineHeight + LogicalToDeviceUnits(24));
-        var choices = new TableLayoutPanel { ColumnCount = 2, RowCount = 3, AutoSize = false,
-            Height = rowHeight * 2 + englishHeight, MinimumSize = new Size(0, rowHeight * 2 + englishHeight),
+        var headerHeight = lineHeight + LogicalToDeviceUnits(12);
+        var height = headerHeight + rowHeight * KnownPacks.All.Length + englishHeight;
+        var reviewLabel = UiText.Get("LocalizationType");
+        var choices = new TableLayoutPanel { ColumnCount = 2, RowCount = KnownPacks.All.Length + 2, AutoSize = false,
+            Height = height, MinimumSize = new Size(0, height),
             GrowStyle = TableLayoutPanelGrowStyle.FixedSize, Width = 700, Margin = new Padding(0, 2, 0, 12) };
-        choices.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50));
-        choices.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50));
-        choices.RowStyles.Add(new RowStyle(SizeType.Absolute, rowHeight));
-        choices.RowStyles.Add(new RowStyle(SizeType.Absolute, rowHeight));
-        choices.RowStyles.Add(new RowStyle(SizeType.Absolute, englishHeight));
+        choices.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+        choices.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute,
+            TextRenderer.MeasureText(reviewLabel, Font).Width + LogicalToDeviceUnits(24)));
+        choices.RowStyles.Add(new RowStyle(SizeType.Absolute, headerHeight));
+        choices.Controls.Add(new Label { Text = UiText.Get("Language"), Dock = DockStyle.Fill,
+            ForeColor = muted, TextAlign = ContentAlignment.MiddleLeft }, 0, 0);
+        choices.Controls.Add(new Label { Text = reviewLabel, Dock = DockStyle.Fill,
+            ForeColor = muted, TextAlign = ContentAlignment.MiddleCenter }, 1, 0);
         for (var index = 0; index < KnownPacks.All.Length; index++)
         {
             var pack = KnownPacks.All[index];
             var radio = LanguageButton(pack.Code);
             radio.Image = Flag(pack.Code);
+            var review = new PictureBox { Size = new Size(LogicalToDeviceUnits(32), LogicalToDeviceUnits(32)),
+                Anchor = AnchorStyles.None, SizeMode = PictureBoxSizeMode.Zoom,
+                AccessibleName = UiText.Get("Reviewers"), TabStop = false };
+            tooltips.SetToolTip(review, UiText.Get("Reviewers"));
+            reviewerIcons.Add(pack.Code, review);
             UpdateLanguageButton(radio, pack);
             languageButtons.Add(pack.Code, radio);
-            choices.Controls.Add(radio, index % 2, index / 2);
+            choices.RowStyles.Add(new RowStyle(SizeType.Absolute, rowHeight));
+            choices.Controls.Add(radio, 0, index + 1);
+            choices.Controls.Add(review, 1, index + 1);
         }
         var english = LanguageButton("en");
         english.Text = "🌐  " + UiText.Get("EnglishOption");
         tooltips.SetToolTip(english, UiText.Get("EnglishTooltip"));
-        choices.Controls.Add(english, 0, 2);
+        choices.RowStyles.Add(new RowStyle(SizeType.Absolute, englishHeight));
+        choices.Controls.Add(english, 0, KnownPacks.All.Length + 1);
         choices.SetColumnSpan(english, 2);
         content.Controls.Add(choices);
     }
@@ -124,6 +141,25 @@ internal sealed partial class MainWindow
             : loaded ? UiText.Get("ProgressUnavailable") : UiText.Get("LoadingProgress");
         button.Text = $" {pack.Name}\n {progressText}";
         button.AccessibleDescription = progressText;
+        if (reviewerIcons.TryGetValue(pack.Code, out var review))
+        {
+            var reviewers = manifest?.ReviewerNames.ToArray() ?? [];
+            var reviewed = reviewers.Length > 0;
+            review.Visible = reviewed;
+            if (reviewed)
+            {
+                if (reviewerImage is null)
+                {
+                    using var stream = typeof(MainWindow).Assembly.GetManifestResourceStream("GubalDesktop.reviewer.png")!;
+                    using var source = Image.FromStream(stream);
+                    reviewerImage = new Bitmap(source);
+                }
+                review.Image = reviewerImage;
+                var reviewText = UiText.Get("Reviewers") + "\n" + string.Join("\n", reviewers.Select(name => "@" + name));
+                tooltips.SetToolTip(review, reviewText);
+                button.AccessibleDescription += ". " + reviewText;
+            }
+        }
         tooltips.SetToolTip(button, coverage is not null ? CoverageTooltip(pack.Name, coverage)
             : pack.Name + "\n" + progressText);
     }

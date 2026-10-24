@@ -15,15 +15,12 @@ namespace GubalLibrary;
 
 internal sealed partial class ConfigWindow : Window
 {
-    private static readonly Vector4 Green = new(0.4f, 0.9f, 0.4f, 1f);
-    private static readonly Vector4 Amber = new(1f, 0.75f, 0.2f, 1f);
-    private static readonly Vector4 Red = new(1f, 0.35f, 0.35f, 1f);
-    private static readonly Vector4 Grey = new(0.6f, 0.6f, 0.6f, 1f);
+    private static readonly Vector4 Green = ThemeColor(0x7fc9a0);
+    private static readonly Vector4 Amber = ThemeColor(0xe0a35c);
+    private static readonly Vector4 Red = ThemeColor(0xef8888);
+    private static readonly Vector4 Grey = ThemeColor(0x98a3b6);
 
-    private static readonly Vector4 Blue = new(0.45f, 0.72f, 1f, 1f);
-
-
-
+    private static readonly Vector4 Blue = ThemeColor(0x7fc8ef);
 
     private readonly Configuration config;
     private readonly FileDialogManager fileDialogs;
@@ -76,13 +73,11 @@ internal sealed partial class ConfigWindow : Window
         Action openDalamudSettings,
         Func<ShadowState?> shadowState,
         string version,
-        bool isDev = false,
         Func<bool>? canPreview = null)
         : base($"Gubal Library ({version})###GubalLibraryConfig")
     {
-        this.isDev = isDev;
-        this.previewData = isDev ? data : null;
-        this.previewGui = isDev ? gameGui : null;
+        this.previewData = data;
+        this.previewGui = gameGui;
         this.canPreview = canPreview;
         this.shadowState = shadowState;
         this.config = config;
@@ -101,13 +96,12 @@ internal sealed partial class ConfigWindow : Window
         this.dalamudWaits = dalamudWaits;
         this.openDalamudSettings = openDalamudSettings;
 
-        this.Size = new Vector2(1000, 600);
+        this.Size = new Vector2(1000, 680);
         this.SizeCondition = ImGuiCond.FirstUseEver;
         this.SizeConstraints = new WindowSizeConstraints
         {
-            // Keep the pack version and translation columns readable.
-            MinimumSize = new Vector2(760, 220),
-            MaximumSize = new Vector2(1100, 800),
+            // Keep language cards usable at the minimum width.
+            MinimumSize = new Vector2(760, 420),
         };
     }
 
@@ -167,7 +161,7 @@ internal sealed partial class ConfigWindow : Window
                     }
                 }
 
-                if (this.isDev) this.DrawDevTab();
+                if (this.DevToolsEnabled) this.DrawDevTab();
 
                 using (var tab = ImRaii.TabItem(Loc.Localize("Tab.Help", "Help and contact")))
                 {
@@ -310,7 +304,7 @@ internal sealed partial class ConfigWindow : Window
             : null;
     }
 
-    private static float FlagHeight => 12f * ImGuiHelpers.GlobalScale;
+    private static float FlagHeight => 18f * ImGuiHelpers.GlobalScale;
 
     private void SetSheets(IEnumerable<string> sheets, bool on)
     {
@@ -483,7 +477,7 @@ internal sealed partial class ConfigWindow : Window
 
     private void DrawLanguagePackRow(PageStatus pages, ref bool changed)
     {
-        this.DrawLanguageTable(pages, ref changed);
+        this.DrawLanguageCards(pages, ref changed);
         this.DrawAutoUpdateRow();
 
         if (!this.operations.Installing && this.installMessage is { Length: > 0 } message)
@@ -492,159 +486,6 @@ internal sealed partial class ConfigWindow : Window
             ImGui.TextWrapped(message);
             ImGui.PopStyleColor();
         }
-    }
-
-    private void DrawLanguageTable(PageStatus pages, ref bool changed)
-    {
-        var scale = ImGuiHelpers.GlobalScale;
-        using var buttonPadding = ImRaii.PushStyle(ImGuiStyleVar.FramePadding,
-            new Vector2(ImGui.GetStyle().FramePadding.X, 1f * scale));
-        using var cellPadding = ImRaii.PushStyle(ImGuiStyleVar.CellPadding,
-            new Vector2(ImGui.GetStyle().CellPadding.X, 1f * scale));
-
-        using (var table = ImRaii.Table("##languages", 6,
-                   ImGuiTableFlags.RowBg | ImGuiTableFlags.NoSavedSettings | ImGuiTableFlags.PadOuterX))
-        {
-            if (!table)
-            {
-                return;
-            }
-
-            ImGui.TableSetupColumn(Loc.Localize("Setup.ColLanguage", "Language"), ImGuiTableColumnFlags.WidthFixed);
-            var localizedLabel = Loc.Localize("Setup.ColLocalized", "Localized");
-            var gameVersionLabel = Loc.Localize("Setup.ColGameVersion", "Game version");
-            ImGui.TableSetupColumn(localizedLabel, ImGuiTableColumnFlags.WidthFixed,
-                Math.Max(90f * scale, ImGui.CalcTextSize(localizedLabel).X));
-            ImGui.TableSetupColumn(gameVersionLabel, ImGuiTableColumnFlags.WidthFixed,
-                Math.Max(ImGui.CalcTextSize("2026.09.01").X, ImGui.CalcTextSize(gameVersionLabel).X)
-                + ImGui.GetStyle().FramePadding.X * 2);
-            ImGui.TableSetupColumn(Loc.Localize("Setup.ColEnglish", "WIP & future localization"), ImGuiTableColumnFlags.WidthStretch);
-            ImGui.TableSetupColumn(Loc.Localize("Setup.ColLinks", "Links"), ImGuiTableColumnFlags.WidthFixed);
-            var actionWidth = new[]
-            {
-                Loc.Localize("Setup.Ready", "Ready · Restart required"),
-                Loc.Localize("Setup.WaitRequired", "Setup required"),
-                Loc.Localize("Setup.UseEnglish", "Use English"),
-                Loc.Localize("Setup.UseFolder", "Use this folder"),
-                Loc.Localize("Setup.Install", "Install"),
-            }.Max(label => ImGui.CalcTextSize(label).X) + ImGui.GetStyle().FramePadding.X * 2;
-            ImGui.TableSetupColumn(Loc.Localize("Setup.ColAction", "Action"), ImGuiTableColumnFlags.WidthFixed, actionWidth);
-            ImGui.TableHeadersRow();
-
-            // Keep catalog indices stable when rows are sorted.
-            var rows = KnownPacks.All.Select((pack, index) =>
-            {
-                var (manifest, loading) = pack.Published ? this.PublishedManifest(pack) : (null, false);
-                return (Pack: pack, Index: index, Manifest: manifest, Loading: loading);
-            }).OrderByDescending(row => row.Manifest?.Coverage?.Percent ?? -1)
-                .ThenBy(row => row.Index);
-
-            foreach (var row in rows)
-            {
-                var i = row.Index;
-                var pack = row.Pack;
-                var manifest = row.Manifest;
-                var loading = row.Loading;
-                var offline = pack.Published && !loading && manifest is null;
-
-                ImGui.TableNextRow();
-                ImGui.TableNextColumn();
-                this.DrawLanguageName(pack.Code, null, pack.Name);
-
-                this.DrawCoverageCell(pack, manifest, loading);
-
-                ImGui.TableNextColumn();
-                ImGui.AlignTextToFramePadding();
-                var gameVersion = manifest?.GameVersion ?? string.Empty;
-                ImGui.TextUnformatted(gameVersion.EndsWith(".0000.0000", StringComparison.Ordinal)
-                    ? gameVersion[..^10] : gameVersion);
-
-                ImGui.TableNextColumn();
-                if (manifest is not null)
-                {
-                    ImGui.AlignTextToFramePadding();
-                    DrawTruncatedText(manifest.Coverage?.FutureLocalization is { } future
-                        ? string.Join(", ", future.Where(p => p.Pending > 0).Select(p =>
-                            p.PendingPercent == 100 ? p.Content ?? p.Sheet : $"{p.Content ?? p.Sheet} ({(p.PendingPercent == 0 ? "<0.1" : p.PendingPercent.ToString("0.#", CultureInfo.InvariantCulture))}% pending)"))
-                        : Loc.Localize("Setup.EnglishNotSpecified", "Not specified"));
-                }
-
-                ImGui.TableNextColumn();
-                ImGui.AlignTextToFramePadding();
-                if (pack.Site is { Length: > 0 } site)
-                {
-                    IconLink(FontAwesomeIcon.Globe, pack.SiteName ?? site, site);
-                    ImGui.SameLine();
-                }
-
-                IconLink(FontAwesomeIcon.Language, Loc.Localize("Setup.HelpTranslate", "Help us translate"), KnownPacks.TutorialFor(pack.Code));
-
-                if (PackTracker(pages, i) is { Length: > 0 } tracker)
-                {
-                    ImGui.SameLine();
-                    IconLink(FontAwesomeIcon.Bug, Loc.Localize("Setup.Report", "Report a localization issue"), tracker);
-                }
-
-                ImGui.TableNextColumn();
-                using (ImRaii.PushId(pack.Code)) this.DrawOfficialPackAction(pack, manifest, pages, loading || offline);
-            }
-
-            if (this.config.LanguagePackPath.Length > 0)
-            {
-                ImGui.TableNextRow();
-                ImGui.TableNextColumn();
-                this.DrawLanguageName(null, FontAwesomeIcon.Globe, Loc.Localize("Setup.LanguageEnglish", "English (no localization)"));
-                ImGui.TableSetColumnIndex(5);
-                ImGui.AlignTextToFramePadding();
-                if (!pages.Active)
-                {
-                    ImGui.TextColored(Green, Loc.Localize("Setup.Active", "Active"));
-                    if (this.config.ServeLanguagePack) ImGui.SameLine();
-                }
-                if (!this.config.ServeLanguagePack && pages.Active)
-                    ImGui.TextColored(Amber, Loc.Localize("Setup.Ready", "Ready · Restart required"));
-                else if (this.config.ServeLanguagePack)
-                {
-                    using var disabled = ImRaii.Disabled(this.operations.Installing);
-                    if (ImGui.Button(Loc.Localize("Setup.UseEnglish", "Use English")))
-                    {
-                        this.config.ServeLanguagePack = false;
-                        this.installMessage = null;
-                        this.restartReason = null;
-                        this.NoteServing();
-                        changed = true;
-                    }
-                }
-            }
-
-            this.DrawCustomPackRow(pages, ref changed);
-        }
-
-    }
-
-    private static void DrawTruncatedText(string text)
-    {
-        var width = ImGui.GetContentRegionAvail().X;
-        var display = text;
-        if (ImGui.CalcTextSize(text).X > width)
-        {
-            var low = 0;
-            var high = text.Length;
-            while (low < high)
-            {
-                var middle = low + (high - low + 1) / 2;
-                if (ImGui.CalcTextSize(text[..middle] + "...").X <= width)
-                    low = middle;
-                else
-                    high = middle - 1;
-            }
-
-            if (low > 0 && char.IsHighSurrogate(text[low - 1])) low--;
-            display = text[..low].TrimEnd() + "...";
-        }
-
-        ImGui.TextUnformatted(display);
-        if (ImGui.IsItemHovered()) SetTooltip(text);
     }
 
     private static void IconLink(FontAwesomeIcon icon, string label, string url)
@@ -671,67 +512,40 @@ internal sealed partial class ConfigWindow : Window
 
     private void DrawLanguageName(string? flagCode, FontAwesomeIcon? glyph, string label)
     {
-        var rowY = ImGui.GetCursorPosY();
-        if (flagCode is not null && this.Flag(flagCode) is { } flag)
+        ImGui.SetWindowFontScale(1.35f);
+        try
         {
-            ImGui.SetCursorPosY(rowY + (ImGui.GetFrameHeight() - FlagHeight) / 2f);
-            ImGui.Image(flag.Handle, new Vector2(FlagHeight * flag.Width / flag.Height, FlagHeight));
-            ImGui.SameLine();
-            ImGui.SetCursorPosY(rowY);
-        }
-        else if (glyph is { } icon)
-        {
-            ImGui.AlignTextToFramePadding();
-            using (ImRaii.PushFont(UiBuilder.IconFont, true))
+            using (ImRaii.PushColor(ImGuiCol.Text, ThemeGold))
             {
-                ImGui.TextUnformatted(icon.ToIconString());
-            }
-
-            ImGui.SameLine();
-        }
-
-        ImGui.AlignTextToFramePadding();
-        ImGui.TextUnformatted(label);
-    }
-
-    private void DrawCoverageCell(KnownPack pack, PackManifest? manifest, bool loading)
-    {
-        ImGui.TableNextColumn();
-        ImGui.AlignTextToFramePadding();
-
-        if (!pack.Published)
-        {
-            ImGui.TextDisabled(Loc.Localize("Setup.NoPackYet", "No pack yet"));
-        }
-        else if (loading)
-        {
-            ImGui.TextDisabled(Loc.Localize("Setup.CoverageLoading", "Loading..."));
-        }
-        else if (manifest is null)
-        {
-            ImGui.TextDisabled(Loc.Localize("Setup.Offline", "Offline"));
-        }
-        else if (manifest.Coverage is { } coverage)
-        {
-            var percent = coverage.Percent;
-            var overlay = percent >= 100 ? "100 %"
-                : percent is > 0 and < 1 ? "<1 %"
-                : percent.ToString("0.#", CultureInfo.InvariantCulture) + " %";
-
-            ImGui.ProgressBar((float)Math.Clamp(percent / 100.0, 0.0, 1.0), new Vector2(-1, 0), overlay);
-            if (pack.Site is { Length: > 0 } site && ImGui.IsItemHovered())
-            {
-                ImGui.SetMouseCursor(ImGuiMouseCursor.Hand);
-                if (ImGui.IsMouseClicked(ImGuiMouseButton.Left))
+                var rowY = ImGui.GetCursorPosY();
+                if (flagCode is not null && this.Flag(flagCode) is { } flag)
                 {
-                    Util.OpenLink(site);
+                    ImGui.SetCursorPosY(rowY + (ImGui.GetFrameHeight() - FlagHeight) / 2f);
+                    ImGui.Image(flag.Handle, new Vector2(FlagHeight * flag.Width / flag.Height, FlagHeight));
+                    ImGui.SameLine();
+                    ImGui.SetCursorPosY(rowY);
                 }
-            }
+                else if (glyph is { } icon)
+                {
+                    ImGui.AlignTextToFramePadding();
+                    using (ImRaii.PushFont(UiBuilder.IconFont, true))
+                    {
+                        ImGui.TextUnformatted(icon.ToIconString());
+                    }
 
-            this.DrawCoverageTooltip(coverage);
+                    ImGui.SameLine();
+                }
+
+                ImGui.AlignTextToFramePadding();
+                ImGui.TextUnformatted(label);
+                EmphasizeText(ImGui.GetItemRectMin(), ImGui.GetColorU32(ThemeGold), label);
+            }
+        }
+        finally
+        {
+            ImGui.SetWindowFontScale(1f);
         }
     }
-
 
     // The manifest published at a pack's release, fetched once per session.
 
@@ -758,16 +572,16 @@ internal sealed partial class ConfigWindow : Window
         if (this.DrawPackActionState(pack.Source, installed && pages.Active && !newer && !moved)) return;
         if (!pack.Published)
         {
-            ImGui.TextDisabled(Loc.Localize("Setup.NoPackYet", "No pack yet"));
+            var noPack = Loc.Localize("Setup.NoPackYet", "No pack yet");
+            AlignPackAction(noPack);
+            ImGui.TextDisabled(noPack);
             return;
         }
         using var disabled = ImRaii.Disabled(this.operations.Installing || unavailable || pack.Source is null);
         var isUpdate = newer || moved;
         var label = isUpdate ? Loc.Localize("Setup.Update", "Update") : Loc.Localize("Setup.Install", "Install");
-        using var buttonColor = ImRaii.PushColor(ImGuiCol.Button, new Vector4(0.16f, 0.45f, 0.20f, 1f), isUpdate);
-        using var hoverColor = ImRaii.PushColor(ImGuiCol.ButtonHovered, new Vector4(0.20f, 0.56f, 0.25f, 1f), isUpdate);
-        using var activeColor = ImRaii.PushColor(ImGuiCol.ButtonActive, new Vector4(0.12f, 0.35f, 0.16f, 1f), isUpdate);
-        if (ImGui.Button(label))
+        AlignPackAction(label, button: true);
+        if (DrawPackActionButton(label))
         {
             this.Install(pack.Source!);
         }
@@ -784,14 +598,17 @@ internal sealed partial class ConfigWindow : Window
         }
         if (this.config.ServeLanguagePack && SameSource(source, this.operations.PendingSource))
         {
-            ImGui.TextColored(Amber, this.dalamudWaits() is true
+            var label = this.dalamudWaits() is true
                 ? Loc.Localize("Setup.Ready", "Ready · Restart required")
-                : Loc.Localize("Setup.WaitRequired", "Setup required"));
+                : Loc.Localize("Setup.WaitRequired", "Setup required");
+            AlignPackAction(label);
+            using var color = ImRaii.PushColor(ImGuiCol.Text, Amber);
+            ImGui.TextWrapped(label);
             return true;
         }
         if (this.config.ServeLanguagePack && active)
         {
-            ImGui.TextColored(Green, Loc.Localize("Setup.Active", "Active"));
+            this.DrawPackActiveBadge();
             return true;
         }
         return false;
@@ -803,47 +620,6 @@ internal sealed partial class ConfigWindow : Window
         ImGui.ProgressBar(progress.Fraction ?? -1f * (float)ImGui.GetTime(),
             new Vector2(-1, ImGui.GetFrameHeight()), progress.Label);
         if (ImGui.IsItemHovered()) SetTooltip(progress.Detail);
-    }
-
-    private void DrawCustomPackRow(PageStatus pages, ref bool changed)
-    {
-        ImGui.TableNextRow();
-        ImGui.TableNextColumn();
-        this.DrawLanguageName(null, FontAwesomeIcon.FolderOpen, Loc.Localize("Setup.LanguageOwn", "Custom"));
-
-        ImGui.TableSetColumnIndex(3);
-        var folder = this.config.OwnPackFolder;
-        using (ImRaii.Disabled(this.operations.Installing))
-        {
-            ImGui.SetNextItemWidth(-1);
-            if (ImGui.InputText("##customFolder", ref folder, 2048))
-            {
-                this.config.OwnPackFolder = folder;
-                changed = true;
-            }
-        }
-        var (manifest, error) = this.FolderPack();
-        if (ImGui.IsItemHovered()) SetTooltip(error ?? folder);
-
-        ImGui.TableSetColumnIndex(4);
-        using (ImRaii.Disabled(this.operations.Installing))
-            if (ImGui.Button(Loc.Localize("Setup.Browse", "Browse..."))) this.BrowseForLanguagePack();
-
-        ImGui.TableSetColumnIndex(2);
-        ImGui.AlignTextToFramePadding();
-        var version = manifest?.GameVersion ?? string.Empty;
-        ImGui.TextUnformatted(version.EndsWith(".0000.0000", StringComparison.Ordinal) ? version[..^10] : version);
-
-        ImGui.TableSetColumnIndex(5);
-        var active = pages.Active && !SameSource(this.config.LanguagePackPath, this.operations.InstalledPath)
-            && (SameSource(folder, this.config.LanguagePackPath) || SameSource(folder, this.config.InstalledFrom));
-        if (this.DrawPackActionState(folder, active)) return;
-        using var disabled = ImRaii.Disabled(this.operations.Installing || manifest is null || string.IsNullOrWhiteSpace(folder));
-        if (ImGui.Button(Loc.Localize("Setup.UseFolder", "Use this folder")))
-        {
-            this.Install(folder.Trim());
-        }
-        if (ImGui.IsItemHovered()) SetTooltip(error ?? Loc.Localize("Setup.InstallTip", "Prepare this language pack for the next game start."));
     }
 
     private (PackManifest? Manifest, string? Error) FolderPack()

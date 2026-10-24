@@ -15,6 +15,7 @@
     <ProjectReference Include="../Gubal.Runtime/Gubal.Runtime.csproj" ReferenceOutputAssembly="false" Private="false" />
     <ProjectReference Include="../Gubal.Launcher/Gubal.Launcher.csproj" ReferenceOutputAssembly="false" Private="false" />
     <EmbeddedResource Include="../../images/icon.png" LogicalName="GubalDesktop.icon.png" />
+    <EmbeddedResource Include="../../images/reviewer.png" LogicalName="GubalDesktop.reviewer.png" />
     <EmbeddedResource Include="../../images/flags/*.png" LogicalName="GubalDesktop.flags.%(Filename)%(Extension)" />
     <Content Include="Assets/Fonts/*" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
   </ItemGroup>

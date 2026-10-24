@@ -1,4 +1,4 @@
-﻿using System.Text.Json;
+using System.Text.Json;
 using System.Buffers.Binary;
 using System.Runtime.InteropServices;
 using TextureResourceHandle = FFXIVClientStructs.FFXIV.Client.System.Resource.Handle.TextureResourceHandle;
@@ -20,7 +20,20 @@ namespace GubalLibrary;
 internal sealed partial class ConfigWindow
 {
     public bool PreviewPluginUpdate { get; set; }
-    private readonly bool isDev;
+    public bool DevToolsEnabled => this.config.ShowDevTab == true;
+    private Action? initializeDevPreview;
+
+    public bool ToggleDevTab()
+    {
+        this.config.ShowDevTab = !this.DevToolsEnabled;
+        this.save(this.config);
+        if (!this.DevToolsEnabled)
+        {
+            this.PreviewPluginUpdate = false;
+            this.DisposeDevPreview();
+        }
+        return this.DevToolsEnabled;
+    }
     private readonly IDataManager? previewData;
     private readonly IGameGui? previewGui;
     private int previewId = 120052;
@@ -41,7 +54,7 @@ internal sealed partial class ConfigWindow
     private sealed record BannerPreview(int Id, string Name,
         string RelativePath = "", string OriginalName = "", PreviewScene? NativeScene = null, bool HasTranslation = false);
 
-    private sealed record PreviewScene(uint CutScreenImageId = 0, uint ScreenImageId = 0, int Streak = 0, int ManeuverStreak = 0, uint TerritoryId = 0, uint CompanyId = 0, uint ImageId = 0, int DisplayType = 0, uint LocationImageId = 0);
+    private sealed record PreviewScene(uint CutScreenImageId = 0, uint ScreenImageId = 0, int Streak = 0, int ManeuverStreak = 0, uint TerritoryId = 0, uint CompanyId = 0, uint ImageId = 0, int DisplayType = 0, uint LocationImageId = 0, uint SourceTitleId = 0, int Mode = 0, int Index = 0, int[]? Images = null, int[]? RequestImages = null);
     private sealed record SceneTexture(nint Asset, AtkTexture Texture, nint Metadata);
     private Task<Dictionary<int, IDalamudTextureWrap>>? previewSceneTextures;
     private readonly Dictionary<int, nint> nativeSceneTextures = [];
@@ -55,11 +68,16 @@ internal sealed partial class ConfigWindow
 
     public void ConfigureDevPreview(IAddonLifecycle lifecycle, ISigScanner scanner, IFramework framework)
     {
-        if (!this.isDev) return;
+        this.initializeDevPreview = () => this.InitializeDevPreview(lifecycle, scanner, framework);
+        if (this.DevToolsEnabled) this.initializeDevPreview();
+    }
+
+    private void InitializeDevPreview(IAddonLifecycle lifecycle, ISigScanner scanner, IFramework framework)
+    {
+        if (this.previewLifecycle is not null) return;
         this.previewLifecycle = lifecycle;
         this.previewFramework = framework;
         this.ConfigureSceneControl(scanner);
-        this.ConfigureSceneCatalog(scanner);
         scanner.TryScanText("48 83 EC 38 44 8B D2 BA 02 00 00 00 41 83 F9 03", out this.showRawImage);
         scanner.TryScanText("48 89 5C 24 08 57 48 83 EC 40 48 8B F9 8B DA 8B CA E8 ?? ?? ?? ?? 4C 8B C8 48 85 C0 75 0B 48 8B 5C 24 50 48 83 C4 40 5F C3 F6 05", out this.showScreenImage);
         scanner.TryScanText("48 89 5C 24 08 57 48 83 EC 40 48 8B F9 8B DA 8B CA E8 ?? ?? ?? ?? 4C 8B C8 48 85 C0 75 0B 48 8B 5C 24 50 48 83 C4 40 5F C3 0F BF 48 0A", out this.showCutScreenImage);
@@ -106,7 +124,7 @@ internal sealed partial class ConfigWindow
 
     private void LoadDevBanners()
     {
-        if (!this.isDev) return;
+        if (!this.DevToolsEnabled) return;
         this.ReleaseDevTexture();
         this.previewCatalogPath = this.config.LanguagePackPath;
         this.previewCatalogError = null;
@@ -118,42 +136,51 @@ internal sealed partial class ConfigWindow
         try
         {
             var names = new Dictionary<int, BannerPreview>();
-            var catalog = Path.Combine(this.previewCatalogPath, "dev", "banner-previews.json");
+            var catalog = Path.Combine(this.previewCatalogPath, "dev", "banner-translations.json");
             if (File.Exists(catalog))
             {
                 try
                 {
                     using var stream = File.OpenRead(catalog);
-                    foreach (var row in JsonSerializer.Deserialize<BannerPreview?[]>(stream) ?? [])
-                        if (row is not null) names.TryAdd(row.Id, row);
+                    using var labels = JsonDocument.Parse(stream);
+                    foreach (var row in labels.RootElement.EnumerateArray())
+                    {
+                        var key = row.GetProperty("gameKey").GetString()!;
+                        if (!key.EndsWith(".tex#text", StringComparison.Ordinal)
+                            || !int.TryParse(Path.GetFileName(key[..^9]), out var id)
+                            || key != $"ui/icon/{id / 1000 * 1000:D6}/en/{id}.tex#text")
+                            throw new InvalidDataException($"Invalid banner key: {key}");
+                        if (!names.TryAdd(id, new(id, row.GetProperty("target").GetString() ?? "",
+                                OriginalName: row.GetProperty("en").GetString() ?? "")))
+                            throw new InvalidDataException($"Duplicate banner key: {key}");
+                    }
                 }
                 catch (Exception error) when (error is JsonException or IOException or UnauthorizedAccessException)
                 {
                     this.previewCatalogError = error.Message;
                 }
             }
-            this.ReadGameBannerScenes();
-            var scenes = new Dictionary<int, PreviewScene>(this.gameBannerScenes);
+            var scenes = this.ReadNativeScenes();
             var pack = this.previewCatalogPath;
             this.previewCatalogLoad = Task.Run(() =>
             {
                 var rows = new List<BannerPreview>();
-                for (var id = 120000; id < 130000; id++)
+                foreach (var id in names.Keys.Order())
                 {
                     token.ThrowIfCancellationRequested();
                     var relative = $"ui/icon/{id / 1000 * 1000:D6}/en/{id}.tex";
-                    if (this.previewData?.FileExists(relative) != true) continue;
                     var translated = File.Exists(Path.Combine(pack, relative));
                     var label = names.GetValueOrDefault(id);
-                    var scene = label?.NativeScene ?? scenes.GetValueOrDefault(id);
-                    rows.Add(new(id, translated ? label?.Name ?? "Texto sin catalogar" : "N/A",
+                    var scene = scenes.GetValueOrDefault(id);
+                    rows.Add(new(id, translated ? string.IsNullOrWhiteSpace(label?.Name) ? "Uncataloged text" : label.Name : "N/A",
                         RelativePath: relative, OriginalName: label?.OriginalName ?? "",
                         NativeScene: scene, HasTranslation: translated));
                 }
                 return rows.OrderBy(row => row.Id).ToArray();
             }, token);
         }
-        catch (Exception error) when (error is IOException or UnauthorizedAccessException)
+        catch (Exception error) when (error is IOException or UnauthorizedAccessException
+            or JsonException or KeyNotFoundException or InvalidOperationException or OverflowException or FormatException)
         {
             this.previewCatalogError = error.Message;
         }
@@ -161,22 +188,22 @@ internal sealed partial class ConfigWindow
 
     private void ShowDevBanner()
     {
-        if (!this.isDev || this.previewData is null || this.canPreview?.Invoke() != true) return;
+        if (!this.DevToolsEnabled || this.previewData is null || this.canPreview?.Invoke() != true) return;
         this.ReleaseDevTexture();
         var row = this.previewBanners.FirstOrDefault(row => row.Id == this.previewId);
         if (row is null)
         {
-            this.previewCatalogError = $"No se ha encontrado el rótulo {this.previewId} en el juego.";
+            this.previewCatalogError = $"Banner {this.previewId} was not found in the game.";
             return;
         }
         if (!this.previewOriginal && !row.HasTranslation)
         {
-            this.previewCatalogError = $"N/A: {row.Id} no tiene traducción en el LP activo.";
+            this.previewCatalogError = $"N/A: {row.Id} has no translation in the active language pack.";
             return;
         }
         if (row.NativeScene is not { } scene)
         {
-            this.previewCatalogError = $"La presentación nativa de {row.Id} todavía no está identificada.";
+            this.previewCatalogError = $"The native presentation for {row.Id} has not been identified.";
             return;
         }
         this.previewCatalogError = null;
@@ -192,7 +219,7 @@ internal sealed partial class ConfigWindow
         var result = new Dictionary<int, IDalamudTextureWrap>();
         try
         {
-            foreach (var id in this.SceneImages(scene))
+            foreach (var id in SceneImages(scene))
             foreach (var scale in new[] { 1, 2 })
             {
                 var relative = $"ui/icon/{id / 1000 * 1000:D6}/en/{id}{(scale == 2 ? "_hr1" : "")}.tex";
@@ -239,13 +266,11 @@ internal sealed partial class ConfigWindow
                 this.nativeSceneTextures.Add(id, kernel);
             }
             var scene = this.previewScene!;
-            var mode = this.SceneMode(scene);
-            var index = this.NativeSceneIndex(mode);
+            var mode = scene.Mode;
+            var index = scene.Index;
             if (index < 0) throw new InvalidOperationException("Native scene control is unavailable.");
-            var requestImages = scene.CutScreenImageId != 0
-                ? new[] { this.previewData!.GetExcelSheet<Lumina.Excel.Sheets.CutScreenImage>()!.GetRow(scene.CutScreenImageId).Image }
-                : scene.TerritoryId != 0 ? this.TerritoryImages(scene, true) : this.SceneImages(scene);
-            this.BeginSceneRequest(mode, index, requestImages);
+            this.BeginSceneRequest(mode, index, scene.RequestImages
+                ?? throw new InvalidDataException("Native request images are missing from the catalog."));
             if (scene.Streak != 0) ui->ShowStreak(scene.Streak, 0);
             else if (scene.ManeuverStreak != 0) ui->ShowAddonKillStreakForManeuvers(scene.ManeuverStreak, 0);
             else if (scene.CompanyId != 0) ui->ShowGrandCompanyRankUp(scene.CompanyId, 1, false);
@@ -278,47 +303,11 @@ internal sealed partial class ConfigWindow
         }
     }
 
-    private int[] SceneImages(PreviewScene scene)
-    {
-        if (scene.ImageId != 0) return [(int)scene.ImageId];
-        if (scene.CutScreenImageId != 0)
-        {
-            var row = this.previewData!.GetExcelSheet<Lumina.Excel.Sheets.CutScreenImage>()!.GetRow(scene.CutScreenImageId);
-            return row.Type switch
-            {
-                5 => [row.Image + 1, row.Image + 2, row.Image + 3],
-                4 => [row.Image, row.Image + 1],
-                8 => [row.Image, row.Image + 10, row.Image + 20],
-                16 => [122018, row.Image],
-                23 => [122010, row.Image],
-                33 => [122002, row.Image],
-                _ => [row.Image],
-            };
-        }
-        if (scene.ScreenImageId != 0)
-            return [(int)this.previewData!.GetExcelSheet<Lumina.Excel.Sheets.ScreenImage>()!.GetRow(scene.ScreenImageId).Image];
-        if (scene.TerritoryId != 0)
-            return this.TerritoryImages(scene);
-        if (scene.CompanyId != 0 && this.nativeCompanyImages != 0)
-            return [Marshal.ReadInt32(this.nativeCompanyImages + (int)scene.CompanyId * 8 + 4)];
-        if (scene.Streak is 1 or 2) return [120950 + scene.Streak];
-        if (scene.ManeuverStreak == 1) return [120955];
-        throw new InvalidDataException("Unsupported native scene.");
-    }
+    private static int[] SceneImages(PreviewScene scene) => scene.Images
+        ?? throw new InvalidDataException("Native scene textures are missing from the catalog.");
 
-    private int[] TerritoryImages(PreviewScene scene, bool nativeTitle = false)
-    {
-        var row = this.previewData!.GetExcelSheet<Lumina.Excel.Sheets.TerritoryType>()!.GetRow(scene.TerritoryId);
-        var title = !nativeTitle && scene.LocationImageId != 0 ? (int)scene.LocationImageId : row.PlaceNameIcon;
-        return new[] { row.PlaceNameRegionIcon, title }.Where(id => id > 0).Distinct().ToArray();
-    }
-
-    private int SceneTextureId(int id)
-    {
-        if (this.previewScene is not { TerritoryId: > 0, LocationImageId: > 0 } scene) return id;
-        var territory = this.previewData!.GetExcelSheet<Lumina.Excel.Sheets.TerritoryType>()!.GetRow(scene.TerritoryId);
-        return id == territory.PlaceNameIcon ? (int)scene.LocationImageId : id;
-    }
+    private int SceneTextureId(int id) => this.previewScene is { SourceTitleId: > 0, LocationImageId: > 0 } scene
+        && id == scene.SourceTitleId ? (int)scene.LocationImageId : id;
 
     private unsafe bool TrySceneTexture(int id, KernelTexture* native, out nint texture)
     {
@@ -430,11 +419,12 @@ internal sealed partial class ConfigWindow
 
     private void DrawDevTab()
     {
-        if (!this.isDev) return;
+        if (!this.DevToolsEnabled) return;
+        this.initializeDevPreview?.Invoke();
         using var tab = ImRaii.TabItem("Dev");
         if (!tab) return;
         var previewUpdate = this.PreviewPluginUpdate;
-        if (ImGui.Checkbox(CheapLoc.Loc.Localize("PluginUpdate.PreviewToggle", "Preview lobby update notice"), ref previewUpdate))
+        if (ImGui.Checkbox("Preview lobby update notice", ref previewUpdate))
             this.PreviewPluginUpdate = previewUpdate;
         if (this.previewCatalogPath != this.config.LanguagePackPath) this.LoadDevBanners();
         if (this.previewRequested)
@@ -443,26 +433,26 @@ internal sealed partial class ConfigWindow
             this.ShowDevBanner();
         }
         this.UpdateDevPreview();
-        ImGui.TextWrapped("Original leído del juego y traducción leída del LP activo.");
+        ImGui.TextWrapped("Original textures come from the game. Translated textures come from the active language pack.");
         var selected = this.previewBanners.FirstOrDefault(row => row.Id == this.previewId);
         ImGui.TextWrapped(selected?.NativeScene is not null
-            ? "Escena nativa: el juego controla el tamaño, la posición y la animación."
-            : "Presentación nativa pendiente de identificar. No se mostrará una composición aproximada.");
+            ? "Native scene: the game controls size, position, and animation."
+            : "Native presentation has not been identified. An approximate layout will not be shown.");
         if (this.previewScene is not null)
             ImGui.TextWrapped(this.requiredNativeImages.Length > 0 && this.requiredNativeImages.All(this.nativeSceneSeen.Contains)
-                ? "Texturas de comparación verificadas en los nodos nativos."
-                : "Esperando a que el juego dibuje las texturas de la escena.");
-        if (ImGui.Button("Recargar lista")) this.LoadDevBanners();
+                ? "Comparison textures verified in native nodes."
+                : "Waiting for the game to draw the scene textures.");
+        if (ImGui.Button("Reload list")) this.LoadDevBanners();
         ImGui.SameLine();
-        ImGui.TextUnformatted($"{this.previewBanners.Length} rótulos");
-        if (this.previewCatalogLoad is { IsCompleted: false }) ImGui.TextUnformatted("Cargando catálogo del juego…");
-        ImGui.InputText("Buscar", ref this.previewFilter, 200);
-        ImGui.InputInt("ID de textura", ref this.previewId);
-        if (ImGui.Button("Mostrar de nuevo")) this.previewRequested = true;
+        ImGui.TextUnformatted($"{this.previewBanners.Length} banners");
+        if (this.previewCatalogLoad is { IsCompleted: false }) ImGui.TextUnformatted("Loading game catalog...");
+        ImGui.InputText("Search", ref this.previewFilter, 200);
+        ImGui.InputInt("Texture ID", ref this.previewId);
+        if (ImGui.Button("Show again")) this.previewRequested = true;
         ImGui.SameLine();
-        if (ImGui.Button("Detener prueba")) this.ReleaseDevTexture();
+        if (ImGui.Button("Stop preview")) this.ReleaseDevTexture();
         if (this.previewCatalogError != null) ImGui.TextWrapped(this.previewCatalogError);
-        if (this.previewNeedsShow) ImGui.TextUnformatted("Cargando textura…");
+        if (this.previewNeedsShow) ImGui.TextUnformatted("Loading texture...");
         using var list = ImRaii.Child("##devBanners");
         if (!list) return;
         using var table = ImRaii.Table("##devBannerComparison", 3,
@@ -470,7 +460,7 @@ internal sealed partial class ConfigWindow
         if (!table) return;
         ImGui.TableSetupColumn("ID", ImGuiTableColumnFlags.WidthFixed, 75);
         ImGui.TableSetupColumn("Original");
-        ImGui.TableSetupColumn("Localización");
+        ImGui.TableSetupColumn("Translation");
         ImGui.TableHeadersRow();
         foreach (var row in this.previewBanners)
         {
@@ -481,7 +471,7 @@ internal sealed partial class ConfigWindow
             ImGui.TableNextColumn();
             ImGui.TextUnformatted(row.Id.ToString());
             ImGui.TableNextColumn();
-            var original = string.IsNullOrWhiteSpace(row.OriginalName) ? "Texto sin catalogar" : row.OriginalName;
+            var original = string.IsNullOrWhiteSpace(row.OriginalName) ? "Uncataloged text" : row.OriginalName;
             if (ImGui.RadioButton($"{original}##original{row.Id}", this.previewId == row.Id && this.previewOriginal))
             {
                 this.previewId = row.Id;

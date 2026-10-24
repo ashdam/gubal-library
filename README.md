@@ -106,10 +106,24 @@ Click outside a name to advance the dialogue. Links use the native game cursor a
 | `/gubal usepack` | Toggle: the pack or the game's own English, from the next start. The way back when the settings window cannot be reached |
 | `/gubal autoupdate` | Toggle: the startup fetch, along with Dalamud's wait for plugins |
 | `/gubal debug on` / `off` | Trace lines in the log, and a line per page and font the game reads. Off, the plugin logs only warnings and errors. Chat only, there is no checkbox |
+| `/gubal dev` | Toggle the Dev tab and save the setting. Off by default. Works with installed releases and development builds. |
 
 `/gubal debug` toggles diagnostics immediately. `/gubal debug on` and `/gubal debug off` set the state explicitly. Probes run only while debug is enabled.
 It exists to check that the plugin still attaches before the game's first read, which is the
 one property this whole approach depends on.
+
+### Dev tab
+
+Run `/gubal dev` to enable the Dev tab. Run it again to disable the tab and stop its previews.
+The setting persists across restarts and does not depend on Dalamud's Dev Plugin Locations.
+Use the tab to compare original game banners with the active pack's translations through native game presentation,
+and preview the plugin update notice.
+
+The installed pack supplies `dev/banner-translations.json` for labels and `dev/banner-native-scenes.json`
+for native presentations. Tools exports the scene catalog to game-sheets metadata and PackBuilder includes it.
+Gubal reads the parameters without discovering associations from game sheets or native tables.
+The catalog must match the running game version. Unresolved textures remain listed without native previews.
+No separate download is required.
 
 ## Development
 
@@ -145,11 +159,5 @@ GitHub Actions builds both Windows packages with the Linux .NET SDK on Ubuntu.
 Release checks use Bash and jq. Their tests are defined in the release checks workflow.
 
 Desktop uses Velopack and GitHub Releases for application updates. It applies updates only while FFXIV is closed.
-Package versions map `0.7.1.0` to `0.7.1-rev.0`; the interface keeps the four-part application version.
+Package versions map `0.7.5.0` to `0.7.5-rev.0`; the interface keeps the four-part application version.
 For local update checks, set `GUBAL_DESKTOP_UPDATE_SOURCE` to a directory containing the generated update feed.
-
-## Contributors
-
-- **Mini Ashdam** — [Lodestone profile](https://eu.finalfantasyxiv.com/lodestone/character/1580162/)
-- **Nier Gainsborough** — [Lodestone profile](https://eu.finalfantasyxiv.com/lodestone/character/30057928/)
-- **Lfay Yette** — [Lodestone profile](https://eu.finalfantasyxiv.com/lodestone/character/20396696/)
