@@ -3,12 +3,12 @@
     "Author": "ashdam",
     "Name": "Gubal Library",
     "InternalName": "GubalLibrary",
-    "AssemblyVersion": "0.6.1.2",
+    "AssemblyVersion": "0.7.5.0",
     "Punchline": "Localize your game in Spanish, Italian, Polish or Brazilian Portuguese.",
     "Description": "Gubal Library localizes FINAL FANTASY XIV through community language packs available in Spanish, Italian, Polish, and Brazilian Portuguese, and adds dialogue links to unlocked Unending Codex entries.",
     "ApplicableVersion": "any",
     "DalamudApiLevel": 15,
-    "RepoUrl": "https://github.com/ashdam/gubal-library",
+    "RepoUrl": "https://eorzealocalized.com",
     "IconUrl": "https://raw.githubusercontent.com/ashdam/gubal-library/main/images/icon.png",
     "Tags": [
       "translation",
@@ -25,7 +25,7 @@
     "IsHide": false,
     "IsTestingExclusive": false,
     "DownloadCount": 0,
-    "LastUpdate": 1792275156,
+    "LastUpdate": 1792888585,
     "DownloadLinkInstall": "https://github.com/ashdam/gubal-library/releases/latest/download/latest.zip",
     "DownloadLinkUpdate": "https://github.com/ashdam/gubal-library/releases/latest/download/latest.zip",
     "DownloadLinkTesting": "https://github.com/ashdam/gubal-library/releases/latest/download/latest.zip"
