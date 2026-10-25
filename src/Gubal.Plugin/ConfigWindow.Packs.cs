@@ -111,6 +111,7 @@ internal sealed partial class ConfigWindow
 
     private void DrawPackCoverage(KnownPack? pack, PackManifest? manifest, bool loading)
     {
+        var rowTop = ImGui.GetCursorPosY();
         ImGui.TextDisabled(Loc.Localize("Setup.LocalizationProgress", "Localization progress"));
         if (manifest?.Coverage is { } coverage)
         {
@@ -128,22 +129,32 @@ internal sealed partial class ConfigWindow
                 }
                 ImGui.TextColored(ThemeGold, label);
             }
-            ImGui.ProgressBar((float)Math.Clamp(coverage.Percent / 100.0, 0, 1),
-                new Vector2(-1, 7f * ImGuiHelpers.GlobalScale), string.Empty);
-            if (ImGui.IsItemHovered() && pack?.Site is { Length: > 0 } site)
-            {
-                ImGui.SetMouseCursor(ImGuiMouseCursor.Hand);
-                if (ImGui.IsMouseClicked(ImGuiMouseButton.Left)) Util.OpenLink(site);
-            }
-            this.DrawCoverageTooltip(coverage);
         }
         else
         {
-            ImGui.TextDisabled(pack is { Published: false } ? Loc.Localize("Setup.NoPackYet", "No pack yet")
+            var label = pack is { Published: false } ? Loc.Localize("Setup.NoPackYet", "No pack yet")
                 : loading ? Loc.Localize("Setup.CoverageLoading", "Loading...")
                 : manifest is null ? Loc.Localize("Setup.Offline", "Offline")
-                : Loc.Localize("Setup.EnglishNotSpecified", "Not specified"));
+                : Loc.Localize("Setup.NoProgressData", "No progress data");
+            ImGui.SameLine();
+            this.AlignPackAction(label);
+            ImGui.TextDisabled(label);
         }
+        var rowHeight = Math.Max(ImGui.GetTextLineHeight(), 24f * ImGuiHelpers.GlobalScale);
+        ImGui.SetCursorPosY(Math.Max(ImGui.GetCursorPosY(), rowTop + rowHeight + ImGui.GetStyle().ItemSpacing.Y));
+        var barSize = new Vector2(-1, 7f * ImGuiHelpers.GlobalScale);
+        if (manifest?.Coverage is not { } progress)
+        {
+            ImGui.Dummy(new Vector2(0, barSize.Y));
+            return;
+        }
+        ImGui.ProgressBar((float)Math.Clamp(progress.Percent / 100.0, 0, 1), barSize, string.Empty);
+        if (ImGui.IsItemHovered() && pack?.Site is { Length: > 0 } site)
+        {
+            ImGui.SetMouseCursor(ImGuiMouseCursor.Hand);
+            if (ImGui.IsMouseClicked(ImGuiMouseButton.Left)) Util.OpenLink(site);
+        }
+        this.DrawCoverageTooltip(progress);
     }
 
     private bool DrawPackReviewer(PackManifest? manifest)
@@ -231,17 +242,24 @@ internal sealed partial class ConfigWindow
 
     private void PackImageLink(string name, FontAwesomeIcon fallback, string label, string url)
     {
-        var resource = $"GubalLibrary.images.links.{name}.png";
-        if (!this.textures.GetFromManifestResource(typeof(Plugin).Assembly, resource).TryGetWrap(out var image, out _))
+        if (!this.DrawLinkImage(name))
         {
             IconLink(fallback, label, url);
             return;
         }
-        DrawPackIcon(image, PackIconSize * ImGuiHelpers.GlobalScale);
         if (!ImGui.IsItemHovered()) return;
         ImGui.SetMouseCursor(ImGuiMouseCursor.Hand);
         SetTooltip(label + "\n" + url);
         if (ImGui.IsMouseClicked(ImGuiMouseButton.Left)) Util.OpenLink(url);
+    }
+
+    private bool DrawLinkImage(string name)
+    {
+        var resource = $"GubalLibrary.images.links.{name}.png";
+        if (!this.textures.GetFromManifestResource(typeof(Plugin).Assembly, resource).TryGetWrap(out var image, out _))
+            return false;
+        DrawPackIcon(image, PackIconSize * ImGuiHelpers.GlobalScale);
+        return true;
     }
 
     private static void DrawPackIcon(IDalamudTextureWrap image, float size)
@@ -309,11 +327,8 @@ internal sealed partial class ConfigWindow
         var (manifest, error) = this.FolderPack();
         this.DrawLanguageName(null, FontAwesomeIcon.FolderOpen, Loc.Localize("Setup.LanguageOwn", "Custom"));
         ImGui.Spacing();
-        if (manifest?.Coverage is not null)
-        {
-            this.DrawPackCoverage(null, manifest, false);
-            ImGui.Spacing();
-        }
+        this.DrawPackCoverage(null, manifest, false);
+        ImGui.Spacing();
         DrawPackVersion(manifest);
         ImGui.Spacing();
         var folder = this.config.OwnPackFolder;

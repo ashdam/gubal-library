@@ -242,7 +242,7 @@
   "Part.Attributes.Tooltip": { "message": "Nombres y descripciones de atributos del personaje en todo el juego, como Fuerza y Golpe crítico. Este ajuste afecta a todos los usos de estos atributos, no solo al combate." },
   "Parts.TurnAllOff": { "message": "Desactivarlo todo" },
   "Compatibility.AutoRetainer": { "message": "Compatible. Confirmado con AutoRetainer 4.6.2.11." },
-  "Setup.EnglishNotSpecified": { "message": "Sin especificar" },
+  "Setup.NoProgressData": { "message": "Sin datos de progreso" },
   "Part.Lobby.Name": { "message": "Pantalla de inicio y personajes" },
   "Part.Lobby.Tooltip": { "message": "Pantalla de inicio, selección y creación de personajes." },
   "Part.MainMenus.Name": { "message": "Menús principales" },

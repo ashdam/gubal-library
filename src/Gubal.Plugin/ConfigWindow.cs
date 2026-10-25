@@ -751,29 +751,32 @@ internal sealed partial class ConfigWindow : Window
 
     }
 
-    private static void DrawHelpTab()
+    private void DrawHelpTab()
     {
-        Icon(FontAwesomeIcon.Bug, Blue);
-        Link(Loc.Localize("Help.ReportBug", "Report a bug"), KnownPacks.PluginIssues);
-        ImGui.PopStyleColor();
+        var report = Loc.Localize("Help.ReportBug", "Report a bug");
+        this.PackImageLink("bug-report", FontAwesomeIcon.Bug, report, KnownPacks.PluginIssues);
+        ImGui.SameLine();
+        Link(report, KnownPacks.PluginIssues);
 
         ImGui.Spacing();
         ImGui.Separator();
         ImGui.Spacing();
 
-        Icon(FontAwesomeIcon.Envelope, Blue);
-        ImGui.TextDisabled(Loc.Localize("Contact.Email", "Email"));
-        ImGui.PopStyleColor();
+        if (!this.DrawLinkImage("email"))
+        {
+            using var font = ImRaii.PushFont(UiBuilder.IconFont, true);
+            ImGui.TextColored(Blue, FontAwesomeIcon.Envelope.ToIconString());
+        }
         ImGui.SameLine();
-
-        var emailX = ImGui.GetCursorPosX();
+        ImGui.BeginGroup();
+        ImGui.TextDisabled(Loc.Localize("Contact.Email", "Email"));
         foreach (var email in KnownPacks.ContactEmails)
         {
-            ImGui.SetCursorPosX(emailX);
             if (ImGui.Selectable(email, false, ImGuiSelectableFlags.None, ImGui.CalcTextSize(email)))
                 ImGui.SetClipboardText(email);
             SetTooltip(Loc.Localize("Contact.Copy", "Click to copy."));
         }
+        ImGui.EndGroup();
     }
 
     private static string? PackTracker(PageStatus pages, int chosen)

@@ -387,7 +387,7 @@
   "Part.Attributes.Tooltip": { "message": "Names and descriptions of character attributes throughout the game, such as Strength and Critical Hit. This setting affects all uses of these attributes, not only combat." },
   "Parts.TurnAllOff": { "message": "Turn everything off" },
   "Compatibility.AutoRetainer": { "message": "Supported. Confirmed with AutoRetainer 4.6.2.11." },
-  "Setup.EnglishNotSpecified": { "message": "Not specified" },
+  "Setup.NoProgressData": { "message": "No progress data" },
   "Part.Lobby.Name": { "message": "Lobby" },
   "Part.Lobby.Tooltip": { "message": "Title screen, character selection and character creation." },
   "Part.MainMenus.Name": { "message": "Main menus" },

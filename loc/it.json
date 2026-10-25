@@ -241,7 +241,7 @@
   "Part.Attributes.Tooltip": { "message": "Nomi e descrizioni degli attributi del personaggio in tutto il gioco, come Forza e Colpo critico. Questa impostazione riguarda tutti gli usi di questi attributi, non solo il combattimento." },
   "Parts.TurnAllOff": { "message": "Disattiva tutto" },
   "Compatibility.AutoRetainer": { "message": "Compatibile. Confermato con AutoRetainer 4.6.2.11." },
-  "Setup.EnglishNotSpecified": { "message": "Non specificato" },
+  "Setup.NoProgressData": { "message": "Nessun dato di avanzamento" },
   "Part.Lobby.Name": { "message": "Schermata iniziale e personaggi" },
   "Part.Lobby.Tooltip": { "message": "Schermata iniziale, selezione e creazione dei personaggi." },
   "Part.MainMenus.Name": { "message": "Menu principali" },
