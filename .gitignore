@@ -4,6 +4,11 @@ obj/
 .idea/
 *.user
 *.suo
+/.cache/
+/dist/
+/settings.local.json
+/runtime.log
+/launcher.log
 
 # A language pack never lives in this repository. It is a derivative of the game's own text, it is
 # hundreds of MB, and it changes on a completely different cadence from the code. The plugin loads it

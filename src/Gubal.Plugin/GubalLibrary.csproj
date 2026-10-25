@@ -1,0 +1,44 @@
+<!-- The SDK version is set in global.json and determines the published Dalamud API level. -->
+<Project Sdk="Dalamud.NET.Sdk" TreatAsLocalProperty="SelfContained">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+    <SelfContained>false</SelfContained>
+    <Platforms>x64</Platforms>
+    <AssemblyName>GubalLibrary</AssemblyName>
+    <RootNamespace>GubalLibrary</RootNamespace>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <LangVersion>latest</LangVersion>
+    <ProduceReferenceAssembly>false</ProduceReferenceAssembly>
+    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+    <OutputPath>$(GubalRepositoryRoot)bin\$(Platform)\$(Configuration)\</OutputPath>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../Gubal.Core/Gubal.Core.csproj" />
+    <ProjectReference Include="../Gubal.Game/Gubal.Game.csproj" />
+    <Reference Include="CheapLoc">
+      <HintPath>$(DalamudLibPath)CheapLoc.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+  </ItemGroup>
+
+  <!-- Screenshots must not contain other players' names or chat. -->
+  <ItemGroup>
+    <EmbeddedResource Include="../../images/icon.png" LogicalName="GubalLibrary.images.icon.png" />
+    <EmbeddedResource Include="../../images/reviewer.png" LogicalName="GubalLibrary.images.reviewer.png" />
+    <EmbeddedResource Include="../../images/links/*.png" LogicalName="GubalLibrary.images.links.%(Filename)%(Extension)" />
+    <EmbeddedResource Include="../../images/tooltips/*.png" LogicalName="GubalLibrary.images.tooltips.%(Filename)%(Extension)" />
+    <EmbeddedResource Include="../../images/example7.png" LogicalName="GubalLibrary.images.tooltips.codex.png" />
+    <EmbeddedResource Include="../../images/flags/*.png" LogicalName="GubalLibrary.images.flags.%(Filename)%(Extension)" />
+    <EmbeddedResource Include="../../images/expansions/*.jpg" LogicalName="GubalLibrary.images.expansions.%(Filename)%(Extension)" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <EmbeddedResource Include="../../loc/*.json" LogicalName="GubalLibrary.loc.%(Filename)%(Extension)" />
+  </ItemGroup>
+
+</Project>

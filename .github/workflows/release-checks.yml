@@ -1,39 +1,116 @@
 name: "Release checks"
 
 on:
+  workflow_call:
   pull_request:
     branches: ["main"]
     paths:
       - ".github/scripts/**"
+      - ".config/dotnet-tools.json"
       - ".github/workflows/release*.yml"
+      - ".github/workflows/build.yml"
       - ".github/tests/**"
-      - "PackContents.cs"
-      - "PackParts.cs"
-      - "PackCompatibility.cs"
-      - "GubalLumina.cs"
-      - "Diagnostics.cs"
-      - "ExdRedirector.cs"
-      - "PackVersion.cs"
-      - "PackManifest.cs"
-      - "ConfigWindow.cs"
-      - "Plugin.cs"
+      - "src/**"
+      - "native/**"
+      - "build/**"
+      - "Directory.Build.props"
+      - "Directory.Build.targets"
+      - "Gubal.slnx"
       - "loc/**"
-      - "GubalLibrary.csproj"
 
 permissions:
   contents: read
 
+defaults:
+  run:
+    shell: bash
+
 jobs:
+  packages:
+    uses: ./.github/workflows/build.yml
+
   version-tests:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - run: python3 -B -m unittest discover -s .github/scripts -p 'test_*.py'
+      - name: "Check release version rules"
+        run: |
+          source .github/scripts/check-release.sh
+          reject() { if "$@" >/dev/null 2>&1; then fail "Expected rejection: $*"; exit 1; fi; }
+          validate_release 0.5.3.10 0.5.3.9 0.5.3.9 '[]' '[]'
+          for candidate in 0.5.3.9 0.5.3.8 0.5.2.10; do
+            reject validate_release "$candidate" 0.5.3.9 0.5.3.9 '[]' '[]'
+          done
+          reject validate_release 0.5.3.10 0.5.3.9 0.5.3.10 '[]' '[]'
+          for tag in v0.5.3.10 v0.6.0.0 v0.6.0 unknown; do
+            releases=$(jq -cn --arg tag "$tag" '[{tag_name: $tag, draft: false}]')
+            reject validate_release 0.5.3.10 0.5.3.9 0.5.3.9 "$releases" '[]'
+          done
+          for tag in v0.5.3.10 0.5.3.10; do
+            reject validate_release 0.5.3.10 0.5.3.9 0.5.3.9 '[]' "$(jq -cn --arg tag "$tag" '[$tag]')"
+          done
+          for version in 0.5.3 0.5.3.1-beta 0.5.3.-1 0.5.3.01 0.5.3.65535; do reject valid_version "$version"; done
+          validate_release 0.5.3.10 0.5.3.9 0.5.3.9 '[{"tag_name":"v0.1.2","draft":false}]' '[]'
+          [[ $(project_version '<Project><PropertyGroup><Version>0.5.3.2</Version></PropertyGroup></Project>') == 0.5.3.2 ]]
+          reject project_version '<Project />'
+          revision_version() { printf '0.5.3.2\n'; }
+          gh() { fail 'Unchanged versions must not use the network.'; return 1; }
+          export BEFORE_SHA=aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+          export GITHUB_OUTPUT="$RUNNER_TEMP/version-output"
+          : > "$GITHUB_OUTPUT"
+          check_release
+          [[ $(cat "$GITHUB_OUTPUT") == changed=false ]]
+      - name: "Check index merge guards"
+        run: |
+          awk '/^  merge-repo-json:/{job=1} job && /^        run: \|$/{code=1;next} code{sub(/^          /, ""); print}' .github/workflows/release.yml > "$RUNNER_TEMP/index-merge.sh"
+          [[ -s $RUNNER_TEMP/index-merge.sh ]]
+          export GH_TOKEN=test-only GH_REPO=example/repo RELEASE_VERSION=0.5.3.3
+          export INDEX_BASE=aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+          export INDEX_HEAD=bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
+          export INDEX_BLOB=cccccccccccccccccccccccccccccccccccccccc
+          valid=$(jq -cn --arg base "$INDEX_BASE" --arg head "$INDEX_HEAD" --arg blob "$INDEX_BLOB" '
+            {commit:{parents:[{sha:$base}],files:[{filename:"repo.json",status:"modified",sha:$blob}]},
+             main:$base,pr:{number:1,headRefOid:$head,baseRefOid:$base,baseRefName:"main",isCrossRepository:false},
+             files:[{filename:"repo.json",status:"modified",sha:$blob}]}
+          ')
+          gh() {
+            case "$1 $2" in
+              'api '*'/commits/'*) jq '.commit' <<< "$INDEX_TEST_FIXTURE" ;;
+              'api '*'/git/ref/'*) jq -r '.main' <<< "$INDEX_TEST_FIXTURE" ;;
+              'api '*'/pulls/1/files') jq '[.files]' <<< "$INDEX_TEST_FIXTURE" ;;
+              'pr create') echo https://github.com/example/repo/pull/1 ;;
+              'pr view') jq '.pr' <<< "$INDEX_TEST_FIXTURE" ;;
+              'pr merge') [[ ${*: -2:1} == --match-head-commit && ${*: -1} == "$INDEX_HEAD" ]] && echo MERGE_ACCEPTED ;;
+              *) echo 'Unexpected gh call.' >&2; return 1 ;;
+            esac
+          }
+          export -f gh
+          for change in '.' \
+            '.commit.files += [{filename:"Plugin.cs"}]' \
+            '.commit.files[0].sha = "dddddddddddddddddddddddddddddddddddddddd"' \
+            '.commit.files[0].status = "removed"' \
+            '.commit.parents += [{sha:"dddddddddddddddddddddddddddddddddddddddd"}]' \
+            '.commit.parents[0].sha = "dddddddddddddddddddddddddddddddddddddddd"' \
+            '.main = "dddddddddddddddddddddddddddddddddddddddd"' \
+            '.pr.headRefOid = "dddddddddddddddddddddddddddddddddddddddd"' \
+            '.pr.baseRefOid = "dddddddddddddddddddddddddddddddddddddddd"' \
+            '.pr.isCrossRepository = true' \
+            '.pr.baseRefName = "other"' \
+            '.files += [{filename:"Plugin.cs"}]'; do
+            export INDEX_TEST_FIXTURE="$(jq "$change" <<< "$valid")"
+            if bash "$RUNNER_TEMP/index-merge.sh" > "$RUNNER_TEMP/index-result" 2>&1; then
+              [[ $change == '.' ]] || { cat "$RUNNER_TEMP/index-result"; exit 1; }
+              grep -Fxq MERGE_ACCEPTED "$RUNNER_TEMP/index-result"
+            else
+              [[ $change != '.' ]] || { cat "$RUNNER_TEMP/index-result"; exit 1; }
+              ! grep -Fxq MERGE_ACCEPTED "$RUNNER_TEMP/index-result"
+            fi
+          done
 
   pack-contents-tests:
-    runs-on: windows-latest
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:

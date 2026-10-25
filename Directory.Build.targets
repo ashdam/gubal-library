@@ -1,0 +1,9 @@
+<Project>
+  <Target Name="GetGubalPublishDirectory" Returns="@(GubalPublishDirectory)">
+    <ItemGroup>
+      <GubalPublishDirectory Include="$([MSBuild]::EnsureTrailingSlash($([System.IO.Path]::GetFullPath('$(PublishDir)', '$(MSBuildProjectDirectory)'))))">
+        <AssemblyName>$(AssemblyName)</AssemblyName>
+      </GubalPublishDirectory>
+    </ItemGroup>
+  </Target>
+</Project>

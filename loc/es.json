@@ -32,7 +32,7 @@
   "Coverage.Unavailable": { "message": "Este paquete no incluye el desglose por expansión." },
   "Coverage.Count": { "message": "{0:N0} / {1:N0} textos traducidos" },
   "Coverage.ByExpansion": { "message": "Traducción por expansión" },
-  "Setup.ColGameVersion": { "message": "Versión del juego" },
+  "Setup.PackVersion": { "message": "Versión {0} ({1})" },
   "Part.PlaceNames.Name": { "message": "Nombres de lugares" },
   "Part.PlaceNames.Tooltip": { "message": "Nombres de regiones, zonas y lugares en mapas y dentro de mazmorras y otras instancias." },
   "Part.GoldSaucer.Name": { "message": "Gold Saucer y minijuegos" },
@@ -189,12 +189,12 @@
   "Help.ReportBug": { "message": "Informar de un error" },
   "Recruit.Ask": { "message": "Pregunta en GitHub Discussions" },
 
-  "Contact.Discord": { "message": "Discord" },
+  "Contact.Email": { "message": "Correo electrónico" },
   "Contact.Copy": { "message": "Haz clic para copiarlo." },
 
   "Pack.NothingServed": { "message": "ESTA SESIÓN NO TIENE NADA TRADUCIDO" },
   "Setup.ColLanguage": { "message": "Idioma" },
-  "Setup.ColLocalized": { "message": "Localizado" },
+  "Setup.LocalizationProgress": { "message": "Progreso de localización" },
   "Setup.ColEnglish": { "message": "En curso y futuras localizaciones" },
   "Setup.NoPackYet": { "message": "Sin pack todavía" },
   "Setup.CoverageLoading": { "message": "Cargando..." },
@@ -242,7 +242,7 @@
   "Part.Attributes.Tooltip": { "message": "Nombres y descripciones de atributos del personaje en todo el juego, como Fuerza y Golpe crítico. Este ajuste afecta a todos los usos de estos atributos, no solo al combate." },
   "Parts.TurnAllOff": { "message": "Desactivarlo todo" },
   "Compatibility.AutoRetainer": { "message": "Compatible. Confirmado con AutoRetainer 4.6.2.11." },
-  "Setup.EnglishNotSpecified": { "message": "Sin especificar" },
+  "Setup.NoProgressData": { "message": "Sin datos de progreso" },
   "Part.Lobby.Name": { "message": "Pantalla de inicio y personajes" },
   "Part.Lobby.Tooltip": { "message": "Pantalla de inicio, selección y creación de personajes." },
   "Part.MainMenus.Name": { "message": "Menús principales" },
@@ -253,7 +253,6 @@
   "PluginUpdate.OpenInstaller": { "message": "Abrir catálogo de plugins" },
   "PluginUpdate.CatalogHint": { "message": "En el catálogo, pulsa «Actualizar plugins»." },
   "PluginUpdate.InstallerError": { "message": "No se pudo abrir el instalador de Dalamud." },
-  "PluginUpdate.PreviewToggle": { "message": "Vista previa del aviso de actualización en el lobby" },
   "PluginUpdate.AutoClose": { "message": "Se cierra en {0} segundos" },
   "Compatibility.WaitRequired": { "message": "Activa la espera de plugins antes de cargar el juego en Dalamud y reinicia para comprobar este pack anterior." },
   "Compatibility.Invalid": { "message": "No se pudieron verificar los metadatos de compatibilidad del pack anterior. Actualiza el language pack." },
@@ -272,5 +271,11 @@
   "Compatibility.NothingDisabled": { "message": "No se ha desactivado nada. Todos los apartados activados siguen traducidos." },
   "Compatibility.AffectedParts": { "message": "Estos apartados usan ahora los textos o imágenes originales del juego:" },
   "Compatibility.Details": { "message": "Detalles técnicos" },
-  "Compatibility.InterfaceAssets": { "message": "Imágenes y diseño de la interfaz" }
+  "Compatibility.InterfaceAssets": { "message": "Imágenes y diseño de la interfaz" },
+  "Setup.ColType": { "message": "Tipo" },
+  "Setup.Reviewers": { "message": "Revisores" },
+  "Setup.Reviewer": { "message": "Revisor" },
+  "Setup.EnglishDescription": { "message": "Usar los textos originales del juego en inglés." },
+  "Setup.PendingPercent": { "message": "% pendiente" },
+  "Setup.LanguageEnglishTitle": { "message": "Inglés" }
 }

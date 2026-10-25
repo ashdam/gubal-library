@@ -11,117 +11,65 @@ concurrency:
 
 permissions: {}
 
+defaults:
+  run:
+    shell: bash
+
 jobs:
+  checks:
+    needs: ["version"]
+    if: needs.version.outputs.changed == 'true'
+    uses: ./.github/workflows/release-checks.yml
+    permissions:
+      contents: read
+
   version:
     name: "Check version"
-    runs-on: "ubuntu-latest"
+    runs-on: ubuntu-latest
     permissions:
-      contents: "read"
+      contents: read
     outputs:
       changed: ${{ steps.version.outputs.changed }}
       version: ${{ steps.version.outputs.version }}
       tag: ${{ steps.version.outputs.tag }}
     steps:
       - name: "Checkout"
-        uses: "actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1" # v7.0.1
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
           persist-credentials: false
-      - name: "Test version checks"
-        run: python3 -B -m unittest discover -s .github/scripts -p 'test_*.py'
       - name: "Check version"
         id: version
         env:
           GH_TOKEN: ${{ github.token }}
           BEFORE_SHA: ${{ github.event.before }}
-        run: python3 -B .github/scripts/check-release.py
+        run: bash .github/scripts/check-release.sh
       - name: "Check index credentials"
         if: steps.version.outputs.changed == 'true'
         env:
           HAS_MERGE_TOKEN: ${{ secrets.GUBAL_MERGE_TOKEN != '' }}
         run: |
-          if [ "$HAS_MERGE_TOKEN" != "true" ]; then
-            echo "GUBAL_MERGE_TOKEN is required to publish the plugin index." >&2
+          if [[ $HAS_MERGE_TOKEN != true ]]; then
+            echo 'GUBAL_MERGE_TOKEN is required to publish the plugin index.' >&2
             exit 1
           fi
-
-  build:
-    name: "Build"
-    needs: ["version"]
-    if: needs.version.outputs.changed == 'true'
-    runs-on: "windows-latest"
-    permissions:
-      contents: "read"
-    steps:
-      - name: "Checkout"
-        uses: "actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1" # v7.0.1
-        with:
-          persist-credentials: false
-
-      - name: "Set up .NET"
-        uses: "actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68" # v6.0.0
-        with:
-          dotnet-version: "10.0.x"
-
-      - name: "Fetch Dalamud"
-        shell: "pwsh"
-        run: |
-          Invoke-WebRequest -Uri 'https://goatcorp.github.io/dalamud-distrib/latest.zip' -OutFile "$env:RUNNER_TEMP\dalamud.zip"
-          Expand-Archive -Path "$env:RUNNER_TEMP\dalamud.zip" -DestinationPath "$env:RUNNER_TEMP\dalamud" -Force
-
-      - name: "Build"
-        shell: "pwsh"
-        env:
-          DALAMUD_HOME: "${{ runner.temp }}\\dalamud"
-        run: dotnet build -c Release --nologo
-
-      - name: "Check the version matches AssemblyVersion"
-        shell: "pwsh"
-        env:
-          TAG_NAME: "${{ needs.version.outputs.tag }}"
-        run: |
-          $manifest = Get-Content 'bin\x64\Release\win-x64\GubalLibrary.json' -Raw | ConvertFrom-Json
-          $tag = $env:TAG_NAME -replace '^v', ''
-          if ($tag -ne $manifest.AssemblyVersion) {
-            throw "Tag '$tag' does not match AssemblyVersion '$($manifest.AssemblyVersion)'. Bump <Version> in the csproj and retag."
-          }
-
-      - name: "Check the API level matches the released Dalamud"
-        shell: "pwsh"
-        run: |
-          $manifest = Get-Content 'bin\x64\Release\win-x64\GubalLibrary.json' -Raw | ConvertFrom-Json
-
-          $released = (Invoke-RestMethod 'https://goatcorp.github.io/dalamud-distrib/version').AssemblyVersion
-          $level = [int] ($released -split '\.')[0]
-
-          Write-Host "Built against API $($manifest.DalamudApiLevel); Dalamud $released ships API $level."
-          if ($manifest.DalamudApiLevel -ne $level) {
-            throw "API level $($manifest.DalamudApiLevel) does not match the released Dalamud's $level. Move the Dalamud.NET.Sdk pin and rebuild."
-          }
-
-      - name: "Upload artifact"
-        uses: "actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9" # v7.0.2
-        with:
-          name: "plugin"
-          path: |
-            bin/x64/Release/win-x64/GubalLibrary/latest.zip
-            bin/x64/Release/win-x64/GubalLibrary/GubalLibrary.json
-          if-no-files-found: "error"
-          retention-days: 1
-
   publish-github-release:
     name: "Publish GitHub release"
-    needs: ["version", "build"]
-    runs-on: "ubuntu-latest"
+    needs: ["version", "checks"]
+    runs-on: ubuntu-latest
     permissions:
-      contents: "write"
+      contents: write
     steps:
-      - name: "Download artifact"
-        uses: "actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333" # v8.0.2
+      - name: "Download plugin artifact"
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
-          name: "plugin"
-          path: "assets"
-
+          name: plugin
+          path: assets
+      - name: "Download Desktop artifact"
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: desktop
+          path: assets
       - name: "Create the release tag"
         env:
           GH_TOKEN: ${{ github.token }}
@@ -130,106 +78,79 @@ jobs:
         run: |
           gh api --method POST "repos/$GITHUB_REPOSITORY/git/refs" \
             -f "ref=refs/tags/$TAG_NAME" -f "sha=$RELEASE_SHA"
-
       - name: "Publish"
-        uses: "softprops/action-gh-release@efb35369e0ad2afab669f228072c1b0d510eae64" # v3.0.3
+        uses: softprops/action-gh-release@efb35369e0ad2afab669f228072c1b0d510eae64 # v3.0.3
         with:
           tag_name: ${{ needs.version.outputs.tag }}
           target_commitish: ${{ github.sha }}
-          files: "assets/latest.zip"
+          files: |
+            assets/latest.zip
+            assets/*-Portable.zip
+            assets/*-full.nupkg
+            assets/releases.desktop-win.json
           generate_release_notes: true
 
   update-repo-json:
     name: "Prepare the plugin index"
     needs: ["version", "publish-github-release"]
-    runs-on: "ubuntu-latest"
+    runs-on: ubuntu-latest
     permissions:
-      contents: "write"
+      contents: write
     outputs:
       base: ${{ steps.index.outputs.base }}
       head: ${{ steps.index.outputs.head }}
       blob: ${{ steps.index.outputs.blob }}
     steps:
       - name: "Checkout main"
-        uses: "actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1" # v7.0.1
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          ref: "main"
-
-      - name: "Download artifact"
-        uses: "actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333" # v8.0.2
+          ref: main
+      - name: "Download plugin artifact"
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
-          name: "plugin"
-          path: "assets"
-
+          name: plugin
+          path: assets
       - name: "Rewrite and validate repo.json"
-        shell: "pwsh"
         env:
           RELEASE_VERSION: ${{ needs.version.outputs.version }}
         run: |
-          $manifest = Get-Content 'assets/GubalLibrary.json' -Raw | ConvertFrom-Json
-          if ($manifest.InternalName -ne 'GubalLibrary' -or $manifest.AssemblyVersion -ne $env:RELEASE_VERSION) {
-            throw 'The manifest does not match this release.'
-          }
-
-          $entries = ConvertFrom-Json (Get-Content repo.json -Raw) -NoEnumerate
-          if ($entries -isnot [System.Collections.IList] -or $entries.Count -ne 1 -or $entries[0].InternalName -ne 'GubalLibrary') {
-            throw 'repo.json must contain one GubalLibrary entry.'
-          }
-          $entry = $entries[0]
-          if ([version]$manifest.AssemblyVersion -le [version]$entry.AssemblyVersion) {
-            throw 'The release version must exceed the version in repo.json.'
-          }
-          $entry.AssemblyVersion = $manifest.AssemblyVersion
-          $entry.DalamudApiLevel = $manifest.DalamudApiLevel
-          $entry.Name            = $manifest.Name
-          $entry.Punchline       = $manifest.Punchline
-          $entry.Description     = $manifest.Description
-          $entry.LastUpdate      = [DateTimeOffset]::UtcNow.ToUnixTimeSeconds()
-
-          ConvertTo-Json $entry -Depth 10 -AsArray | Set-Content repo.json -Encoding utf8NoBOM
-
-          $parsed = ConvertFrom-Json (Get-Content repo.json -Raw) -NoEnumerate
-          if ($parsed -isnot [System.Collections.IList]) { throw 'repo.json is not a top-level array.' }
-          foreach ($e in $parsed) {
-            if ($e -is [System.Collections.IList]) { throw 'repo.json entries are arrays, not objects -- double-nested.' }
-            if (-not $e.InternalName) { throw 'a repo.json entry has no InternalName.' }
-          }
-          Write-Host "repo.json validated: $($parsed.Count) entry(s), $($parsed[0].InternalName) $($parsed[0].AssemblyVersion)"
-
+          source .github/scripts/check-release.sh
+          jq -e --arg version "$RELEASE_VERSION" '.InternalName == "GubalLibrary" and .AssemblyVersion == $version' assets/GubalLibrary.json >/dev/null
+          jq -e 'type == "array" and length == 1 and .[0].InternalName == "GubalLibrary"' repo.json >/dev/null
+          version_gt "$RELEASE_VERSION" "$(jq -r '.[0].AssemblyVersion' repo.json)"
+          jq --slurpfile manifest assets/GubalLibrary.json --argjson updated "$(date +%s)" '
+            .[0] |= (.AssemblyVersion = $manifest[0].AssemblyVersion |
+                     .DalamudApiLevel = $manifest[0].DalamudApiLevel |
+                     .Name = $manifest[0].Name | .Punchline = $manifest[0].Punchline |
+                     .Description = $manifest[0].Description | .RepoUrl = $manifest[0].RepoUrl |
+                     .LastUpdate = $updated)
+          ' repo.json > "$RUNNER_TEMP/repo.json"
+          jq -e 'type == "array" and length == 1 and .[0].InternalName == "GubalLibrary"' "$RUNNER_TEMP/repo.json" >/dev/null
+          mv "$RUNNER_TEMP/repo.json" repo.json
       - name: "Commit the generated index"
         id: index
-        shell: "pwsh"
         env:
           RELEASE_VERSION: ${{ needs.version.outputs.version }}
         run: |
-          $PSNativeCommandUseErrorActionPreference = $true
-          $base = git rev-parse HEAD
-          git config user.name  'github-actions[bot]'
+          base=$(git rev-parse HEAD)
+          git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git add repo.json
-          $files = @(git diff --cached --name-only)
-          if ($files.Count -ne 1 -or $files[0] -ne 'repo.json') {
-            throw 'Only repo.json may change.'
-          }
-          $version = $env:RELEASE_VERSION
-          $branch = "repo-json/$version"
-          git commit -m "repo.json: $version"
-          $head = git rev-parse HEAD
-          $blob = git rev-parse 'HEAD:repo.json'
-          git push origin "HEAD:refs/heads/$branch"
-          "base=$base" >> $env:GITHUB_OUTPUT
-          "head=$head" >> $env:GITHUB_OUTPUT
-          "blob=$blob" >> $env:GITHUB_OUTPUT
+          [[ $(git diff --cached --name-only) == repo.json ]]
+          git commit -m "repo.json: $RELEASE_VERSION"
+          head=$(git rev-parse HEAD)
+          blob=$(git rev-parse HEAD:repo.json)
+          git push origin "HEAD:refs/heads/repo-json/$RELEASE_VERSION"
+          printf 'base=%s\nhead=%s\nblob=%s\n' "$base" "$head" "$blob" >> "$GITHUB_OUTPUT"
 
   merge-repo-json:
     name: "Merge the generated index"
     needs: ["version", "update-repo-json"]
-    runs-on: "ubuntu-latest"
+    runs-on: ubuntu-latest
     permissions: {}
-    # Keep the privileged token on a fresh runner with no checkout or downloaded code.
+    # Keep the privileged token on a fresh runner without repository code.
     steps:
       - name: "Validate and merge the index pull request"
-        shell: "pwsh"
         env:
           GH_TOKEN: ${{ secrets.GUBAL_MERGE_TOKEN }}
           GH_REPO: ${{ github.repository }}
@@ -238,30 +159,22 @@ jobs:
           INDEX_HEAD: ${{ needs.update-repo-json.outputs.head }}
           INDEX_BLOB: ${{ needs.update-repo-json.outputs.blob }}
         run: |
-          $PSNativeCommandUseErrorActionPreference = $true
-          if (-not $env:GH_TOKEN) { throw 'GUBAL_MERGE_TOKEN is required.' }
-          foreach ($sha in @($env:INDEX_BASE, $env:INDEX_HEAD, $env:INDEX_BLOB)) {
-            if ($sha -cnotmatch '^[0-9a-f]{40}$') { throw 'Invalid index object ID.' }
-          }
-          $version = $env:RELEASE_VERSION
-          if ($version -cnotmatch '^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$') { throw 'Invalid release version.' }
-          $branch = "repo-json/$version"
-          $commit = gh api "repos/$env:GH_REPO/commits/$env:INDEX_HEAD" | ConvertFrom-Json
-          if ($commit.parents.Count -ne 1 -or $commit.parents[0].sha -ne $env:INDEX_BASE) {
-            throw 'The generated index must be one commit above its base.'
-          }
-          if ($commit.files.Count -ne 1 -or $commit.files[0].filename -ne 'repo.json' -or $commit.files[0].status -ne 'modified' -or $commit.files[0].sha -ne $env:INDEX_BLOB) {
-            throw 'The remote commit does not match the generated index.'
-          }
-          $main = gh api "repos/$env:GH_REPO/git/ref/heads/main" --jq '.object.sha'
-          if ($main -ne $env:INDEX_BASE) { throw 'main changed. Review the index before merging.' }
-          $url = gh pr create --base main --head $branch --title "Publish $version in the plugin index" --body "Update repo.json from the validated release manifest."
-          $pr = gh pr view $url --json number,headRefOid,baseRefOid,baseRefName,isCrossRepository | ConvertFrom-Json
-          if ($pr.headRefOid -ne $env:INDEX_HEAD -or $pr.baseRefOid -ne $env:INDEX_BASE -or $pr.baseRefName -ne 'main' -or $pr.isCrossRepository) {
-            throw 'The index pull request does not match the generated commit.'
-          }
-          $changed = @(gh api "repos/$env:GITHUB_REPOSITORY/pulls/$($pr.number)/files" --paginate | ConvertFrom-Json)
-          if ($changed.Count -ne 1 -or $changed[0].filename -ne 'repo.json' -or $changed[0].status -ne 'modified') {
-            throw 'The index pull request must only modify repo.json.'
-          }
-          gh pr merge $url --merge --admin --match-head-commit $env:INDEX_HEAD
+          set -euo pipefail
+          [[ -n $GH_TOKEN ]]
+          for sha in "$INDEX_BASE" "$INDEX_HEAD" "$INDEX_BLOB"; do [[ $sha =~ ^[0-9a-f]{40}$ ]]; done
+          [[ $RELEASE_VERSION =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]]
+          commit=$(gh api "repos/$GH_REPO/commits/$INDEX_HEAD")
+          jq -e --arg base "$INDEX_BASE" --arg blob "$INDEX_BLOB" '
+            (.parents | length) == 1 and .parents[0].sha == $base and
+            (.files | length) == 1 and .files[0].filename == "repo.json" and
+            .files[0].status == "modified" and .files[0].sha == $blob
+          ' <<< "$commit" >/dev/null
+          [[ $(gh api "repos/$GH_REPO/git/ref/heads/main" --jq '.object.sha') == "$INDEX_BASE" ]]
+          url=$(gh pr create --base main --head "repo-json/$RELEASE_VERSION" --title "Publish $RELEASE_VERSION in the plugin index" --body 'Update repo.json from the validated release manifest.')
+          pr=$(gh pr view "$url" --json number,headRefOid,baseRefOid,baseRefName,isCrossRepository)
+          jq -e --arg head "$INDEX_HEAD" --arg base "$INDEX_BASE" '
+            .headRefOid == $head and .baseRefOid == $base and .baseRefName == "main" and .isCrossRepository == false
+          ' <<< "$pr" >/dev/null
+          gh api "repos/$GH_REPO/pulls/$(jq -r '.number' <<< "$pr")/files" --paginate --slurp |
+            jq -e 'add | length == 1 and .[0].filename == "repo.json" and .[0].status == "modified"' >/dev/null
+          gh pr merge "$url" --merge --admin --match-head-commit "$INDEX_HEAD"
