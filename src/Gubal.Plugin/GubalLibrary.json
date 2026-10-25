@@ -1,7 +1,7 @@
 {
   "Name": "Gubal Library",
   "Author": "ashdam",
-  "RepoUrl": "https://github.com/ashdam/gubal-library",
+  "RepoUrl": "https://eorzealocalized.com",
 
   "//IconUrl": [
     "512x512 PNG, which is what Dalamud expects. Declared HERE, in the source manifest, and not",
@@ -12,19 +12,7 @@
   "IconUrl": "https://raw.githubusercontent.com/ashdam/gubal-library/main/images/icon.png",
   "Punchline": "Localize your game in Spanish, Italian, Polish or Brazilian Portuguese.",
   "Description": "Gubal Library localizes FINAL FANTASY XIV through community language packs available in Spanish, Italian, Polish, and Brazilian Portuguese, and adds dialogue links to unlocked Unending Codex entries.",
-  "//ImageUrls": [
-    "Shown in the plugin installer under the description. A translation as the game draws it,",
-    "because the one thing a screenshot can say here that words cannot is that this is the game's",
-    "own text box and not an overlay.",
-    "",
-    "SIZED FOR DALAMUD, WHICH IS WHY THESE ARE THEIR OWN FILES. PluginImageCache caps them at",
-    "730x380 the way it caps an icon at 512x512, and the README screenshots they are cut from are",
-    "978 and 777 wide. The originals are left alone; these are copies scaled to fit."
-  ],
-  "ImageUrls": [
-    "https://raw.githubusercontent.com/ashdam/gubal-library/main/images/manifest-1.png",
-    "https://raw.githubusercontent.com/ashdam/gubal-library/main/images/manifest-2.png"
-  ],  "ApplicableVersion": "any",
+  "ApplicableVersion": "any",
   "Tags": [ "translation", "localization", "localisation", "dialogue", "community" ],
   "CategoryTags": [ "utility" ],
   "LoadPriority": 0,

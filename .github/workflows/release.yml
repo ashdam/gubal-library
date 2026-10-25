@@ -122,7 +122,8 @@ jobs:
             .[0] |= (.AssemblyVersion = $manifest[0].AssemblyVersion |
                      .DalamudApiLevel = $manifest[0].DalamudApiLevel |
                      .Name = $manifest[0].Name | .Punchline = $manifest[0].Punchline |
-                     .Description = $manifest[0].Description | .LastUpdate = $updated)
+                     .Description = $manifest[0].Description | .RepoUrl = $manifest[0].RepoUrl |
+                     .LastUpdate = $updated)
           ' repo.json > "$RUNNER_TEMP/repo.json"
           jq -e 'type == "array" and length == 1 and .[0].InternalName == "GubalLibrary"' "$RUNNER_TEMP/repo.json" >/dev/null
           mv "$RUNNER_TEMP/repo.json" repo.json
