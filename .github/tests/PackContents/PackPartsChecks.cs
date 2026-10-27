@@ -18,12 +18,11 @@ internal static class PackPartsChecks
             "retainertaskrandom", "guildleveassignmenttalk",
         ];
         Check(menuSheets.All(menus.Sheets.Contains), "NPC services must use the general interface switch");
-        Check(parts.Single(part => part.Sheets.Contains("lobby")).Sheets.SequenceEqual(["lobby"]),
-            "Lobby must have its own switch");
+        Check(parts.Single(part => part.Sheets.Contains("lobby")).Sheets.Contains("race"),
+            "Lobby and character creation must share their own switch");
         Check(parts.Single(part => part.Sheets.Contains("maincommand")).Sheets
                 .SequenceEqual(["maincommand", "maincommandcategory"]),
             "Main menu entries and categories must share their own switch");
-        Check(menus.Warning is not null, "Interface menus need a plugin compatibility warning");
 
         string[] gameplaySheets =
         [

@@ -8,6 +8,7 @@
     <Nullable>enable</Nullable>
   </PropertyGroup>
   <ItemGroup>
+    <EmbeddedResource Include="$(LocalizationTreePath)" LogicalName="GubalLibrary.sheet-category-tree.json" />
     <Compile Include="../../../src/Gubal.Plugin/PackContents.cs" Link="PackContents.cs" />
     <Compile Include="../../../src/Gubal.Core/PackParts.cs" Link="PackParts.cs" />
     <Compile Include="../../../src/Gubal.Core/CoreLanguage.cs" Link="CoreLanguage.cs" />

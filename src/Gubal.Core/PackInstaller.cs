@@ -363,7 +363,7 @@ internal sealed class PackInstaller
         catch (OperationCanceledException) when (cancel.IsCancellationRequested) { throw; }
         catch (Exception e)
         {
-            this.log.Warning("Could not reach {Url} to check for a newer pack: {Message}", updateUrl, e.Message);
+            this.log.Warning(e, "Could not reach {Url} to check for a newer pack.", updateUrl);
             return UpdateStatus.Unreachable(e.Message);
         }
     }
@@ -378,7 +378,7 @@ internal sealed class PackInstaller
         catch (OperationCanceledException) when (cancel.IsCancellationRequested) { throw; }
         catch (Exception e)
         {
-            this.log.Warning("Could not read the manifest at {Url}: {Message}", url, e.Message);
+            this.log.Warning(e, "Could not read the manifest at {Url}.", url);
             return null;
         }
     }

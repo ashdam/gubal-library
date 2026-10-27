@@ -28,7 +28,7 @@
     </ItemGroup>
     <Error Condition="!Exists('$(PortableDirectory)%(RequiredFile.Identity)')" Text="The Desktop package is missing %(RequiredFile.Identity)." />
     <Exec Command="dotnet tool restore" WorkingDirectory="$(GubalRepositoryRoot)" />
-    <Exec Command="dotnet vpk [win] pack --packId GubalDesktop.App --packVersion $(DesktopPackageVersion) --packTitle &quot;Gubal Desktop&quot; --packAuthors ashdam --mainExe GubalDesktop.exe --runtime win-x64 --channel desktop-win --packDir &quot;$(PortableDirectory)&quot; --outputDir &quot;$(DesktopReleaseDirectory)&quot; --icon &quot;$(MSBuildProjectDirectory)/Assets/gubal.ico&quot; --delta None --noInst" WorkingDirectory="$(GubalRepositoryRoot)" />
+    <Exec Command="dotnet vpk [win] pack --packId GubalDesktop.App --packVersion $(DesktopPackageVersion) --packTitle &quot;GubalDesktop&quot; --packAuthors ashdam --mainExe GubalDesktop.exe --runtime win-x64 --channel desktop-win --packDir &quot;$(PortableDirectory)&quot; --outputDir &quot;$(DesktopReleaseDirectory)&quot; --icon &quot;$(MSBuildProjectDirectory)/Assets/gubal.ico&quot; --delta None --noInst" WorkingDirectory="$(GubalRepositoryRoot)" />
     <Message Text="Desktop packages: $(DesktopReleaseDirectory)" Importance="high" />
   </Target>
 </Project>

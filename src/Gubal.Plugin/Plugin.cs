@@ -26,6 +26,7 @@ public sealed class Plugin : IDalamudPlugin
     private readonly Configuration config;
     private readonly CancellationTokenSource usageCancellation = new();
     private Task? usageTask;
+    private readonly UsageOutbox usageOutbox;
     private readonly ConfigWindow configWindow;
     private readonly LobbyUpdateNotice lobbyUpdateNotice;
     private readonly DialogueCodex dialogueCodex;
@@ -80,6 +81,9 @@ public sealed class Plugin : IDalamudPlugin
         IAddonLifecycle addonLifecycle,
         IPluginLog log)
     {
+        this.usageOutbox = new UsageOutbox(Path.Combine(pluginInterface.GetPluginConfigDirectory(),
+            UsageReporter.Endpoint.IsLoopback ? "usage-pending-local" : "usage-pending"));
+        log = new ReportingLog(log, this.usageOutbox.Errors);
         Language.Apply(pluginInterface.UiLanguage, log);
 
         this.pluginInterface = pluginInterface;
@@ -124,7 +128,7 @@ public sealed class Plugin : IDalamudPlugin
             {
                 var activated = this.installer.ActivatePending(this.config, this.SaveConfig);
                 if (activated is { Success: false } failure)
-                    log.Warning("The pending pack was not activated: {Error}", failure.Error ?? "Unknown activation error.");
+                    log.Error("The pending pack was not activated: {Error}", failure.Error ?? "Unknown activation error.");
                 else if (activated is { Success: true, Manifest: { } manifest })
                     this.bootUpdate = manifest.TranslationVersion;
             }
@@ -148,6 +152,7 @@ public sealed class Plugin : IDalamudPlugin
 
                 if (this.redirectorError is { Length: > 0 } error)
                 {
+                    this.usageOutbox.Errors.Capture("redirector", "pack-load-failed", error);
                     log.Warning("Translated pages are not being served: {Error}", error);
                 }
 
@@ -163,6 +168,7 @@ public sealed class Plugin : IDalamudPlugin
                     // The game and other plugins must receive the same selected pages.
                     if (!this.shadow.Ok)
                     {
+                        this.usageOutbox.Errors.Capture("shared-sheets", "pack-load-failed", this.shadow.Message);
                         this.redirector.Dispose();
                         this.redirector = null;
                         log.Warning("[shadow] the pack was withdrawn from the client too, rather than serve half");
@@ -218,8 +224,9 @@ public sealed class Plugin : IDalamudPlugin
 
             this.ReportStartupUsage();
         }
-        catch
+        catch (Exception error)
         {
+            this.usageOutbox.Errors.Capture("startup", "initialization-failed", "Plugin initialization failed.", error);
             try { this.Dispose(); }
             catch (Exception cleanupError) { log.Error(cleanupError, "Could not release all plugin resources after initialization failed."); }
             throw;
@@ -250,8 +257,7 @@ public sealed class Plugin : IDalamudPlugin
             var report = UsageReport.Create(this.config.UsageInstallationId, this.config.UsageSequence,
                 this.pluginInterface.Manifest.AssemblyVersion.ToString(), snapshot);
             var cancel = this.usageCancellation.Token;
-            var outbox = new UsageOutbox(Path.Combine(this.pluginInterface.GetPluginConfigDirectory(),
-                UsageReporter.Endpoint.IsLoopback ? "usage-pending-local" : "usage-pending"));
+            var outbox = this.usageOutbox;
             // Capture the session before an install or a selection can change the configuration.
             this.usageTask = Task.Run(async () =>
             {
@@ -277,12 +283,20 @@ public sealed class Plugin : IDalamudPlugin
 
     private void DrawUi()
     {
-        this.dialogueCodex.DrawLinks();
-        if (!this.pluginInterface.UiBuilder.CutsceneActive)
-            this.configWindow.PreviewPluginUpdate = this.lobbyUpdateNotice.Draw(
-                this.clientState.IsLoggedIn, this.configWindow.DevToolsEnabled && this.configWindow.PreviewPluginUpdate);
-        this.windows.Draw();
-        this.fileDialogs.Draw();
+        try
+        {
+            this.dialogueCodex.DrawLinks();
+            if (!this.pluginInterface.UiBuilder.CutsceneActive)
+                this.configWindow.PreviewPluginUpdate = this.lobbyUpdateNotice.Draw(
+                    this.clientState.IsLoggedIn, this.configWindow.DevToolsEnabled && this.configWindow.PreviewPluginUpdate);
+            this.windows.Draw();
+            this.fileDialogs.Draw();
+        }
+        catch (Exception error)
+        {
+            this.log.Error(error, "Could not draw the plugin interface.");
+            throw;
+        }
     }
 
     public void Dispose()
@@ -579,7 +593,7 @@ public sealed class Plugin : IDalamudPlugin
 
         if (!result.Success)
         {
-            log.Warning(
+            log.Error(
                 "The startup update did not happen: {Error} The installed pack is untouched.",
                 result.Error ?? "no reason given.");
             return null;

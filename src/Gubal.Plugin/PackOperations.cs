@@ -46,6 +46,8 @@ internal sealed class PackOperations : IDisposable
         {
             try
             {
+                if (!result.Success)
+                    this.log.Error("Could not install the language pack: {Error}", result.Error ?? "Unknown installation error.");
                 if (result.Success)
                 {
                     this.HasPending = true;

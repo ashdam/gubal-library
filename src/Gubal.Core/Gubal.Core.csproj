@@ -3,11 +3,13 @@
     <SelfContained>false</SelfContained>
   </PropertyGroup>
   <ItemGroup>
+    <EmbeddedResource Include="$(LocalizationTreePath)" LogicalName="GubalLibrary.sheet-category-tree.json" />
     <Reference Include="CheapLoc"><HintPath>$(GameDependencyPath)\CheapLoc.dll</HintPath><Private>false</Private></Reference>
     <Reference Include="Lumina"><HintPath>$(GameDependencyPath)\Lumina.dll</HintPath><Private>false</Private></Reference>
     <InternalsVisibleTo Include="GubalLibrary" />
     <InternalsVisibleTo Include="GubalDesktop" />
     <InternalsVisibleTo Include="GubalStandalone.Runtime" />
+    <InternalsVisibleTo Include="GubalStandalone.Launcher" />
     <InternalsVisibleTo Include="Gubal.Game" />
   </ItemGroup>
 </Project>

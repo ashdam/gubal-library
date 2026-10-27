@@ -8,10 +8,10 @@ internal sealed class DesktopUsage(DesktopStore store) : IDisposable
 {
     private readonly CancellationTokenSource cancellation = new();
     private readonly HttpClient client = new(new HttpClientHandler { AllowAutoRedirect = false });
-    private readonly UsageOutbox outbox = new(Path.Combine(store.Root, "usage-pending"));
+    private readonly UsageOutbox outbox = store.Outbox;
     private Task sending = Task.CompletedTask;
 
-    public async Task RecordAsync(UsageSnapshot snapshot)
+    public async Task RecordAsync(UsageSnapshot snapshot, bool send = true)
     {
         try
         {
@@ -25,12 +25,12 @@ internal sealed class DesktopUsage(DesktopStore store) : IDisposable
             File.Move(path + ".tmp", path, overwrite: true);
             var report = UsageReport.Create(identity.InstallationId, identity.Sequence,
                 typeof(DesktopUsage).Assembly.GetName().Version!.ToString(), snapshot, "desktop");
-            await outbox.EnqueueAsync(report);
-            Flush();
+            await outbox.EnqueueAsync(report, deferred: !send);
+            if (send) Flush();
         }
         catch (Exception error)
         {
-            store.Warning(error, "Could not save the Desktop usage report.");
+            store.Warning("Could not save the Desktop usage report. {Error}", error);
         }
     }
 
@@ -48,7 +48,7 @@ internal sealed class DesktopUsage(DesktopStore store) : IDisposable
             catch (Exception error)
             {
                 if (!cancel.IsCancellationRequested)
-                    store.Warning(error, "Could not send the Desktop usage reports.");
+                    store.Warning("Could not send the Desktop usage reports. {Error}", error);
             }
         });
     }

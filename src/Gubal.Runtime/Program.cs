@@ -18,6 +18,7 @@ public static unsafe class Entry
 {
     private static readonly object LogGate = new();
     private static string logPath = "";
+    private static UsageErrorQueue? errors;
     private static Dictionary<string, string> pages = new(StringComparer.OrdinalIgnoreCase);
     private static IHook<FileThread.Delegates.DoFileJob>? hook;
     private static int served;
@@ -39,14 +40,14 @@ public static unsafe class Entry
             File.WriteAllText(Path.ChangeExtension(path, ".compatibility.json"), JsonSerializer.Serialize(new { DisabledParts = disabledParts }));
             return 0;
         }
-        catch (NativeCompatibilityException error) { Console.Error.WriteLine(error.Message); return 3; }
-        catch (Exception error) { Console.Error.WriteLine(error.Message); return 1; }
+        catch (NativeCompatibilityException error) { ReportError("compatibility", error); Console.Error.WriteLine(error.Message); return 3; }
+        catch (Exception error) { ReportError("compatibility", error); Console.Error.WriteLine(error.Message); return 1; }
     }
 
     public static int Validate(nint argument, int bytes)
     {
         try { Prepare(Marshal.PtrToStringUni(argument) ?? throw new ArgumentException("Missing settings.")); return 0; }
-        catch (Exception error) { Log(error.ToString()); return 1; }
+        catch (Exception error) { ReportError("host-check", error); return 1; }
     }
 
     public static int Initialize(nint argument, int bytes)
@@ -85,12 +86,14 @@ public static unsafe class Entry
             Log($"READY: {pages.Count} pages; read hook 0x{address:X}.");
             return 0;
         }
-        catch (Exception error) { Log(error.ToString()); return 1; }
+        catch (Exception error) { ReportError("initialization", error); return 1; }
     }
 
     private static Settings Prepare(string settingsPath)
     {
         logPath = Path.Combine(Path.GetDirectoryName(settingsPath)!, "runtime.log");
+        errors ??= new UsageErrorQueue(Path.Combine(Path.GetDirectoryName(settingsPath)!,
+            UsageReporter.Endpoint.IsLoopback ? "usage-pending-local" : "usage-pending", "errors"));
         Loc.SetupWithFallbacks();
         var settings = JsonSerializer.Deserialize<Settings>(File.ReadAllBytes(settingsPath))
             ?? throw new InvalidDataException("Invalid settings.");
@@ -178,7 +181,7 @@ public static unsafe class Entry
                     asset = assets.RootedPaths.TryGetValue(Encoding.UTF8.GetString(name), out local);
             }
         }
-        catch (Exception error) { Log(error.Message); }
+        catch (Exception error) { ReportError("file-read", error); }
         if (local is null)
         {
             if (number <= 5) Log($"PASS {number}: calling the original reader.");
@@ -210,6 +213,12 @@ public static unsafe class Entry
             *(nint*)((byte*)descriptor + 0x30) = originalScratch;
             originalPath.CopyTo(descriptor->FilePath);
         }
+    }
+
+    private static void ReportError(string stage, Exception error)
+    {
+        errors?.Capture(stage, "runtime-failed", "The Desktop translation component failed.", error);
+        Log(error.ToString());
     }
 
     private static void Log(string message)
