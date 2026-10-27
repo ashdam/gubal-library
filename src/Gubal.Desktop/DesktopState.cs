@@ -7,13 +7,19 @@ using Microsoft.Win32;
 
 namespace GubalDesktop;
 
-internal sealed record DesktopSettings(string GameFolder = "", string Language = "", bool AutoUpdate = true);
+internal sealed record DesktopSettings(string GameFolder = "", string Language = "", bool AutoUpdate = true,
+    LauncherAccount? Account = null);
 
 internal sealed class DesktopStore : IPackInstallLog
 {
     public string Root { get; } = AppContext.GetData("Gubal.Desktop.DataDirectory") as string
         ?? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "GubalDesktop");
-    public DesktopStore() => Directory.CreateDirectory(Root);
+    public UsageOutbox Outbox { get; }
+    public DesktopStore()
+    {
+        Directory.CreateDirectory(Root);
+        Outbox = new(Path.Combine(Root, UsageReporter.Endpoint.IsLoopback ? "usage-pending-local" : "usage-pending"));
+    }
     public DesktopSettings Read() => File.Exists(Path.Combine(Root, "settings.json"))
         ? JsonSerializer.Deserialize<DesktopSettings>(File.ReadAllText(Path.Combine(Root, "settings.json"))) ?? new()
         : new();
@@ -32,8 +38,16 @@ internal sealed class DesktopStore : IPackInstallLog
     }
     public void Information(string message, params object[] values) => Write(message, values);
     public void Warning(string message, params object[] values) => Write(message, values);
-    public void Warning(Exception error, string message, params object[] values) => Write(message + " " + error.Message, values);
-    public void Error(Exception error, string message, params object[] values) => Write(message + " " + error, values);
+    public void Warning(Exception error, string message, params object[] values)
+    {
+        Write(message + " " + error.Message, values);
+        Outbox.Errors.Capture("desktop", "operation-failed", message, error);
+    }
+    public void Error(Exception error, string message, params object[] values)
+    {
+        Write(message + " " + error, values);
+        Outbox.Errors.Capture("desktop", "operation-failed", message, error);
+    }
     private void Write(string message, object[] values)
     {
         try { File.AppendAllText(Path.Combine(Root, "desktop.log"), message + " " + string.Join(" ", values) + Environment.NewLine); }
@@ -43,6 +57,30 @@ internal sealed class DesktopStore : IPackInstallLog
 
 internal static class GameDetection
 {
+    public static bool IsSteam(string folder)
+    {
+        try
+        {
+            if (Normalize(folder) is not { } normalized) return false;
+            var installation = new DirectoryInfo(normalized);
+            if (installation.Parent is not { Parent: { } steamApps } common ||
+                !string.Equals(common.Name, "common", StringComparison.OrdinalIgnoreCase)) return false;
+            foreach (var appId in new[] { "39210", "312060" })
+            {
+                var manifest = Path.Combine(steamApps.FullName, $"appmanifest_{appId}.acf");
+                if (!File.Exists(manifest)) continue;
+                var text = File.ReadAllText(manifest);
+                var id = Regex.Match(text, "\"appid\"\\s*\"([^\"]+)\"", RegexOptions.IgnoreCase);
+                var directory = Regex.Match(text, "\"installdir\"\\s*\"([^\"]+)\"", RegexOptions.IgnoreCase);
+                if (id.Groups[1].Value == appId &&
+                    string.Equals(directory.Groups[1].Value, installation.Name, StringComparison.OrdinalIgnoreCase))
+                    return true;
+            }
+        }
+        catch (Exception error) when (error is ArgumentException or IOException or UnauthorizedAccessException or SecurityException) { }
+        return false;
+    }
+
     public static string? Normalize(string folder)
     {
         try

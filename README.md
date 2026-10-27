@@ -141,6 +141,15 @@ No separate download is required.
 Set `DALAMUD_HOME` to the downloaded Dalamud distribution for its SDK and dependency assemblies.
 Local builds also accept the XIVLauncher development distribution. Core and Runtime do not load Dalamud.
 
+The build embeds `../ffxiv-corpus-en/config/sheet-category-tree.json` for localization categories and sheet switches.
+Use `-p:LocalizationTreePath=<path>` for another source. The installed application does not read the source file.
+CI fetches the tree from `ffxiv-corpus-en/main`. Merge tree changes there before releasing Gubal.
+Nodes supply English names and optional descriptions. Target UI locales use `Tree.<ID path>.Name` and
+`Tree.<ID path>.Description`, with dots between IDs. Missing translations use the English source text.
+
+Category screenshots use the same ID path under `images/tooltips`: `story.questtext.png`, or
+`story.questtext.1.png`, `.2.png` for multiple images. Missing part images use group images when present; otherwise no image is shown.
+
 ```powershell
 dotnet build src/Gubal.Plugin/GubalLibrary.csproj -c Release
 dotnet build Gubal.slnx -c Release
@@ -154,6 +163,9 @@ Runtime builds its native host with the pinned Zig compiler and checks the downl
 The Desktop `Package` target creates the portable ZIP and update feed in `dist/desktop`, with .NET included.
 The Dalamud package is `bin/x64/Release/win-x64/GubalLibrary/latest.zip` and contains no Desktop files.
 Desktop stores packs and settings in `%LOCALAPPDATA%/GubalDesktop`. Its reporting identity is separate from the plugin.
+In Desktop settings, select Steam and Free Trial to match the account license. These options apply to English and localized launches. The installation folder does not select the account type. Keep Steam open for Steam accounts.
+The same settings dialog opens at first startup. It lists detected installations and selects Steam when a matching Steam app manifest confirms the folder. Free Trial is selected by the user.
+Plugin and Desktop errors are queued locally and sent with a startup report from a later session. Error capture does not start a network request. Reports contain bounded diagnostics, not complete logs; paths, URLs and credential fields are redacted.
 
 GitHub Actions builds both Windows packages with the Linux .NET SDK on Ubuntu.
 Release checks use Bash and jq. Their tests are defined in the release checks workflow.

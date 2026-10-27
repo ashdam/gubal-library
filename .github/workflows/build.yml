@@ -16,10 +16,21 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
+    env:
+      LocalizationTreePath: ${{ github.workspace }}/.cache/corpus-en/config/sheet-category-tree.json
     steps:
       - name: "Checkout"
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          persist-credentials: false
+      - name: "Fetch localization tree"
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: ashdam/ffxiv-corpus-en
+          ref: main
+          path: .cache/corpus-en
+          sparse-checkout: config/sheet-category-tree.json
+          sparse-checkout-cone-mode: false
           persist-credentials: false
       - name: "Set up .NET"
         uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0

@@ -5,4 +5,7 @@
     <AssemblyName>GubalStandalone.Launcher</AssemblyName>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
   </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../Gubal.Core/Gubal.Core.csproj" />
+  </ItemGroup>
 </Project>

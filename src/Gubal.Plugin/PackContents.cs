@@ -15,10 +15,8 @@ internal sealed record PartView(TranslationPart Part, string[] Sheets)
 }
 
 /// <param name="Description">Where this lot is seen in the game.</param>
-/// <param name="Warning">The group's own caveat, or null when it has none.</param>
-/// <param name="Image">Before-and-after picture for this group, or null when none was taken.</param>
 internal sealed record GroupView(
-    string Id, string Name, string Description, string? Warning, PartView[] Parts, string? Image);
+    string Id, string Name, string Description, PartView[] Parts);
 
 /// <summary>
 ///     What an installed language pack holds, read once and kept.
@@ -172,7 +170,7 @@ internal sealed class PackContents
         }
 
         var images = new List<PackPage>();
-        foreach (var group in new[] { "120000", "121000", "122000", "123000", "124000", "127000", "128000" })
+        foreach (var group in new[] { "120000", "121000", "122000", "123000", "124000", "126000", "127000", "128000", "129000", "180000", "181000" })
         {
             var imageDir = Path.Combine(directory, "ui", "icon", group);
             if (!Directory.Exists(imageDir)) continue;
@@ -241,8 +239,10 @@ internal sealed class PackContents
     internal static bool IsScreenImagePath(ReadOnlySpan<byte> path) =>
         path.StartsWith("ui/icon/120000/"u8) || path.StartsWith("ui/icon/121000/"u8)
         || path.StartsWith("ui/icon/122000/"u8) || path.StartsWith("ui/icon/123000/"u8)
-        || path.StartsWith("ui/icon/124000/"u8) || path.StartsWith("ui/icon/127000/"u8)
-        || path.StartsWith("ui/icon/128000/"u8);
+        || path.StartsWith("ui/icon/124000/"u8) || path.StartsWith("ui/icon/126000/"u8)
+        || path.StartsWith("ui/icon/127000/"u8) || path.StartsWith("ui/icon/128000/"u8)
+        || path.StartsWith("ui/icon/129000/"u8) || path.StartsWith("ui/icon/180000/"u8)
+        || path.StartsWith("ui/icon/181000/"u8);
 
     public IReadOnlyList<PackPage> ServableScreenImages(ICollection<string> disabledSheets, bool lifestreamCompatibility = false) =>
         disabledSheets.Contains("addon") || lifestreamCompatibility ? [] : this.screenImages;
@@ -304,7 +304,7 @@ internal sealed class PackContents
             if (parts.Count > 0)
             {
                 groups.Add(new GroupView(
-                    group.Id, group.Name, group.Description, group.Warning, parts.ToArray(), group.Image));
+                    group.Id, group.Name, group.Description, parts.ToArray()));
             }
         }
 
@@ -324,9 +324,7 @@ internal sealed class PackContents
                 "uncategorized", PackParts.UncategorizedGroupName,
                 Loc.Localize("Group.Other.Tooltip",
                     "Sheets with no assigned localization category."),
-                null,
-                unknown,
-                null));
+                unknown));
         }
 
         return groups;

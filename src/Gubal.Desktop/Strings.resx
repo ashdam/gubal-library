@@ -216,12 +216,6 @@ Do you want to continue?</value>
   <data name="Save" xml:space="preserve">
     <value>Save</value>
   </data>
-  <data name="ChooseInstallation" xml:space="preserve">
-    <value>Choose your FFXIV installation</value>
-  </data>
-  <data name="UseInstallation" xml:space="preserve">
-    <value>Use this installation</value>
-  </data>
   <data name="CheckUpdates" xml:space="preserve">
     <value>Check for pack updates</value>
   </data>
@@ -298,4 +292,6 @@ Progress covers the content included in the localization inventory.</value>
   </data>
   <data name="Language" xml:space="preserve"><value>Language</value></data>
   <data name="Reviewers" xml:space="preserve"><value>Reviewers</value></data>
+  <data name="SteamAccount" xml:space="preserve"><value>Steam account (Steam must be running)</value></data>
+  <data name="FreeTrialAccount" xml:space="preserve"><value>Free Trial account</value></data>
 </root>

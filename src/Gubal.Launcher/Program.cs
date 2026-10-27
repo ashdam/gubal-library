@@ -5,14 +5,19 @@ using System.Reflection.PortableExecutable;
 using System.Runtime.InteropServices;
 using System.Text;
 using System.Text.Json;
+using GubalLibrary;
 
-internal sealed record Settings(string GameExecutable, string Launcher, string Pack, string ExpectedGameVersion);
+internal sealed record Settings(string GameExecutable, string Launcher, string Pack, string ExpectedGameVersion,
+    LauncherAccount? Account = null);
 
 internal static unsafe class Program
 {
     private const uint Continue = 0x00010002;
     private const uint NotHandled = 0x80010001;
+    private const uint DebugProcess = 0x00000001;
+    private const uint UnicodeEnvironment = 0x00000400;
     private static string log = "";
+    private static UsageErrorQueue? errors;
     private static volatile bool cancelled;
     private static readonly Stopwatch elapsed = Stopwatch.StartNew();
 
@@ -23,6 +28,8 @@ internal static unsafe class Program
             if (args.Length != 3 || args[0] is not ("--launch" or "--check-host"))
                 throw new ArgumentException("Use --launch or --check-host, followed by settings.json and the runtime output directory.");
             var settingsPath = Path.GetFullPath(args[1]);
+            errors = new UsageErrorQueue(Path.Combine(Path.GetDirectoryName(settingsPath)!,
+                UsageReporter.Endpoint.IsLoopback ? "usage-pending-local" : "usage-pending", "errors"));
             var runtime = Path.GetFullPath(args[2]);
             log = Path.Combine(Path.GetDirectoryName(settingsPath)!, "launcher.log");
             var settings = JsonSerializer.Deserialize<Settings>(File.ReadAllBytes(settingsPath))
@@ -60,23 +67,33 @@ internal static unsafe class Program
             Console.CancelKeyPress += (_, e) => { e.Cancel = true; cancelled = true; };
             return Launch(settings, bootstrap, argument);
         }
-        catch (Exception error) { Write(error.Message); return 1; }
+        catch (Exception error)
+        {
+            errors?.Capture("launcher", "launch-failed", "The official launcher could not start the translated game.", error);
+            Write(error.Message);
+            return 1;
+        }
     }
 
     private static int Launch(Settings settings, string bootstrap, byte[] argument)
     {
         var startup = new StartupInfo { Size = Marshal.SizeOf<StartupInfo>() };
-        var previousHeapSetting = Environment.GetEnvironmentVariable("_NO_DEBUG_HEAP");
+        var start = (settings.Account ?? new()).StartInfo(settings.Launcher);
+        // Child processes need normal heap behavior while the startup debugger is attached.
+        start.Environment["_NO_DEBUG_HEAP"] = "1";
+        var environment = Marshal.StringToHGlobalUni(string.Join('\0', start.Environment
+            .OrderBy(pair => pair.Key, StringComparer.OrdinalIgnoreCase)
+            .Select(pair => $"{pair.Key}={pair.Value}")) + "\0\0");
         ProcessInfo process;
         try
         {
-            // Child processes need normal heap behavior even while the startup debugger is attached.
-            Environment.SetEnvironmentVariable("_NO_DEBUG_HEAP", "1");
-            if (!CreateProcess(settings.Launcher, new StringBuilder('"' + settings.Launcher + '"'), 0, 0,
-                false, 1, 0, Path.GetDirectoryName(settings.Launcher), ref startup, out process))
+            var command = new StringBuilder('"' + start.FileName + '"');
+            foreach (var option in start.ArgumentList) command.Append(' ').Append(option);
+            if (!CreateProcess(start.FileName, command, 0, 0,
+                false, DebugProcess | UnicodeEnvironment, environment, start.WorkingDirectory, ref startup, out process))
                 throw WindowsError("Start the official launcher");
         }
-        finally { Environment.SetEnvironmentVariable("_NO_DEBUG_HEAP", previousHeapSetting); }
+        finally { Marshal.FreeHGlobal(environment); }
         CloseHandle(process.Process);
         CloseHandle(process.Thread);
         DebugSetProcessKillOnExit(false);
@@ -167,6 +184,7 @@ internal static unsafe class Program
                         if (e.ProcessId == game && injection is not null)
                         {
                             Write($"FFXIV exited during startup with code 0x{e.ExceptionCode:X8}.");
+                            errors?.Capture("launcher", "game-exited", "FFXIV exited during startup.", exitCode: unchecked((int)e.ExceptionCode));
                             return 1;
                         }
                         if (e.ProcessId == game && injection is null)
@@ -178,6 +196,7 @@ internal static unsafe class Program
                         if (e.ProcessId == game && e.FirstChance == 0)
                         {
                             Write($"Unhandled native exception 0x{e.ExceptionCode:X8} at 0x{e.ExceptionAddress:X}.");
+                            errors?.Capture("launcher", "native-exception", "FFXIV raised an unhandled native exception during startup.", exitCode: unchecked((int)e.ExceptionCode));
                             foreach (var module in modules.OrderBy(p => p.Value))
                                 Write($"Module {module.Key}: 0x{module.Value:X}.");
                             try

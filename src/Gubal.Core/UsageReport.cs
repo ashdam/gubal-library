@@ -32,7 +32,8 @@ internal sealed record UsageSnapshot(string? Pack, string? PackVersion, string S
 
 internal sealed record UsageReport(int SchemaVersion, Guid InstallationId, long Sequence,
     string GubalVersion, string? Pack, string? PackVersion, string Status,
-    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? Client = null)
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? Client = null,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] UsageError[]? Errors = null)
 {
     public static UsageReport Create(Guid installationId, long sequence, string gubalVersion,
         UsageSnapshot snapshot, string? client = null) => new(client is null ? 1 : 2, installationId, sequence, gubalVersion,
@@ -97,10 +98,52 @@ internal static class UsageReporter
 
 internal sealed class UsageOutbox(string directory)
 {
-    public async Task EnqueueAsync(UsageReport report)
+    private static readonly JsonSerializerOptions WireJson = new(JsonSerializerDefaults.Web);
+    private readonly SemaphoreSlim writing = new(1, 1);
+    public UsageErrorQueue Errors { get; } = new(Path.Combine(directory, "errors"));
+
+    public async Task EnqueueAsync(UsageReport report, bool deferred = false)
     {
+        await writing.WaitAsync().ConfigureAwait(false);
+        try { await SaveAsync(report, deferred).ConfigureAwait(false); }
+        finally { writing.Release(); }
+    }
+
+    private async Task SaveAsync(UsageReport report, bool deferred)
+    {
+        if (deferred)
+        {
+            await WriteAsync(Path.Combine(directory, "deferred"), report).ConfigureAwait(false);
+            return;
+        }
         Directory.CreateDirectory(directory);
-        var path = Path.Combine(directory, $"{report.Sequence:D20}-{report.InstallationId:D}.json");
+        var assigned = new HashSet<Guid>();
+        foreach (var pending in Directory.GetFiles(directory, "*.json"))
+        {
+            try
+            {
+                var saved = JsonSerializer.Deserialize<UsageReport>(await File.ReadAllTextAsync(pending).ConfigureAwait(false));
+                foreach (var error in saved?.Errors ?? []) assigned.Add(error.Id);
+            }
+            catch (Exception error) when (error is IOException or JsonException) { }
+        }
+        var selected = new List<UsageError>();
+        report = report with { SchemaVersion = 3, Client = report.Client ?? "dalamud", Errors = [] };
+        foreach (var error in Errors.Pending().Where(error => !assigned.Contains(error.Id)))
+        {
+            var candidate = report with { Errors = [.. selected, error] };
+            if (JsonSerializer.SerializeToUtf8Bytes(new[] { candidate }, WireJson).Length > 8192) break;
+            selected.Add(error);
+            report = candidate;
+            if (selected.Count == 4) break;
+        }
+        await WriteAsync(directory, report).ConfigureAwait(false);
+    }
+
+    private static async Task WriteAsync(string folder, UsageReport report)
+    {
+        Directory.CreateDirectory(folder);
+        var path = Path.Combine(folder, $"{report.Sequence:D20}-{report.InstallationId:D}.json");
         var temporary = path + ".tmp";
         await File.WriteAllTextAsync(temporary, JsonSerializer.Serialize(report)).ConfigureAwait(false);
         File.Move(temporary, path, overwrite: true);
@@ -110,6 +153,19 @@ internal sealed class UsageOutbox(string directory)
         Action<string> diagnostic, TimeSpan? retryDelay = null)
     {
         if (!Directory.Exists(directory)) return;
+        var deferred = Path.Combine(directory, "deferred");
+        if (Directory.Exists(deferred))
+            foreach (var path in Directory.GetFiles(deferred, "*.json").OrderByDescending(Path.GetFileName))
+            {
+                cancel.ThrowIfCancellationRequested();
+                UsageReport? report;
+                try { report = JsonSerializer.Deserialize<UsageReport>(await File.ReadAllTextAsync(path, cancel).ConfigureAwait(false)); }
+                catch (JsonException) { diagnostic("A deferred usage report could not be read. The file was kept."); continue; }
+                if (report is null) continue;
+                if (!File.Exists(Path.Combine(directory, Path.GetFileName(path))))
+                    await EnqueueAsync(report).ConfigureAwait(false);
+                File.Delete(path);
+            }
         // Send the current state first. Keep older reports for history within the server quota.
         var paths = Directory.GetFiles(directory, "*.json")
             .OrderByDescending(Path.GetFileName, StringComparer.Ordinal).Take(10);
@@ -131,6 +187,7 @@ internal sealed class UsageOutbox(string directory)
             }
             if (report is null) continue;
             if (batch.Count > 0 && batch[0].InstallationId != report.InstallationId) continue;
+            if (JsonSerializer.SerializeToUtf8Bytes(batch.Append(report).ToArray(), WireJson).Length > 8192) break;
             batch.Add(report);
             batchPaths.Add(path);
         }
@@ -138,6 +195,7 @@ internal sealed class UsageOutbox(string directory)
         if (!await UsageReporter.SendAsync(client, endpoint, batch, cancel, diagnostic, retryDelay)
                 .ConfigureAwait(false)) return;
         // Keep the full batch until acceptance. The server deduplicates partial retries.
+        foreach (var error in batch.SelectMany(report => report.Errors ?? [])) Errors.Acknowledge(error);
         foreach (var path in batchPaths) File.Delete(path);
     }
 }

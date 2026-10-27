@@ -101,7 +101,6 @@ internal sealed partial class ConfigWindow
         if (active > 0 && active < group.Parts.Length)
             ImGui.TextColored(Amber, string.Format(Loc.Localize("Parts.Count", "{0} of {1} on"), active, group.Parts.Length));
         using (ImRaii.PushColor(ImGuiCol.Text, Grey)) ImGui.TextWrapped(group.Description);
-        if (group.Warning is { Length: > 0 }) ImGui.TextColored(Amber, group.Warning);
         ImGui.Spacing();
         ImGui.Separator();
         ImGui.Spacing();
@@ -117,11 +116,7 @@ internal sealed partial class ConfigWindow
             }
             if (ImGui.IsItemHovered()) ImGui.SetTooltip(view.SheetList);
             using (ImRaii.PushColor(ImGuiCol.Text, Grey)) ImGui.TextWrapped(view.Part.Description);
-            if (view.Part.Warning is { Length: > 0 } warning)
-            {
-                using (ImRaii.PushColor(ImGuiCol.Text, Amber)) ImGui.TextWrapped(warning);
-            }
-            this.DrawPartExamples(view, view.Part.Image ?? group.Image);
+            this.DrawPartExamples(group.Id, view.Part.Id);
             ImGui.Spacing();
             using (ImRaii.PushColor(ImGuiCol.Text, Grey))
             using (ImRaii.PushFont(UiBuilder.MonoFont))
@@ -195,18 +190,16 @@ internal sealed partial class ConfigWindow
         return pressed;
     }
 
-    private void DrawPartExamples(PartView view, string? primary)
+    private void DrawPartExamples(string group, string part)
     {
-        foreach (var name in new[] { primary }.Concat(view.Part.AdditionalImages ?? []))
+        var names = ExampleNames($"{group}.{part}");
+        if (names.Length == 0) names = ExampleNames(group);
+        foreach (var name in names)
         {
-            if (string.IsNullOrEmpty(name)) continue;
-            foreach (var exampleName in ExampleNames(name))
-            {
-                if (this.Picture(exampleName) is not { } example) continue;
-                var ratio = Math.Min(1f, Math.Max(1f, ImGui.GetContentRegionAvail().X) / example.Width);
-                ImGui.Spacing();
-                ImGui.Image(example.Handle, new Vector2(example.Width, example.Height) * ratio);
-            }
+            if (this.Picture(name) is not { } example) continue;
+            var ratio = Math.Min(1f, Math.Max(1f, ImGui.GetContentRegionAvail().X) / example.Width);
+            ImGui.Spacing();
+            ImGui.Image(example.Handle, new Vector2(example.Width, example.Height) * ratio);
         }
     }
 
@@ -216,8 +209,9 @@ internal sealed partial class ConfigWindow
         const string resourcePrefix = "GubalLibrary.images.tooltips.";
         var prefix = $"{resourcePrefix}{name}";
         names = PictureResources.Where(resource => resource == $"{prefix}.png"
-                || (resource.StartsWith(prefix + "-", StringComparison.Ordinal) && resource.EndsWith(".png", StringComparison.Ordinal)))
-            .Order(StringComparer.Ordinal)
+                || (resource.StartsWith(prefix + ".", StringComparison.Ordinal) && resource.EndsWith(".png", StringComparison.Ordinal)
+                    && uint.TryParse(resource[(prefix.Length + 1)..^4], out _)))
+            .OrderBy(resource => resource == $"{prefix}.png" ? 0u : uint.Parse(resource[(prefix.Length + 1)..^4]))
             .Select(resource => resource[resourcePrefix.Length..^4]).ToArray();
         PictureExamples.Add(name, names);
         return names;

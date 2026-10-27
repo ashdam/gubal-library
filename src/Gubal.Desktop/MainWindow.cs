@@ -82,13 +82,13 @@ internal sealed partial class MainWindow : Form
         {
             settings = store.Read();
             if (settings.Language != "en" && !KnownPacks.All.Any(pack => pack.Code == settings.Language)) settings = settings with { Language = "" };
-            if (GameDetection.Normalize(settings.GameFolder) is null)
+            if (GameDetection.Normalize(settings.GameFolder) is null || settings.Account is null)
             {
                 SetStatus(UiText.Get("FindingGame"));
                 var found = await Task.Run(GameDetection.Find);
                 if (IsDisposed) return;
-                if (found.Length == 1) settings = settings with { GameFolder = found[0] };
-                else if (found.Length > 1) SelectInstallation(found);
+                using var form = CreateSettingsDialog(found);
+                form.ShowDialog(this);
             }
             store.Save(settings);
             usage.Flush();
@@ -318,10 +318,11 @@ internal sealed partial class MainWindow : Form
 
     private async Task StartAsync(CancellationToken cancel)
     {
+        store.Outbox.Errors.BeginSession();
         try { await StartGameAsync(cancel); }
         catch (Exception error) when (error is not OperationCanceledException)
         {
-            await usage.RecordAsync(UsageState(active: false, compatible: error is not TranslationStartupException));
+            await usage.RecordAsync(UsageState(active: false, compatible: error is not TranslationStartupException), send: false);
             throw;
         }
     }
@@ -337,6 +338,11 @@ internal sealed partial class MainWindow : Form
     private async Task StartGameAsync(CancellationToken cancel)
     {
         GameDetection.RequireClosed();
+        if (settings.Account is null)
+        {
+            using var form = CreateSettingsDialog(await Task.Run(GameDetection.Find, cancel));
+            if (form.ShowDialog(this) != DialogResult.OK) return;
+        }
         var game = GameDetection.Normalize(settings.GameFolder) ?? throw new InvalidOperationException(UiText.Get("SelectFolder"));
         if (settings.Language == "en")
         {
@@ -365,6 +371,7 @@ internal sealed partial class MainWindow : Form
             GameExecutable = Path.Combine(game, "game", "ffxiv_dx11.exe"),
             Launcher = Path.Combine(game, "boot", "ffxivboot64.exe"),
             Pack = installer.InstalledPath, ExpectedGameVersion = version,
+            Account = settings.Account,
             Mode = "redirect", Scope = "all-resources",
         };
         var launchSettings = Path.Combine(store.Root, "launch.json");
@@ -402,7 +409,7 @@ internal sealed partial class MainWindow : Form
 
     private async Task StartOriginalAsync(string game, bool compatible)
     {
-        Process.Start(new ProcessStartInfo(Path.Combine(game, "boot", "ffxivboot64.exe")) { UseShellExecute = true });
+        Process.Start((settings.Account ?? new()).StartInfo(Path.Combine(game, "boot", "ffxivboot64.exe")));
         launcherOpened = true;
         translationLoaded = false;
         SetStatus(UiText.Get("OriginalLauncherOpen"));
@@ -428,6 +435,9 @@ internal sealed partial class MainWindow : Form
         store.Warning(standardErrors);
         componentError = string.Join(Environment.NewLine, (standardErrors.Length > 0 ? standardErrors : standardOutput)
             .Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries).TakeLast(4));
+        if (process.ExitCode != 0)
+            store.Outbox.Errors.Capture(arguments.Contains("--launch") ? "launch" : arguments.Contains("--check-host") ? "host-check" : "pack-check",
+                "component-failed", componentError, exitCode: process.ExitCode);
         return process.ExitCode;
     }
 
@@ -444,26 +454,60 @@ internal sealed partial class MainWindow : Form
         if (form.ShowDialog(this) == DialogResult.OK) Render();
     }
 
-    private Form CreateSettingsDialog()
+    private Form CreateSettingsDialog(string[]? installations = null)
     {
+        installations ??= GameDetection.Find();
         var form = new Form { Text = UiText.Get("SettingsTitle"), ClientSize = new Size(570, 180), MinimumSize = new Size(480, 220), AutoScaleMode = AutoScaleMode.Dpi, StartPosition = FormStartPosition.CenterParent, BackColor = background, ForeColor = foreground, Font = Font, MinimizeBox = false, MaximizeBox = false };
-        var layout = new TableLayoutPanel { Dock = DockStyle.Top, AutoSize = true, Padding = new Padding(20), ColumnCount = 2, RowCount = 3 };
+        var layout = new TableLayoutPanel { Dock = DockStyle.Top, AutoSize = true, Padding = new Padding(20), ColumnCount = 2, RowCount = 6 };
         layout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
         layout.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
         var label = new Label { Text = UiText.Get("GameFolder"), AutoSize = true };
         layout.Controls.Add(label, 0, 0);
         layout.SetColumnSpan(label, 2);
-        var path = new TextBox { Text = settings.GameFolder, ReadOnly = true, Anchor = AnchorStyles.Left | AnchorStyles.Right };
-        layout.Controls.Add(path, 0, 1);
+        var initialPath = GameDetection.Normalize(settings.GameFolder) ?? installations?.FirstOrDefault() ?? "";
+        var path = new TextBox { Text = initialPath, ReadOnly = true, Anchor = AnchorStyles.Left | AnchorStyles.Right };
+        layout.Controls.Add(path, 0, 2);
         var browse = new Button { Text = UiText.Get("BrowseFolder"), AutoSize = true, Anchor = AnchorStyles.Right, Margin = new Padding(12, 3, 3, 3) };
         browse.Click += (_, _) => { using var picker = new FolderBrowserDialog { Description = UiText.Get("FolderPrompt"), UseDescriptionForTitle = true, SelectedPath = path.Text, ShowNewFolderButton = false }; if (picker.ShowDialog(form) == DialogResult.OK) { if (GameDetection.Normalize(picker.SelectedPath) is { } selected) path.Text = selected; else MessageBox.Show(form, UiText.Get("InvalidFolder")); } };
         Style(browse);
-        layout.Controls.Add(browse, 1, 1);
+        layout.Controls.Add(browse, 1, 2);
+        var steam = new CheckBox { Text = UiText.Get("SteamAccount"), AutoSize = true,
+            Checked = string.Equals(initialPath, settings.GameFolder, StringComparison.OrdinalIgnoreCase) && settings.Account is { } account
+                ? account.Steam : GameDetection.IsSteam(initialPath), Margin = new Padding(3, 12, 3, 3) };
+        var trial = new CheckBox { Text = UiText.Get("FreeTrialAccount"), AutoSize = true,
+            Checked = settings.Account?.FreeTrial == true };
+        layout.Controls.Add(steam, 0, 3);
+        layout.SetColumnSpan(steam, 2);
+        layout.Controls.Add(trial, 0, 4);
+        layout.SetColumnSpan(trial, 2);
+        if (installations is { Length: > 0 })
+        {
+            var choices = new FlowLayoutPanel { AutoSize = true, FlowDirection = FlowDirection.TopDown,
+                WrapContents = false, Dock = DockStyle.Fill };
+            foreach (var installation in installations)
+            {
+                var option = new RadioButton { Text = installation, AutoSize = true,
+                    MaximumSize = new Size(510, 0),
+                    Checked = string.Equals(installation, initialPath, StringComparison.OrdinalIgnoreCase) };
+                option.CheckedChanged += (_, _) => { if (option.Checked) path.Text = installation; };
+                choices.Controls.Add(option);
+            }
+            layout.Controls.Add(choices, 0, 1);
+            layout.SetColumnSpan(choices, 2);
+            path.TextChanged += (_, _) =>
+            {
+                foreach (RadioButton option in choices.Controls)
+                    option.Checked = string.Equals(option.Text, path.Text, StringComparison.OrdinalIgnoreCase);
+            };
+        }
+        path.TextChanged += (_, _) => steam.Checked = GameDetection.IsSteam(path.Text);
         var save = new Button { Text = UiText.Get("Save"), AutoSize = true, Anchor = AnchorStyles.Right, Margin = new Padding(3, 12, 3, 3) };
         Style(save, true);
         form.AcceptButton = save;
-        save.Click += (_, _) => { settings = settings with { GameFolder = path.Text }; store.Save(settings); form.DialogResult = DialogResult.OK; };
-        layout.Controls.Add(save, 1, 2);
+        save.Click += (_, _) => { if (GameDetection.Normalize(path.Text) is null) { MessageBox.Show(form, UiText.Get("InvalidFolder")); return; }
+            settings = settings with { GameFolder = path.Text,
+            Account = new LauncherAccount(steam.Checked, trial.Checked) }; store.Save(settings); form.DialogResult = DialogResult.OK; };
+        layout.Controls.Add(save, 1, 5);
         form.Controls.Add(layout);
         form.ClientSize = new Size(570, layout.GetPreferredSize(new Size(570, 0)).Height);
         return form;
@@ -477,16 +521,6 @@ internal sealed partial class MainWindow : Form
     }
 
     private void BrowseGame() { SettingsDialog(); }
-    private void SelectInstallation(string[] paths)
-    {
-        using var form = new Form { Text = UiText.Get("ChooseInstallation"), Size = new Size(700, 210), StartPosition = FormStartPosition.CenterParent };
-        var list = new ComboBox { Dock = DockStyle.Top, DropDownStyle = ComboBoxStyle.DropDownList };
-        list.Items.AddRange(paths);
-        list.SelectedIndex = 0;
-        var accept = new Button { Text = UiText.Get("UseInstallation"), Dock = DockStyle.Bottom, DialogResult = DialogResult.OK };
-        form.Controls.Add(list); form.Controls.Add(accept); form.AcceptButton = accept;
-        if (form.ShowDialog(this) == DialogResult.OK) settings = settings with { GameFolder = (string)list.SelectedItem! };
-    }
     private void AddHeading(string text)
     {
         var row = new TableLayoutPanel { ColumnCount = 2, RowCount = 1, AutoSize = true, Width = 700,

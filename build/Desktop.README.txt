@@ -1,6 +1,6 @@
 Gubal Desktop, Preview / Alpha for Windows x64
 
-Extract the full ZIP into a folder and open Gubal Desktop.exe.
+Extract the full ZIP into a folder and open GubalDesktop.exe.
 You do not need to install .NET or run as administrator.
 Select a language, install its pack and start FFXIV. Sign in through the official launcher.
 Packs and settings are stored in %LOCALAPPDATA%\GubalDesktop.
