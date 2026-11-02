@@ -30,6 +30,7 @@ internal sealed partial class ConfigWindow
             var scene = row.GetProperty("type").GetString() switch
             {
                 "screenImage" => new PreviewScene(ScreenImageId: Required("rowId")),
+                "ktgCountdown" => new PreviewScene(KtgCountdown: true),
                 "cutScreenImage" => new PreviewScene(CutScreenImageId: Required("rowId")),
                 "streak" when Required("value") is 1 or 2 => new PreviewScene(Streak: (int)Required("value")),
                 "maneuverStreak" when Required("value") == 1 => new PreviewScene(ManeuverStreak: 1),

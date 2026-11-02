@@ -54,7 +54,7 @@ internal sealed partial class ConfigWindow
     private sealed record BannerPreview(int Id, string Name,
         string RelativePath = "", string OriginalName = "", PreviewScene? NativeScene = null, bool HasTranslation = false);
 
-    private sealed record PreviewScene(uint CutScreenImageId = 0, uint ScreenImageId = 0, int Streak = 0, int ManeuverStreak = 0, uint TerritoryId = 0, uint CompanyId = 0, uint ImageId = 0, int DisplayType = 0, uint LocationImageId = 0, uint SourceTitleId = 0, int Mode = 0, int Index = 0, int[]? Images = null, int[]? RequestImages = null);
+    private sealed record PreviewScene(uint CutScreenImageId = 0, uint ScreenImageId = 0, int Streak = 0, int ManeuverStreak = 0, uint TerritoryId = 0, uint CompanyId = 0, uint ImageId = 0, int DisplayType = 0, uint LocationImageId = 0, uint SourceTitleId = 0, int Mode = 0, int Index = 0, int[]? Images = null, int[]? RequestImages = null, bool KtgCountdown = false);
     private sealed record SceneTexture(nint Asset, AtkTexture Texture, nint Metadata);
     private Task<Dictionary<int, IDalamudTextureWrap>>? previewSceneTextures;
     private readonly Dictionary<int, nint> nativeSceneTextures = [];
@@ -101,6 +101,9 @@ internal sealed partial class ConfigWindow
 
     private unsafe void ReleaseDevTexture()
     {
+        this.RestorePreviewBackground();
+        this.previewEpilogueFrame = null;
+        this.previewBackgroundStatus = null;
         foreach (var addon in this.savedSceneTextures.Keys.ToArray()) this.RestoreSceneTextures(addon);
         this.CancelSceneRequest();
         foreach (var texture in this.nativeSceneTextures.Values) ((KernelTexture*)texture)->DecRef();
@@ -271,7 +274,8 @@ internal sealed partial class ConfigWindow
             if (index < 0) throw new InvalidOperationException("Native scene control is unavailable.");
             this.BeginSceneRequest(mode, index, scene.RequestImages
                 ?? throw new InvalidDataException("Native request images are missing from the catalog."));
-            if (scene.Streak != 0) ui->ShowStreak(scene.Streak, 0);
+            if (scene.KtgCountdown) this.ShowKtgCountdown(scene);
+            else if (scene.Streak != 0) ui->ShowStreak(scene.Streak, 0);
             else if (scene.ManeuverStreak != 0) ui->ShowAddonKillStreakForManeuvers(scene.ManeuverStreak, 0);
             else if (scene.CompanyId != 0) ui->ShowGrandCompanyRankUp(scene.CompanyId, 1, false);
             else if (scene.ImageId != 0)
@@ -411,7 +415,13 @@ internal sealed partial class ConfigWindow
 
     private unsafe void PrepareDevPreview(AddonEvent _, AddonArgs args)
     {
-        if (this.previewScene is not null) this.PrepareSceneTextures((AtkUnitBase*)args.Addon.Address);
+        if (this.previewScene is not null)
+        {
+            var addon = (AtkUnitBase*)args.Addon.Address;
+            this.RecordEpilogueDraw(addon);
+            this.CompleteKtgCountdown(addon);
+            this.PrepareSceneTextures(addon);
+        }
     }
 
     private void RestoreDevPreview(AddonEvent _, AddonArgs args)
@@ -422,7 +432,11 @@ internal sealed partial class ConfigWindow
         if (!this.DevToolsEnabled) return;
         this.initializeDevPreview?.Invoke();
         using var tab = ImRaii.TabItem("Dev");
-        if (!tab) return;
+        if (!tab)
+        {
+            this.RestorePreviewBackground();
+            return;
+        }
         var previewUpdate = this.PreviewPluginUpdate;
         if (ImGui.Checkbox("Preview lobby update notice", ref previewUpdate))
             this.PreviewPluginUpdate = previewUpdate;
@@ -433,6 +447,8 @@ internal sealed partial class ConfigWindow
             this.ShowDevBanner();
         }
         this.UpdateDevPreview();
+        this.UpdatePreviewBackground();
+        if (this.previewBackgroundStatus is { } backgroundStatus) ImGui.TextWrapped(backgroundStatus);
         ImGui.TextWrapped("Original textures come from the game. Translated textures come from the active language pack.");
         var selected = this.previewBanners.FirstOrDefault(row => row.Id == this.previewId);
         ImGui.TextWrapped(selected?.NativeScene is not null
