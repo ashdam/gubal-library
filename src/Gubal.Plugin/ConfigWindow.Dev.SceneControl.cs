@@ -13,6 +13,7 @@ internal sealed partial class ConfigWindow
     private int previewSceneMode;
     private int previewSceneIndex;
     private int[] previewSceneImageKeys = [];
+    private bool finishKtgCountdown;
     private readonly Dictionary<nint, nint> previewSceneChildren = [];
     private readonly Dictionary<nint, nint> previousSceneChildren = [];
 
@@ -35,6 +36,32 @@ internal sealed partial class ConfigWindow
         // Lifecycle hooks can replace vtable entries. Check the named controller and native signatures.
         => controller != null && this.screenInfoRefresh != 0 && this.finishScreenInfoChild != 0 && this.freeScreenInfoNode != 0
             && controller->NameString is "_ScreenInfoFront" or "_ScreenInfoBack";
+
+    private unsafe void ShowKtgCountdown(PreviewScene scene, bool complete = false)
+    {
+        var controller = (AtkUnitBase*)this.previewGui!.GetAddonByName("_ScreenInfoFront").Address;
+        if (!this.IsScreenInfo(controller) || scene.RequestImages is not { Length: 1 })
+            throw new InvalidOperationException("The native countdown controller is unavailable.");
+        var values = stackalloc AtkValue[10];
+        new Span<AtkValue>(values, 10).Clear();
+        foreach (var index in new[] { 0, 1, 2, 8, 9 }) values[index].Type = AtkValueType.Int;
+        values[0].Int = scene.Mode;
+        values[1].Int = (int)this.previewData!.Language + 2;
+        values[2].Int = scene.RequestImages[0];
+        values[4].Type = AtkValueType.Bool;
+        values[4].Byte = complete ? (byte)0 : (byte)1;
+        values[9].Int = complete ? 1 : 0;
+        var refresh = (delegate* unmanaged<AtkUnitBase*, uint, AtkValue*, byte>)this.screenInfoRefresh;
+        refresh(controller, 10, values);
+        this.finishKtgCountdown = !complete;
+    }
+
+    private unsafe void CompleteKtgCountdown(AtkUnitBase* addon)
+    {
+        if (this.finishKtgCountdown && this.previewScene is { KtgCountdown: true } scene
+            && addon != null && addon->IsVisible && this.IsSceneChild(addon))
+            this.ShowKtgCountdown(scene, complete: true);
+    }
 
     private unsafe void BeginSceneRequest(int mode, int index, int[] images)
     {
@@ -172,5 +199,6 @@ internal sealed partial class ConfigWindow
         this.previewSceneChildren.Clear();
         this.previousSceneChildren.Clear();
         this.previewSceneImageKeys = [];
+        this.finishKtgCountdown = false;
     }
 }
