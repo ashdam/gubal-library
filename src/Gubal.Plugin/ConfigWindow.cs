@@ -189,6 +189,14 @@ internal sealed partial class ConfigWindow : Window
 
     private void DrawPartsTab(ref bool changed)
     {
+        var englishNames = this.config.ShowEnglishItemNames;
+        if (ImGui.Checkbox(Loc.Localize("Items.ShowEnglishNames", "Show English names in item tooltips"), ref englishNames))
+        {
+            this.config.ShowEnglishItemNames = englishNames;
+            changed = true;
+        }
+        ImGui.Separator();
+
         var pack = this.contents();
 
         if (pack.Layout.Count == 0)

@@ -30,6 +30,7 @@ public sealed class Plugin : IDalamudPlugin
     private readonly ConfigWindow configWindow;
     private readonly LobbyUpdateNotice lobbyUpdateNotice;
     private readonly DialogueCodex dialogueCodex;
+    private readonly EnglishItemNames englishItemNames;
     private readonly IDalamudPluginInterface pluginInterface;
     private readonly bool waitedForPluginsAtBoot;
 
@@ -79,6 +80,7 @@ public sealed class Plugin : IDalamudPlugin
         IDataManager data,
         IGameGui gameGui,
         IAddonLifecycle addonLifecycle,
+        IContextMenu contextMenu,
         IPluginLog log)
     {
         this.usageOutbox = new UsageOutbox(Path.Combine(pluginInterface.GetPluginConfigDirectory(),
@@ -180,6 +182,9 @@ public sealed class Plugin : IDalamudPlugin
 
             this.dialogueCodex = new DialogueCodex(this.config, data, gameGui, clientState,
                 addonLifecycle, framework, log, sigScanner, pluginInterface.UiBuilder);
+
+            this.englishItemNames = new EnglishItemNames(this.config, data, gameGui,
+                addonLifecycle, framework, interop, contextMenu, log);
 
             this.operations = new PackOperations(this.installer, framework, log);
             this.configWindow = new ConfigWindow(
@@ -322,6 +327,7 @@ public sealed class Plugin : IDalamudPlugin
             this.commands.RemoveHandler(CommandName);
             this.fileDialogs.Reset();
             this.dialogueCodex?.Dispose();
+            this.englishItemNames?.Dispose();
 
             this.configWindow?.DisposeDevPreview();
             this.windows.RemoveAllWindows();
