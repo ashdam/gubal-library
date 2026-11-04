@@ -86,6 +86,14 @@ The pack is blocked if its game version differs or cannot be checked. Pack updat
 
 ## Commands
 
+### English item names
+
+In the Dalamud plugin, **Show English names in item tooltips** is enabled by default under **Localization settings**.
+The original English name appears below the translated name. This option takes effect without a restart.
+
+Inventory item context menus include **Copy English name** at the bottom.
+The copy command also works when the second name is disabled.
+
 ### Dialogue Codex links
 
 In `/gubal` → **Unending Codex**, enable dialogue links. Names of unlocked

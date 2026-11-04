@@ -1,4 +1,6 @@
 {
+  "Items.CopyEnglishName": { "message": "Copiar nombre en inglés" },
+  "Items.ShowEnglishNames": { "message": "Mostrar los nombres en inglés en las fichas de objetos" },
   "Setup.WaitRequired": { "message": "Configuración necesaria" },
   "Setup.ColAction": { "message": "Acción" },
   "Setup.Active": { "message": "Activo" },

@@ -1,4 +1,6 @@
 {
+  "Items.CopyEnglishName": { "message": "Copy English name" },
+  "Items.ShowEnglishNames": { "message": "Show English names in item tooltips" },
   "Setup.WaitRequired": { "message": "Setup required" },
   "Setup.ColAction": { "message": "Action" },
   "Setup.Active": { "message": "Active" },
