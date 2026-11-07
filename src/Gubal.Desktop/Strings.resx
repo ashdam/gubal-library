@@ -294,4 +294,10 @@ Progress covers the content included in the localization inventory.</value>
   <data name="Reviewers" xml:space="preserve"><value>Reviewers</value></data>
   <data name="SteamAccount" xml:space="preserve"><value>Steam account (Steam must be running)</value></data>
   <data name="FreeTrialAccount" xml:space="preserve"><value>Free Trial account</value></data>
+  <data name="DownloadSize" xml:space="preserve"><value>Download</value></data>
+  <data name="InstalledSize" xml:space="preserve"><value>On disk</value></data>
+  <data name="InsufficientDiskSpace" xml:space="preserve"><value>Not enough free disk space.</value></data>
+  <data name="DiskSpaceUnknown" xml:space="preserve"><value>Could not check free disk space.</value></data>
+  <data name="DiskSpaceDetails" xml:space="preserve"><value>Required: {0}
+Available: {1}</value></data>
 </root>

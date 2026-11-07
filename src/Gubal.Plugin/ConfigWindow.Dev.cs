@@ -54,7 +54,7 @@ internal sealed partial class ConfigWindow
     private sealed record BannerPreview(int Id, string Name,
         string RelativePath = "", string OriginalName = "", PreviewScene? NativeScene = null, bool HasTranslation = false);
 
-    private sealed record PreviewScene(uint CutScreenImageId = 0, uint ScreenImageId = 0, int Streak = 0, int ManeuverStreak = 0, uint TerritoryId = 0, uint CompanyId = 0, uint ImageId = 0, int DisplayType = 0, uint LocationImageId = 0, uint SourceTitleId = 0, int Mode = 0, int Index = 0, int[]? Images = null, int[]? RequestImages = null, bool KtgCountdown = false);
+    private sealed record PreviewScene(uint CutScreenImageId = 0, uint ScreenImageId = 0, int Streak = 0, int ManeuverStreak = 0, uint TerritoryId = 0, uint CompanyId = 0, uint ImageId = 0, int DisplayType = 0, uint LocationImageId = 0, uint SourceTitleId = 0, int Mode = 0, int Index = 0, int[]? Images = null, int[]? RequestImages = null, bool KtgCountdown = false, NativeLayout? Layout = null);
     private sealed record SceneTexture(nint Asset, AtkTexture Texture, nint Metadata);
     private Task<Dictionary<int, IDalamudTextureWrap>>? previewSceneTextures;
     private readonly Dictionary<int, nint> nativeSceneTextures = [];
@@ -78,6 +78,7 @@ internal sealed partial class ConfigWindow
         this.previewLifecycle = lifecycle;
         this.previewFramework = framework;
         this.ConfigureSceneControl(scanner);
+        this.ConfigureLayoutPreview(scanner);
         scanner.TryScanText("48 83 EC 38 44 8B D2 BA 02 00 00 00 41 83 F9 03", out this.showRawImage);
         scanner.TryScanText("48 89 5C 24 08 57 48 83 EC 40 48 8B F9 8B DA 8B CA E8 ?? ?? ?? ?? 4C 8B C8 48 85 C0 75 0B 48 8B 5C 24 50 48 83 C4 40 5F C3 F6 05", out this.showScreenImage);
         scanner.TryScanText("48 89 5C 24 08 57 48 83 EC 40 48 8B F9 8B DA 8B CA E8 ?? ?? ?? ?? 4C 8B C8 48 85 C0 75 0B 48 8B 5C 24 50 48 83 C4 40 5F C3 0F BF 48 0A", out this.showCutScreenImage);
@@ -105,6 +106,7 @@ internal sealed partial class ConfigWindow
         this.previewEpilogueFrame = null;
         this.previewBackgroundStatus = null;
         foreach (var addon in this.savedSceneTextures.Keys.ToArray()) this.RestoreSceneTextures(addon);
+        this.ReleaseLayoutPreview();
         this.CancelSceneRequest();
         foreach (var texture in this.nativeSceneTextures.Values) ((KernelTexture*)texture)->DecRef();
         this.nativeSceneTextures.Clear();
@@ -269,6 +271,11 @@ internal sealed partial class ConfigWindow
                 this.nativeSceneTextures.Add(id, kernel);
             }
             var scene = this.previewScene!;
+            if (scene.Layout is not null)
+            {
+                this.BeginLayoutPreview(scene.Layout);
+                return;
+            }
             var mode = scene.Mode;
             var index = scene.Index;
             if (index < 0) throw new InvalidOperationException("Native scene control is unavailable.");
@@ -330,7 +337,8 @@ internal sealed partial class ConfigWindow
 
     private unsafe void PrepareSceneTextures(AtkUnitBase* addon)
     {
-        if (addon == null || this.nativeSceneTextures.Count == 0 || !this.IsSceneChild(addon)) return;
+        if (addon == null || this.nativeSceneTextures.Count == 0 || !this.IsSceneChild(addon)
+            || this.savedSceneTextures.ContainsKey((nint)addon)) return;
         var saved = new List<SceneTexture>();
         try
         {
@@ -415,6 +423,9 @@ internal sealed partial class ConfigWindow
 
     private unsafe void PrepareDevPreview(AddonEvent _, AddonArgs args)
     {
+        // Standalone layouts own their texture borrow and restore boundaries.
+        if (args.Addon.Address == this.previewLayoutUnit) return;
+        this.DrawLayoutPreview();
         if (this.previewScene is not null)
         {
             var addon = (AtkUnitBase*)args.Addon.Address;
@@ -425,7 +436,9 @@ internal sealed partial class ConfigWindow
     }
 
     private void RestoreDevPreview(AddonEvent _, AddonArgs args)
-        => this.RestoreSceneTextures(args.Addon.Address);
+    {
+        if (args.Addon.Address != this.previewLayoutUnit) this.RestoreSceneTextures(args.Addon.Address);
+    }
 
     private void DrawDevTab()
     {
@@ -464,17 +477,19 @@ internal sealed partial class ConfigWindow
         if (this.previewCatalogLoad is { IsCompleted: false }) ImGui.TextUnformatted("Loading game catalog...");
         ImGui.InputText("Search", ref this.previewFilter, 200);
         ImGui.InputInt("Texture ID", ref this.previewId);
-        if (ImGui.Button("Show again")) this.previewRequested = true;
+        using (ImRaii.Disabled(selected?.NativeScene is null))
+            if (ImGui.Button("Show again")) this.previewRequested = true;
         ImGui.SameLine();
         if (ImGui.Button("Stop preview")) this.ReleaseDevTexture();
         if (this.previewCatalogError != null) ImGui.TextWrapped(this.previewCatalogError);
         if (this.previewNeedsShow) ImGui.TextUnformatted("Loading texture...");
         using var list = ImRaii.Child("##devBanners");
         if (!list) return;
-        using var table = ImRaii.Table("##devBannerComparison", 3,
+        using var table = ImRaii.Table("##devBannerComparison", 4,
             ImGuiTableFlags.SizingStretchSame | ImGuiTableFlags.RowBg);
         if (!table) return;
         ImGui.TableSetupColumn("ID", ImGuiTableColumnFlags.WidthFixed, 75);
+        ImGui.TableSetupColumn("Native presentation", ImGuiTableColumnFlags.WidthFixed, 155);
         ImGui.TableSetupColumn("Original");
         ImGui.TableSetupColumn("Translation");
         ImGui.TableHeadersRow();
@@ -487,6 +502,10 @@ internal sealed partial class ConfigWindow
             ImGui.TableNextColumn();
             ImGui.TextUnformatted(row.Id.ToString());
             ImGui.TableNextColumn();
+            ImGui.TextUnformatted(row.NativeScene is not { } native ? "Unavailable"
+                : native.Layout is { } layout ? $"ULD: {layout.UldName}" : $"ScreenInfo: {native.Mode}");
+            ImGui.TableNextColumn();
+            using var unavailable = ImRaii.Disabled(row.NativeScene is null);
             var original = string.IsNullOrWhiteSpace(row.OriginalName) ? "Uncataloged text" : row.OriginalName;
             if (ImGui.RadioButton($"{original}##original{row.Id}", this.previewId == row.Id && this.previewOriginal))
             {

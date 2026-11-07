@@ -64,6 +64,10 @@ internal sealed class PackManifest
     /// <summary>How much is translated, as the build counted it. Optional: the window shows it and nothing else reads it.</summary>
     [JsonPropertyName("coverage")] public PackCoverage? Coverage { get; init; }
 
+    [JsonPropertyName("downloadBytes")] public long? DownloadBytes { get; init; }
+
+    [JsonPropertyName("installedBytes")] public long? InstalledBytes { get; init; }
+
 
     /// <summary>Display name, falling back through what the pack actually filled in.</summary>
     public string DisplayName => this.Name ?? this.LanguageName ?? this.Language ?? "Unnamed language pack";

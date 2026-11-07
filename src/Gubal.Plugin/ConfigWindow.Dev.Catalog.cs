@@ -29,6 +29,9 @@ internal sealed partial class ConfigWindow
             }
             var scene = row.GetProperty("type").GetString() switch
             {
+                "nativeLayout" => new PreviewScene(Layout: new NativeLayout(
+                    row.GetProperty("uldName").GetString()!, Required("nodeId"), Required("imageNodeId"),
+                    row.GetProperty("timelineLabel").GetUInt16())),
                 "screenImage" => new PreviewScene(ScreenImageId: Required("rowId")),
                 "ktgCountdown" => new PreviewScene(KtgCountdown: true),
                 "cutScreenImage" => new PreviewScene(CutScreenImageId: Required("rowId")),
@@ -42,7 +45,8 @@ internal sealed partial class ConfigWindow
                     SourceTitleId: row.TryGetProperty("sourceTitleId", out _) ? Required("sourceTitleId") : 0),
                 _ => throw new InvalidDataException($"Unsupported native banner type for {id}."),
             };
-            if (id is < 120000 or >= 130000 || mode is < 0 or > 77 || index is < 0 or >= 69
+            if (id is < 120000 or >= 130000
+                || (scene.Layout is null ? mode is < 0 or > 77 || index is < 0 or >= 69 : mode != -1 || index != -1)
                 || images.Length is < 1 or > 8 || requests.Length is < 1 or > 8 || !images.Contains(id)
                 || images.Concat(requests).Any(image => image is < 120000 or >= 130000)
                 || !result.TryAdd(id, scene with { Mode = mode, Index = index, Images = images, RequestImages = requests }))

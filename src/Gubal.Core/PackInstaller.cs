@@ -58,7 +58,7 @@ internal sealed class PackInstaller
     }
 
     public async Task<InstallResult> InstallAsync(string source, IProgress<InstallProgress>? progress = null,
-        CancellationToken cancel = default, bool prepareForRestart = false)
+        CancellationToken cancel = default, bool prepareForRestart = false, PackManifest? expectedManifest = null)
     {
         source = source.Trim();
         if (source.Length == 0) return InstallResult.Failed("Nothing to install.");
@@ -87,6 +87,16 @@ internal sealed class PackInstaller
                 }
                 else
                 {
+                    if (IsRemote(source))
+                    {
+                        DeleteFileIfPresent(download);
+                        var pack = KnownPacks.All.FirstOrDefault(pack => string.Equals(pack.Source, source, StringComparison.OrdinalIgnoreCase));
+                        if (expectedManifest is null && pack.ManifestUrl is { } manifestUrl)
+                            expectedManifest = await this.FetchManifestAsync(manifestUrl, cancel).ConfigureAwait(false);
+                        if (expectedManifest is { DownloadBytes: > 0, InstalledBytes: > 0 })
+                            PackStorage.Check(staging, PackStorage.RequiredBytes(expectedManifest.DownloadBytes.Value,
+                                expectedManifest.InstalledBytes.Value)).RequireSpace();
+                    }
                     if (IsRemote(source)) await this.DownloadAsync(source, progress, cancel).ConfigureAwait(false);
                     else download = source;
                     if (!File.Exists(download)) return InstallResult.Failed($"No archive at '{source}'.");
@@ -186,6 +196,11 @@ internal sealed class PackInstaller
         string archivePath, string destination, IProgress<InstallProgress>? progress, CancellationToken cancel)
     {
         using var archive = ZipFile.OpenRead(archivePath);
+
+        long unpacked = 0;
+        foreach (var entry in archive.Entries) unpacked = checked(unpacked + entry.Length);
+        PackStorage.Check(destination, PackStorage.RequiredBytes(new FileInfo(archivePath).Length, unpacked,
+            downloaded: true)).RequireSpace();
 
         var root = Path.GetFullPath(destination) + Path.DirectorySeparatorChar;
         Directory.CreateDirectory(destination);
@@ -289,6 +304,8 @@ internal sealed class PackInstaller
         response.EnsureSuccessStatusCode();
 
         var total = response.Content.Headers.ContentLength;
+        if (total is > 0)
+            PackStorage.Check(this.configDirectory, PackStorage.RequiredBytes(total.Value, 0)).RequireSpace();
 
         await using (var http = await response.Content.ReadAsStreamAsync(cancel).ConfigureAwait(false))
         await using (var file = File.Create(target))

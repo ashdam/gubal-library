@@ -270,7 +270,9 @@ internal sealed partial class MainWindow : Form
             DisplayProgress($"{phase} · {value.Detail}", value.Fraction);
         });
         var installer = new PackInstaller(store, store.LanguageFolder(selectedLanguage));
-        var result = await Task.Run(() => installer.InstallAsync(source, report, cancel, prepareForRestart: true), cancel);
+        catalog.TryGetValue(selectedLanguage, out var published);
+        var result = await Task.Run(() => installer.InstallAsync(source, report, cancel, prepareForRestart: true,
+            expectedManifest: published), cancel);
         if (!result.Success)
         {
             cancel.ThrowIfCancellationRequested();
