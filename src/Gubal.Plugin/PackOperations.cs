@@ -13,6 +13,8 @@ internal sealed class PackOperations : IDisposable
     private readonly List<Task> tasks = [];
     private readonly Dictionary<string, PackManifest?> published = new(StringComparer.OrdinalIgnoreCase);
     private readonly HashSet<string> fetching = new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<long, (DateTime Checked, PackStorageStatus Status)> storage = [];
+    private readonly HashSet<long> checkingStorage = [];
     private readonly object gate = new();
     private volatile bool disposed;
     private InstallProgress progress = InstallProgress.Working("Starting");
@@ -42,7 +44,10 @@ internal sealed class PackOperations : IDisposable
         this.InstallingSource = source;
         lock (this.gate) this.progress = InstallProgress.Working("Starting");
         var report = new InstallReporter(value => { lock (this.gate) this.progress = value; });
-        this.Run(cancel => this.installer.InstallAsync(source, report, cancel, prepareForRestart: true), result =>
+        var pack = KnownPacks.All.FirstOrDefault(pack => string.Equals(pack.Source, source, StringComparison.OrdinalIgnoreCase));
+        this.published.TryGetValue(pack.Code ?? string.Empty, out var manifest);
+        this.Run(cancel => this.installer.InstallAsync(source, report, cancel, prepareForRestart: true,
+            expectedManifest: manifest), result =>
         {
             try
             {
@@ -84,6 +89,20 @@ internal sealed class PackOperations : IDisposable
             this.Run(cancel => this.installer.FetchManifestAsync(url, cancel),
                 result => this.published[pack.Code] = result, (PackManifest?)null);
         return (null, true);
+    }
+
+    public PackStorageStatus? Storage(PackManifest? manifest)
+    {
+        if (manifest is not { DownloadBytes: > 0, InstalledBytes: > 0 }) return null;
+        var required = PackStorage.RequiredBytes(manifest.DownloadBytes.Value, manifest.InstalledBytes.Value);
+        var found = this.storage.TryGetValue(required, out var cached);
+        if ((!found || DateTime.UtcNow - cached.Checked > TimeSpan.FromSeconds(5)) && this.checkingStorage.Add(required))
+            this.Run(_ => Task.FromResult(PackStorage.Check(this.InstalledPath, required)), result =>
+            {
+                this.storage[required] = (DateTime.UtcNow, result);
+                this.checkingStorage.Remove(required);
+            }, new PackStorageStatus(this.InstalledPath, required, null, "Could not check free disk space."));
+        return found ? cached.Status : null;
     }
 
     private void Run<T>(Func<CancellationToken, Task<T>> work, Action<T> apply, T failure)

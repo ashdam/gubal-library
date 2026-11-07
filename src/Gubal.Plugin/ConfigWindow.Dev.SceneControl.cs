@@ -112,6 +112,7 @@ internal sealed partial class ConfigWindow
 
     private unsafe bool IsSceneChild(AtkUnitBase* child)
     {
+        if (child != null && (nint)child == this.previewLayoutUnit) return true;
         if (this.previewSceneImageKeys.Length == 0 || this.previewSceneIndex is < 0 or >= 69) return false;
         foreach (var name in new[] { "_ScreenInfoFront", "_ScreenInfoBack" })
         {

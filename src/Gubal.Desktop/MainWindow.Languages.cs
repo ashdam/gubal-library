@@ -27,6 +27,7 @@ internal sealed partial class MainWindow
                 catalog[pack.Code] = published ?? PackManifest.Read(Path.Combine(store.Root, "packs", pack.Code, "pack")).Manifest;
                 if (languageButtons.TryGetValue(pack.Code, out var button) && !button.IsDisposed)
                     UpdateLanguageButton(button, pack);
+                await RefreshPackSizesAsync();
             }));
         }
         catch (OperationCanceledException) when (cancel.IsCancellationRequested) { }
@@ -98,6 +99,7 @@ internal sealed partial class MainWindow
                 languageAction.Text = code == "en" ? UiText.Get("UseEnglish") : UiText.Get("DownloadPrepare");
                 languageAction.Enabled = true;
             }
+            _ = RefreshPackSizesAsync();
         };
         return radio;
     }
@@ -127,6 +129,7 @@ internal sealed partial class MainWindow
             languageFooter.Padding.Top);
         languageAction.Anchor = AnchorStyles.Bottom | AnchorStyles.Right;
         languageFooter.Controls.Add(languageAction);
+        AddPackSizes();
     }
 
     private void UpdateLanguageButton(RadioButton button, KnownPack pack)

@@ -1,4 +1,9 @@
 {
+  "Setup.DownloadSize": { "message": "Descarga" },
+  "Setup.InstalledSize": { "message": "En disco" },
+  "Setup.InsufficientDiskSpace": { "message": "No hay suficiente espacio libre." },
+  "Setup.DiskSpaceUnknown": { "message": "No se ha podido comprobar el espacio libre." },
+  "Setup.DiskSpaceDetails": { "message": "Necesario: {0}\nDisponible: {1}" },
   "Items.CopyEnglishName": { "message": "Copiar nombre en inglés" },
   "Items.ShowEnglishNames": { "message": "Mostrar los nombres en inglés en las fichas de objetos" },
   "Setup.WaitRequired": { "message": "Configuración necesaria" },

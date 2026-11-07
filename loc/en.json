@@ -1,4 +1,9 @@
 {
+  "Setup.DownloadSize": { "message": "Download" },
+  "Setup.InstalledSize": { "message": "On disk" },
+  "Setup.InsufficientDiskSpace": { "message": "Not enough free disk space." },
+  "Setup.DiskSpaceUnknown": { "message": "Could not check free disk space." },
+  "Setup.DiskSpaceDetails": { "message": "Required: {0}\nAvailable: {1}" },
   "Items.CopyEnglishName": { "message": "Copy English name" },
   "Items.ShowEnglishNames": { "message": "Show English names in item tooltips" },
   "Setup.WaitRequired": { "message": "Setup required" },

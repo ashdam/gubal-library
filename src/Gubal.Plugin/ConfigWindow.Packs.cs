@@ -24,6 +24,9 @@ internal sealed partial class ConfigWindow
             Loc.Localize("Setup.UseEnglish", "Use English"),
             Loc.Localize("Setup.Active", "Active"),
         }.Max(label => this.PackActionButtonSize(label).X);
+        actionWidth = Math.Max(actionWidth,
+            this.PackActionButtonSize(Loc.Localize("Setup.Install", "Install")).X
+            + KnownPacks.All.Max(pack => PackSizeWidth(this.operations.Published(pack).Manifest)));
         return Math.Max(280f * scale,
             (PackIconSize * 4 + 24f) * scale
             + ImGui.GetStyle().ItemSpacing.X * 4 + actionWidth);

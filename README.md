@@ -55,6 +55,9 @@ Gubal-library is a Dalamud plugin therefore Dalamud needs to be [downloaded](htt
 
 **Keep your language pack updated.** The plugin keeps your language pack update when a newer one exists. You can also configure the auto-update feature to save a restart whenever there is an update.
 
+Download and on-disk sizes come from the published pack manifest. Hover over the on-disk size to check installation space.
+Both clients reserve space for the ZIP and unpacked files, plus 20% (at least 512 MiB). Insufficient space is shown in red.
+
 
 ## What gets translated
 

@@ -588,7 +588,7 @@ internal sealed partial class ConfigWindow : Window
         using var disabled = ImRaii.Disabled(this.operations.Installing || unavailable || pack.Source is null);
         var isUpdate = newer || moved;
         var label = isUpdate ? Loc.Localize("Setup.Update", "Update") : Loc.Localize("Setup.Install", "Install");
-        AlignPackAction(label, button: true);
+        this.DrawPackSizes(label, published);
         if (DrawPackActionButton(label))
         {
             this.Install(pack.Source!);
