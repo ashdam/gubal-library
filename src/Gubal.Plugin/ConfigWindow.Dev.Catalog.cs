@@ -31,7 +31,8 @@ internal sealed partial class ConfigWindow
             {
                 "nativeLayout" => new PreviewScene(Layout: new NativeLayout(
                     row.GetProperty("uldName").GetString()!, Required("nodeId"), Required("imageNodeId"),
-                    row.GetProperty("timelineLabel").GetUInt16())),
+                    row.GetProperty("timelineLabel").GetUInt16(),
+                    row.TryGetProperty("contentNodeId", out _) ? Required("contentNodeId") : null)),
                 "screenImage" => new PreviewScene(ScreenImageId: Required("rowId")),
                 "ktgCountdown" => new PreviewScene(KtgCountdown: true),
                 "cutScreenImage" => new PreviewScene(CutScreenImageId: Required("rowId")),
