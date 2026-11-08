@@ -170,11 +170,22 @@ internal sealed class PackContents
         }
 
         var images = new List<PackPage>();
-        foreach (var group in new[] { "120000", "121000", "122000", "123000", "124000", "126000", "127000", "128000", "129000", "180000", "181000" })
+        foreach (var group in new[] { "120000", "121000", "122000", "123000", "124000", "125000", "126000", "127000", "128000", "129000", "180000", "181000" })
         {
             var imageDir = Path.Combine(directory, "ui", "icon", group);
             if (!Directory.Exists(imageDir)) continue;
             foreach (var file in Directory.EnumerateFiles(imageDir, "*.tex", SearchOption.AllDirectories))
+            {
+                var localPath = Path.GetFullPath(file);
+                if (localPath.Length > maxLocalPathLength) { tooLong++; continue; }
+                var gamePath = Path.GetRelativePath(directory, localPath).Replace('\\', '/');
+                images.Add(new PackPage(gamePath, localPath, "addon"));
+            }
+        }
+
+        if (Directory.Exists(layoutDir))
+        {
+            foreach (var file in Directory.EnumerateFiles(layoutDir, "moviesubtitle_*.tex", SearchOption.TopDirectoryOnly))
             {
                 var localPath = Path.GetFullPath(file);
                 if (localPath.Length > maxLocalPathLength) { tooLong++; continue; }
@@ -239,10 +250,12 @@ internal sealed class PackContents
     internal static bool IsScreenImagePath(ReadOnlySpan<byte> path) =>
         path.StartsWith("ui/icon/120000/"u8) || path.StartsWith("ui/icon/121000/"u8)
         || path.StartsWith("ui/icon/122000/"u8) || path.StartsWith("ui/icon/123000/"u8)
-        || path.StartsWith("ui/icon/124000/"u8) || path.StartsWith("ui/icon/126000/"u8)
+        || path.StartsWith("ui/icon/124000/"u8) || path.StartsWith("ui/icon/125000/"u8)
+        || path.StartsWith("ui/icon/126000/"u8)
         || path.StartsWith("ui/icon/127000/"u8) || path.StartsWith("ui/icon/128000/"u8)
         || path.StartsWith("ui/icon/129000/"u8) || path.StartsWith("ui/icon/180000/"u8)
-        || path.StartsWith("ui/icon/181000/"u8);
+        || path.StartsWith("ui/icon/181000/"u8)
+        || (path.StartsWith("ui/uld/moviesubtitle_"u8) && path.EndsWith(".tex"u8));
 
     public IReadOnlyList<PackPage> ServableScreenImages(ICollection<string> disabledSheets, bool lifestreamCompatibility = false) =>
         disabledSheets.Contains("addon") || lifestreamCompatibility ? [] : this.screenImages;
