@@ -300,4 +300,9 @@ El porcentaje corresponde al contenido incluido en el inventario de localizació
   <data name="DiskSpaceUnknown" xml:space="preserve"><value>No se ha podido comprobar el espacio libre.</value></data>
   <data name="DiskSpaceDetails" xml:space="preserve"><value>Necesario: {0}
 Disponible: {1}</value></data>
+  <data name="CustomPack" xml:space="preserve"><value>Pack personalizado</value></data>
+  <data name="CustomPackDescription" xml:space="preserve"><value>Usar un pack de idioma de una carpeta local</value></data>
+  <data name="CustomPackFolder" xml:space="preserve"><value>Carpeta del pack de idioma personalizado</value></data>
+  <data name="SelectCustomPackFolder" xml:space="preserve"><value>Selecciona primero la carpeta del pack de idioma personalizado.</value></data>
+  <data name="UseCustomPack" xml:space="preserve"><value>Usar pack</value></data>
 </root>
