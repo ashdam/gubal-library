@@ -34,8 +34,12 @@ internal sealed partial class MainWindow : Form
     private TranslationStartupException? startupFailure;
     private Button? startButton;
     private KnownPack Selected => KnownPacks.All.FirstOrDefault(pack => pack.Code == settings.Language);
+    private bool IsCustomPack => settings.Language == CustomPackCode;
+    private string SelectedName => IsCustomPack ? UiText.Get("CustomPack") : Selected.Name;
     private PackInstaller Installer => new(store, store.LanguageFolder(settings.Language));
-    private PackManifest? Manifest => KnownPacks.ForCode(settings.Language) is null ? null : PackManifest.Read(Installer.InstalledPath).Manifest;
+    private string? PackFolder => IsCustomPack ? settings.CustomPackFolder
+        : KnownPacks.ForCode(settings.Language) is null ? null : Installer.InstalledPath;
+    private PackManifest? Manifest => string.IsNullOrWhiteSpace(PackFolder) ? null : PackManifest.Read(PackFolder).Manifest;
     private static string EngineFolder => Path.Combine(AppContext.BaseDirectory, "engine");
 
     public MainWindow()
@@ -81,7 +85,7 @@ internal sealed partial class MainWindow : Form
         try
         {
             settings = store.Read();
-            if (settings.Language != "en" && !KnownPacks.All.Any(pack => pack.Code == settings.Language)) settings = settings with { Language = "" };
+            if (settings.Language is not ("en" or CustomPackCode) && !KnownPacks.All.Any(pack => pack.Code == settings.Language)) settings = settings with { Language = "" };
             if (GameDetection.Normalize(settings.GameFolder) is null || settings.Account is null)
             {
                 SetStatus(UiText.Get("FindingGame"));
@@ -100,7 +104,7 @@ internal sealed partial class MainWindow : Form
             FitInitialWindow();
             await CheckDesktopUpdateAsync();
             if (IsDisposed) return;
-            if (settings.Language != "en" && Manifest is not null)
+            if (!IsCustomPack && settings.Language != "en" && Manifest is not null)
                 await RunAsync(CheckPackUpdateAsync);
             await LoadCatalogAsync();
         }
@@ -138,7 +142,7 @@ internal sealed partial class MainWindow : Form
             AddHeading(UiText.Get("ContinueLauncher"));
             AddText(UiText.Get("PreparationDone"), muted);
             AddSeparator();
-            AddText(translationLoaded ? (manifest?.LanguageName ?? Selected.Name) + UiText.Get("TranslationLoaded") : UiText.Get("EnglishLoaded"), Color.LightGreen, 16);
+            AddText(translationLoaded ? (manifest?.LanguageName ?? SelectedName) + UiText.Get("TranslationLoaded") : UiText.Get("EnglishLoaded"), Color.LightGreen, 16);
             AddText(UiText.Get("CanClose"), muted);
             AddButton(UiText.Get("Back"), () => { launcherOpened = false; Render(); return Task.CompletedTask; });
             content.ResumeLayout(); ResizeContent(); return;
@@ -197,6 +201,7 @@ internal sealed partial class MainWindow : Form
 
     private void AddAutoUpdate()
     {
+        if ((languageChoice ?? settings.Language) == CustomPackCode) return;
         var check = new CheckBox { Text = UiText.Get("AutoUpdate"), Checked = settings.AutoUpdate, AutoSize = true, Padding = new Padding(0, 8, 0, 8) };
         check.CheckedChanged += (_, _) => { settings = settings with { AutoUpdate = check.Checked }; store.Save(settings); Render(); };
         content.Controls.Add(check);
@@ -243,6 +248,11 @@ internal sealed partial class MainWindow : Form
         GameDetection.RequireClosed();
         if (GameDetection.Normalize(settings.GameFolder) is null) throw new InvalidOperationException(UiText.Get("SelectFolderFirst"));
         var selectedLanguage = languageChoice ?? settings.Language;
+        if (selectedLanguage == CustomPackCode)
+        {
+            await SelectCustomPackAsync(cancel);
+            return;
+        }
         if (selectedLanguage == "en")
         {
             var next = settings with { Language = "en" };
@@ -307,6 +317,7 @@ internal sealed partial class MainWindow : Form
 
     private async Task CheckPackUpdateAsync(CancellationToken cancel)
     {
+        if (IsCustomPack) { updateStatus = UpdateStatus.NotDeclared; return; }
         SetStatus(UiText.Get("CheckingUpdates"));
         var update = await Installer.CheckForUpdateAsync(Manifest, cancel, GameVersion());
         updateStatus = update;
@@ -332,7 +343,7 @@ internal sealed partial class MainWindow : Form
     private UsageSnapshot UsageState(bool active, bool compatible)
     {
         var manifest = Manifest;
-        return UsageSnapshot.Create(settings.Language == "en" ? null : settings.Language.ToLowerInvariant(),
+        return UsageSnapshot.Create(settings.Language == "en" || IsCustomPack ? null : settings.Language.ToLowerInvariant(),
             manifest?.TranslationVersion, settings.Language != "en", manifest is not null,
             enabled: true, active, compatible);
     }
@@ -351,13 +362,13 @@ internal sealed partial class MainWindow : Form
             await StartOriginalAsync(game, compatible: true);
             return;
         }
-        var installer = Installer;
-        if (installer.HasPending)
+        var installer = IsCustomPack ? null : Installer;
+        if (installer is { HasPending: true })
         {
             var result = installer.ActivatePending((_, _) => store.Save(settings));
             if (result is not { Success: true }) throw new InvalidOperationException(result?.Error ?? UiText.Get("PendingFailed"));
         }
-        if (settings.AutoUpdate)
+        if (!IsCustomPack && settings.AutoUpdate)
         {
             try { await UpdateAsync(cancel, false); }
             catch (Exception error) when (error is not OperationCanceledException)
@@ -372,7 +383,7 @@ internal sealed partial class MainWindow : Form
         {
             GameExecutable = Path.Combine(game, "game", "ffxiv_dx11.exe"),
             Launcher = Path.Combine(game, "boot", "ffxivboot64.exe"),
-            Pack = installer.InstalledPath, ExpectedGameVersion = version,
+            Pack = PackFolder, ExpectedGameVersion = version,
             Account = settings.Account,
             Mode = "redirect", Scope = "all-resources",
         };
@@ -507,6 +518,8 @@ internal sealed partial class MainWindow : Form
         Style(save, true);
         form.AcceptButton = save;
         save.Click += (_, _) => { if (GameDetection.Normalize(path.Text) is null) { MessageBox.Show(form, UiText.Get("InvalidFolder")); return; }
+            if (!string.Equals(settings.GameFolder, path.Text, StringComparison.OrdinalIgnoreCase))
+                disabledParts = [];
             settings = settings with { GameFolder = path.Text,
             Account = new LauncherAccount(steam.Checked, trial.Checked) }; store.Save(settings); form.DialogResult = DialogResult.OK; };
         layout.Controls.Add(save, 1, 5);

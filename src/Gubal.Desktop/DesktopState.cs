@@ -8,7 +8,7 @@ using Microsoft.Win32;
 namespace GubalDesktop;
 
 internal sealed record DesktopSettings(string GameFolder = "", string Language = "", bool AutoUpdate = true,
-    LauncherAccount? Account = null);
+    LauncherAccount? Account = null, string CustomPackFolder = "");
 
 internal sealed class DesktopStore : IPackInstallLog
 {

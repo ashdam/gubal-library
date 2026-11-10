@@ -41,8 +41,27 @@ internal sealed partial class MainWindow
         var rowHeight = Math.Max(LogicalToDeviceUnits(68), lineHeight * 2 + LogicalToDeviceUnits(24));
         var englishHeight = Math.Max(LogicalToDeviceUnits(56), lineHeight + LogicalToDeviceUnits(24));
         var headerHeight = lineHeight + LogicalToDeviceUnits(12);
-        var height = headerHeight + rowHeight * KnownPacks.All.Length + englishHeight;
-        var choices = new TableLayoutPanel { ColumnCount = 2, RowCount = KnownPacks.All.Length + 2, AutoSize = false,
+        var customSelected = (languageChoice ?? settings.Language) == CustomPackCode;
+        var custom = LanguageButton(CustomPackCode);
+        custom.Text = "📁  " + UiText.Get("CustomPack") + "\n " + UiText.Get("CustomPackDescription");
+        var customCard = new TableLayoutPanel { ColumnCount = 1, RowCount = customSelected ? 2 : 1,
+            Dock = DockStyle.Fill, Margin = new Padding(0, 0, 8, 8), Padding = Padding.Empty,
+            BackColor = custom.FlatAppearance.CheckedBackColor };
+        custom.Margin = Padding.Empty;
+        customCard.RowStyles.Add(new RowStyle(SizeType.Absolute, rowHeight - 8));
+        customCard.Controls.Add(custom, 0, 0);
+        var customHeight = rowHeight;
+        if (customSelected)
+        {
+            var folder = CreateCustomPackFolder();
+            folder.Dock = DockStyle.Fill;
+            folder.Margin = new Padding(8, 4, 8, 8);
+            customHeight += folder.Height + folder.Margin.Vertical;
+            customCard.RowStyles.Add(new RowStyle(SizeType.Absolute, folder.Height + folder.Margin.Vertical));
+            customCard.Controls.Add(folder, 0, 1);
+        }
+        var height = headerHeight + rowHeight * KnownPacks.All.Length + englishHeight + customHeight;
+        var choices = new TableLayoutPanel { ColumnCount = 2, RowCount = KnownPacks.All.Length + 3, AutoSize = false,
             Height = height, MinimumSize = new Size(0, height),
             GrowStyle = TableLayoutPanelGrowStyle.FixedSize, Width = 700, Margin = new Padding(0, 2, 0, 12) };
         choices.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
@@ -72,6 +91,9 @@ internal sealed partial class MainWindow
         choices.RowStyles.Add(new RowStyle(SizeType.Absolute, englishHeight));
         choices.Controls.Add(english, 0, KnownPacks.All.Length + 1);
         choices.SetColumnSpan(english, 2);
+        choices.RowStyles.Add(new RowStyle(SizeType.Absolute, customHeight));
+        choices.Controls.Add(customCard, 0, KnownPacks.All.Length + 2);
+        choices.SetColumnSpan(customCard, 2);
         content.Controls.Add(choices);
     }
 
@@ -84,7 +106,7 @@ internal sealed partial class MainWindow
             ImageAlign = ContentAlignment.MiddleLeft, TextImageRelation = TextImageRelation.ImageBeforeText,
             Padding = new Padding(12, 4, 8, 4), Margin = new Padding(0, 0, 8, 8),
             FlatStyle = FlatStyle.Flat, BackColor = background, ForeColor = foreground,
-            AccessibleName = code == "en" ? "English, no localization" : KnownPacks.ForCode(code)?.Name,
+            AccessibleName = code == "en" ? "English, no localization" : code == CustomPackCode ? UiText.Get("CustomPack") : KnownPacks.ForCode(code)?.Name,
             AutoEllipsis = false,
         };
         radio.FlatAppearance.BorderColor = radio.Checked ? gold : Color.FromArgb(52, 56, 61);
@@ -94,19 +116,14 @@ internal sealed partial class MainWindow
             radio.FlatAppearance.BorderColor = radio.Checked ? gold : Color.FromArgb(52, 56, 61);
             if (!radio.Checked) return;
             languageChoice = code;
-            if (languageAction is { IsDisposed: false })
-            {
-                languageAction.Text = code == "en" ? UiText.Get("UseEnglish") : UiText.Get("DownloadPrepare");
-                languageAction.Enabled = true;
-            }
-            _ = RefreshPackSizesAsync();
+            Render();
         };
         return radio;
     }
 
     private void AddLanguageActions(bool showBack = false)
     {
-        languageAction = AddButton((languageChoice ?? settings.Language) == "en" ? UiText.Get("UseEnglish") : UiText.Get("DownloadPrepare"), () => RunAsync(InstallAsync), true);
+        languageAction = AddButton(PackActionText(languageChoice ?? settings.Language), () => RunAsync(InstallAsync), true);
         languageAction.Enabled = !string.IsNullOrEmpty(languageChoice ?? settings.Language);
         languageFooter.Size = new Size(ClientSize.Width, languageAction.Height + languageFooter.Padding.Vertical);
         languageFooter.Visible = true;
@@ -190,10 +207,10 @@ internal sealed partial class MainWindow
         row.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 44));
         row.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
         row.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
-        var label = new Label { Text = manifest?.LanguageName ?? KnownPacks.ForCode(code)?.Name ?? UiText.Get("EnglishOption"), Font = new Font(Font.FontFamily, 17),
+        var label = new Label { Text = code == CustomPackCode ? UiText.Get("CustomPack") : manifest?.LanguageName ?? KnownPacks.ForCode(code)?.Name ?? UiText.Get("EnglishOption"), Font = new Font(Font.FontFamily, 17),
             AutoSize = true, Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft, Padding = new Padding(0, 4, 0, 4) };
-        Control flag = code == "en"
-            ? new Label { Text = "🌐", AutoSize = true, Anchor = AnchorStyles.Left }
+        Control flag = code is "en" or CustomPackCode
+            ? new Label { Text = code == CustomPackCode ? "📁" : "🌐", AutoSize = true, Anchor = AnchorStyles.Left }
             : new PictureBox { Image = Flag(code), Size = new Size(28, 18), SizeMode = PictureBoxSizeMode.Zoom, Anchor = AnchorStyles.Left };
         var change = new Button { Text = UiText.Get("ChangeLanguage"), AutoSize = true, Anchor = AnchorStyles.Right,
               Padding = new Padding(12, 6, 12, 6), Margin = new Padding(3, 3, 0, 3) };
@@ -204,6 +221,7 @@ internal sealed partial class MainWindow
         change.Click += (_, _) => { chooseLanguage = true; Render(); };
         row.Controls.Add(flag, 0, 0); row.Controls.Add(label, 1, 0); row.Controls.Add(change, 2, 0);
         content.Controls.Add(row);
+        if (code == CustomPackCode) content.Controls.Add(CreateCustomPackFolder());
         if (manifest is null) return;
         var details = new FlowLayoutPanel { FlowDirection = FlowDirection.TopDown, WrapContents = false,
             AutoSize = true, Margin = new Padding(0, 6, 0, 0), Anchor = AnchorStyles.Top | AnchorStyles.Left };
@@ -224,17 +242,17 @@ internal sealed partial class MainWindow
         {
             var progressLabel = new Label { Text = UiText.Format("CoveragePercent", coverage.Percent), AutoSize = true,
                 ForeColor = muted, Margin = new Padding(0, 0, 0, 10) };
-            tooltips.SetToolTip(progressLabel, CoverageTooltip(manifest.LanguageName ?? Selected.Name, coverage));
+            tooltips.SetToolTip(progressLabel, CoverageTooltip(manifest.LanguageName ?? SelectedName, coverage));
             details.Controls.Add(progressLabel);
         }
-        var update = CreateUpdateButton();
-        change.Width = update.Width = Math.Max(change.Width, update.Width);
+        var update = code == CustomPackCode ? null : CreateUpdateButton();
+        if (update is not null) change.Width = update.Width = Math.Max(change.Width, update.Width);
         row.RowCount = 2;
         row.Controls.Add(details, 0, 1);
         row.SetColumnSpan(details, 2);
-        row.Controls.Add(update, 2, 1);
+        if (update is not null) row.Controls.Add(update, 2, 1);
         var detailsHeight = Math.Max(details.GetPreferredSize(Size.Empty).Height + details.Margin.Vertical,
-            update.Height + update.Margin.Vertical);
+            update is null ? 0 : update.Height + update.Margin.Vertical);
         row.RowStyles.Add(new RowStyle(SizeType.Absolute, detailsHeight));
         row.Height += detailsHeight;
         row.MinimumSize = new Size(0, row.Height);

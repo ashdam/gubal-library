@@ -300,4 +300,9 @@ Progress covers the content included in the localization inventory.</value>
   <data name="DiskSpaceUnknown" xml:space="preserve"><value>Could not check free disk space.</value></data>
   <data name="DiskSpaceDetails" xml:space="preserve"><value>Required: {0}
 Available: {1}</value></data>
+  <data name="CustomPack" xml:space="preserve"><value>Custom pack</value></data>
+  <data name="CustomPackDescription" xml:space="preserve"><value>Use a language pack from a local folder</value></data>
+  <data name="CustomPackFolder" xml:space="preserve"><value>Custom language pack folder</value></data>
+  <data name="SelectCustomPackFolder" xml:space="preserve"><value>Select a custom language pack folder first.</value></data>
+  <data name="UseCustomPack" xml:space="preserve"><value>Use pack</value></data>
 </root>

@@ -45,7 +45,7 @@ internal sealed partial class MainWindow
     {
         if (IsDisposed || packSizes is not { IsDisposed: false } panel || !languageFooter.Visible) return;
         var code = languageChoice ?? settings.Language;
-        panel.Visible = code != "en";
+        panel.Visible = code is not ("en" or CustomPackCode);
         if (!panel.Visible) return;
         catalog.TryGetValue(code, out var manifest);
         downloadSize!.Text = PackStorage.FormatBytes(manifest?.DownloadBytes);
