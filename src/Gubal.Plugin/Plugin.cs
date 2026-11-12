@@ -6,6 +6,7 @@ using Dalamud.Interface.ImGuiFileDialog;
 using Dalamud.Interface.Windowing;
 using Dalamud.Plugin;
 using Dalamud.Plugin.Services;
+using Item = Lumina.Excel.Sheets.Item;
 
 namespace GubalLibrary;
 
@@ -186,7 +187,10 @@ public sealed class Plugin : IDalamudPlugin
 
             this.englishItemNames = new EnglishItemNames(this.config, data, gameGui,
                 addonLifecycle, framework, interop, contextMenu, log);
-            this.marketSearch = new BilingualMarketSearch(data, this.englishItemNames, sigScanner, interop, log);
+            this.marketSearch = new BilingualMarketSearch(() => data.GetExcelSheet<Item>()
+                    .Where(item => item.ItemSearchCategory.RowId != 0)
+                    .Select(item => new MarketItem(item.RowId, item.Name.ExtractText(), this.englishItemNames.OriginalName(item.RowId))),
+                new DalamudGameSignatures(sigScanner), new DalamudGameHooks(interop), new DalamudGameLog(log));
 
             this.operations = new PackOperations(this.installer, framework, log);
             this.configWindow = new ConfigWindow(

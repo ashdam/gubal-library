@@ -93,8 +93,13 @@ The pack is blocked if its game version differs or cannot be checked. Pack updat
 
 In the Dalamud plugin, **Show English names in item tooltips** is enabled by default under **Localization settings**.
 The original English name appears below the translated name. This option takes effect without a restart.
+Desktop shows the same English subtitle by default.
 
 Inventory item context menus include **Copy English name** at the bottom.
+This context menu option is available in the Dalamud plugin.
+
+Partial market searches in both clients accept translated and original English item names.
+Matching ignores case and accents, and keeps `n` and `ñ` distinct.
 The copy command also works when the second name is disabled.
 
 ### Dialogue Codex links

@@ -1,40 +1,35 @@
 using System.Globalization;
 using System.Runtime.InteropServices;
-using Dalamud.Hooking;
-using Dalamud.Plugin.Services;
-using Dalamud.Utility;
 using FFXIVClientStructs.FFXIV.Client.UI.Agent;
-using Lumina.Excel.Sheets;
 
 namespace GubalLibrary;
 
 internal sealed unsafe class BilingualMarketSearch : IDisposable
 {
-    // Spanish collation ignores accents but keeps n and ñ distinct.
+    // Spanish collation ignores accents but keeps n and Ã± distinct.
     private static readonly CompareInfo SearchComparison = CultureInfo.GetCultureInfo("es-ES").CompareInfo;
     private const CompareOptions SearchOptions = CompareOptions.IgnoreCase | CompareOptions.IgnoreNonSpace;
     private const string UpdateSignature = "E8 ?? ?? ?? ?? 48 8B CB E8 ?? ?? ?? ?? 48 8B CB E8 ?? ?? ?? ?? 80 BB ?? ?? ?? ?? ?? 0F 85";
     private const string PushSignature = "E8 ?? ?? ?? ?? E9 ?? ?? ?? ?? 48 89 9C 24 ?? ?? ?? ?? 41 2B C9";
     private delegate void SearchUpdate(AgentItemSearch* agent);
-    private readonly IDataManager data;
-    private readonly EnglishItemNames names;
-    private readonly IPluginLog log;
-    private Hook<SearchUpdate>? hook;
+    private readonly Func<IEnumerable<MarketItem>> items;
+    private readonly IPackInstallLog log;
+    private INativeHook<SearchUpdate>? hook;
     private SearchUpdate? push;
-    private Entry[] entries = [];
+    private MarketItem[] entries = [];
 
-    public BilingualMarketSearch(IDataManager data, EnglishItemNames names, ISigScanner scanner,
-        IGameInteropProvider interop, IPluginLog log)
+    public BilingualMarketSearch(Func<IEnumerable<MarketItem>> items, INativeSignatures scanner,
+        INativeHooks interop, IPackInstallLog log)
     {
-        this.data = data;
-        this.names = names;
+        this.items = items;
         this.log = log;
         try
         {
-            var updateAddress = scanner.ScanText(UpdateSignature);
-            var pushAddress = scanner.ScanText(PushSignature);
+            if (!scanner.TryScanText(UpdateSignature, out var updateAddress)
+                || !scanner.TryScanText(PushSignature, out var pushAddress))
+                throw new InvalidOperationException("Market search signatures were not found.");
             this.push = Marshal.GetDelegateForFunctionPointer<SearchUpdate>(pushAddress);
-            this.hook = interop.HookFromAddress<SearchUpdate>(updateAddress, this.Update);
+            this.hook = interop.Create<SearchUpdate>(updateAddress, this.Update);
             this.hook.Enable();
         }
         catch (Exception error)
@@ -66,10 +61,7 @@ internal sealed unsafe class BilingualMarketSearch : IDisposable
 
             if (this.entries.Length == 0)
             {
-                this.entries = this.data.GetExcelSheet<Item>()
-                    .Where(item => item.ItemSearchCategory.RowId != 0)
-                    .Select(item => new Entry(item.RowId, item.Name.ExtractText(), this.names.OriginalName(item.RowId)))
-                    .ToArray();
+                this.entries = this.items().ToArray();
             }
 
             matches = this.entries.Where(entry =>
@@ -92,5 +84,7 @@ internal sealed unsafe class BilingualMarketSearch : IDisposable
 
     public void Dispose() => this.hook?.Dispose();
 
-    private sealed record Entry(uint Id, string Localized, string English);
+
 }
+
+internal sealed record MarketItem(uint Id, string Localized, string English);
