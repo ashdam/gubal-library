@@ -308,7 +308,7 @@
     "description": "ConfigWindow.DrawCoverageCell"
   },
   "Parts.TurnAllOff": { "message": "Turn everything off" },
-  "Compatibility.AutoRetainer": { "message": "Supported. Confirmed with AutoRetainer 4.6.2.11." },
+  "Compatibility.Since": { "message": "Compatible since version {0}." },
   "Setup.NoProgressData": { "message": "No progress data" },
   "PluginUpdate.Available": { "message": "{0} version update of Gubal Library is available" },
   "PluginUpdate.Instructions": { "message": "Open the Dalamud installer and update Gubal Library." },

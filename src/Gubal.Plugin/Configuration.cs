@@ -31,8 +31,6 @@ internal sealed class Configuration : IPluginConfiguration
 
     public bool ShowEnglishItemNames { get; set; } = true;
 
-    public bool LifestreamCompatibility { get; set; }
-
     // Store lowercase sheet keys, including keys absent from the current pack.
     public HashSet<string> DisabledSheets { get; set; } = [];
 }

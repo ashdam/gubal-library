@@ -209,34 +209,28 @@ internal sealed partial class ConfigWindow : Window
 
         this.DrawPartSelection(pack, ref changed);
         ImGui.Separator();
-        this.DrawCompatibility(ref changed);
+        this.DrawCompatibility();
     }
 
-    private void DrawCompatibility(ref bool changed)
+    private void DrawCompatibility()
     {
         ImGui.AlignTextToFramePadding();
         ImGui.TextUnformatted(Loc.Localize("Compatibility.Title", "Compatibility"));
         if (ImGui.GetContentRegionAvail().X > 420f * ImGuiHelpers.GlobalScale) ImGui.SameLine();
-
-        var lifestream = this.config.LifestreamCompatibility;
-        if (DrawPartSwitch("Lifestream", "lifestream", ref lifestream))
-        {
-            this.config.LifestreamCompatibility = lifestream;
-            this.NoteParted();
-            changed = true;
-        }
-
+        DrawSupportedPlugin("Lifestream", "2.6.0.11");
         if (ImGui.GetContentRegionAvail().X > 150f * ImGuiHelpers.GlobalScale) ImGui.SameLine();
+        DrawSupportedPlugin("AutoRetainer", "4.6.2.11");
+    }
+
+    private static void DrawSupportedPlugin(string name, string version)
+    {
         using (ImRaii.PushFont(UiBuilder.IconFont, true))
             ImGui.TextColored(Green, FontAwesomeIcon.Check.ToIconString());
         ImGui.SameLine();
-        ImGui.TextUnformatted("AutoRetainer");
-
+        ImGui.TextUnformatted(name);
         if (ImGui.IsItemHovered(ImGuiHoveredFlags.AllowWhenDisabled))
-        {
-            ImGui.SetTooltip(Loc.Localize("Compatibility.AutoRetainer",
-                "Supported. Confirmed with AutoRetainer 4.6.2.11."));
-        }
+            ImGui.SetTooltip(string.Format(Loc.Localize("Compatibility.Since",
+                "Compatible since version {0}."), version));
     }
 
     private void DrawPartsHeader(PackContents pack, ref bool changed)

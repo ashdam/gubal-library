@@ -159,7 +159,7 @@
   "Codex.Ready": { "message": "Listo. Abre un diálogo que mencione una entrada del Codex." },
   "Codex.Failed": { "message": "Los enlaces del Codex no están disponibles. Consulta /xllog para ver los detalles." },
   "Parts.TurnAllOff": { "message": "Desactivarlo todo" },
-  "Compatibility.AutoRetainer": { "message": "Compatible. Confirmado con AutoRetainer 4.6.2.11." },
+  "Compatibility.Since": { "message": "Compatible desde la versión {0}." },
   "Setup.NoProgressData": { "message": "Sin datos de progreso" },
   "PluginUpdate.Available": { "message": "Está disponible la actualización {0} de Gubal Library" },
   "PluginUpdate.Instructions": { "message": "Abre el instalador de Dalamud y actualiza Gubal Library." },

@@ -149,7 +149,6 @@ public sealed class Plugin : IDalamudPlugin
                     this.config.LanguagePackPath,
                     this.Contents(),
                     this.config.DisabledSheets,
-                    this.config.LifestreamCompatibility,
                     data,
                     Path.Combine(pluginInterface.GetPluginConfigDirectory(), "compatibility-cache"),
                     () => this.waitedForPluginsAtBoot);
@@ -204,7 +203,7 @@ public sealed class Plugin : IDalamudPlugin
                 gameGui,
                 this.operations,
                 this.OnPackPrepared,
-                () => this.BeginUpdateCheck(verbose: false),
+                this.BeginUpdateCheck,
                 this.SetAutoUpdate,
                 () => DalamudBootWait.IsOn(this.pluginInterface),
                 () => pluginInterface.OpenDalamudSettingsTo(SettingsOpenKind.General),
@@ -221,7 +220,7 @@ public sealed class Plugin : IDalamudPlugin
             this.clientState.Login += this.OnLogin;
             pluginInterface.LanguageChanged += this.OnLanguageChanged;
 
-            this.BeginUpdateCheck(verbose: false);
+            this.BeginUpdateCheck();
 
             this.commands.AddHandler(CommandName, new CommandInfo(this.OnCommand)
             {
@@ -355,44 +354,6 @@ public sealed class Plugin : IDalamudPlugin
                 this.OpenConfig();
                 break;
 
-            case "status":
-                this.PrintStatus();
-                break;
-
-            case "parts":
-                this.PrintParts();
-                break;
-
-            case "check":
-                this.chat.Print(this.BeginUpdateCheck(verbose: true)
-                    ? "[Gubal]Asking whether a newer language pack is published..."
-                    // Not "the answer follows": the check already running is the quiet one from load.
-                    : "[Gubal]A check is already running, and /gubal shows what it comes back with.");
-                break;
-
-            case "usepack":
-                this.config.ServeLanguagePack = !this.config.ServeLanguagePack;
-                this.SaveConfig(this.config);
-                this.chat.Print(this.config.ServeLanguagePack
-                    ? "[Gubal]Language pack ON from the next start. The game reads its text once at startup."
-                    : "[Gubal]Language pack OFF from the next start.");
-                break;
-
-            case "autoupdate":
-                this.SetAutoUpdate(!this.config.AutoUpdatePack);
-
-                if (!this.config.AutoUpdatePack)
-                {
-                    this.chat.Print("[Gubal]Startup updates OFF. Newer packs are offered, not taken.");
-                    break;
-                }
-
-                this.chat.Print(DalamudBootWait.IsOn(this.pluginInterface) is true
-                    ? "[Gubal]Startup updates ON. Dalamud will hold the game's start while a newer pack is fetched."
-                    : "[Gubal]Startup updates ON, but Dalamud is not waiting for plugins before the game loads "
-                      + "and could not be set to. Turn it on in Dalamud's settings or this does nothing.");
-                break;
-
             case "dev":
                 this.chat.Print(this.configWindow.ToggleDevTab()
                     ? "[Gubal]Dev tab enabled."
@@ -421,74 +382,8 @@ public sealed class Plugin : IDalamudPlugin
                 break;
 
             default:
-                this.chat.Print("[Gubal]Usage: /gubal [status|parts|check|usepack|autoupdate|dev|debug on|debug off]");
+                this.chat.Print("[Gubal]Usage: /gubal [dev|debug|debug on|debug off]");
                 break;
-        }
-    }
-
-    private void PrintStatus()
-    {
-        var pages = this.PageSnapshot();
-
-        if (pages is { Active: true, Manifest: { } pack })
-        {
-            this.chat.Print($"[Gubal]{pack.DisplayName} ({pack.TranslationVersion ?? "unversioned"})");
-            this.chat.Print(
-                $"[Gubal]{pages.PageCount:N0} page(s), built for game {pack.GameVersion ?? "unknown"}.");
-
-            this.chat.Print($"[Gubal]{pages.ServedCount:N0} read(s) answered from disk this session.");
-
-            if (pages.FontCount > 0)
-            {
-                this.chat.Print(
-                    $"[Gubal]{pages.FontsServedCount:N0} of {pages.FontCount:N0} font file(s) served from the pack.");
-            }
-
-            this.chat.Print(this.shadow is { Ok: true } served
-                ? $"[Gubal]Other plugins read the pack too, from {served.Folder}."
-                : $"[Gubal]Other plugins read the game{(char)39}s own text: {this.shadow?.Message ?? "no pack is being served"}.");
-
-            // Otherwise somebody reports a bug about text left untranslated exactly as they asked.
-            if (this.Contents().PartsOff(this.config.DisabledSheets) is { Count: > 0 } off)
-            {
-                this.chat.Print($"[Gubal]Switched off on purpose, so still the game's own text: {string.Join(", ", off)}.");
-            }
-
-            return;
-        }
-
-        this.chat.PrintError(
-            $"[Gubal]No pages served. {pages.Error ?? "no language pack configured."}");
-    }
-
-    private void PrintParts()
-    {
-        var pack = this.Contents();
-
-        if (pack.Layout.Count == 0)
-        {
-            this.chat.Print("[Gubal]No language pack is installed, so there are no parts to list.");
-            return;
-        }
-
-        foreach (var group in pack.Layout)
-        {
-            var off = group.Parts.Count(p => p.Sheets.All(this.config.DisabledSheets.Contains));
-
-            var state = off switch
-            {
-                0 => "on",
-                _ when off == group.Parts.Length => "off",
-                _ => $"{group.Parts.Length - off} of {group.Parts.Length} on",
-            };
-
-            this.chat.Print($"[Gubal]{group.Name}: {state}");
-        }
-
-        this.chat.Print("[Gubal]Change these under Localization settings in /gubal. They take effect at the next start.");
-        if (this.config.LifestreamCompatibility)
-        {
-            this.chat.Print("[Gubal]Lifestream compatibility is selected. Its required sheets stay in English after restart, even when their parts are on.");
         }
     }
 
@@ -520,11 +415,11 @@ public sealed class Plugin : IDalamudPlugin
             : "[Gubal]Language pack prepared. Enable 'Wait for plugins before game loads' in Dalamud settings to continue.");
     }
 
-    private bool BeginUpdateCheck(bool verbose)
+    private void BeginUpdateCheck()
     {
         if (this.disposed || this.checking)
         {
-            return false;
+            return;
         }
 
         this.checking = true;
@@ -536,9 +431,8 @@ public sealed class Plugin : IDalamudPlugin
         {
             this.update = result;
             this.checking = false;
-            this.Announce(verbose);
+            this.Announce();
         });
-        return true;
     }
 
     // Startup updates must finish while Dalamud holds the game boot.
@@ -622,13 +516,13 @@ public sealed class Plugin : IDalamudPlugin
         this.SaveConfig(this.config);
     }
 
-    private void Announce(bool verbose)
+    private void Announce()
     {
         var status = this.update;
 
         if (status is { State: UpdateState.Available, Published: { TranslationVersion: { Length: > 0 } version } published })
         {
-            if (!verbose && (version == this.announcedVersion || !this.clientState.IsLoggedIn))
+            if (version == this.announcedVersion || !this.clientState.IsLoggedIn)
             {
                 return;
             }
@@ -638,26 +532,6 @@ public sealed class Plugin : IDalamudPlugin
             return;
         }
 
-        if (!verbose)
-        {
-            return;
-        }
-
-        var line = status.State switch
-        {
-            UpdateState.UpToDate => "[Gubal]The installed language pack is the latest one published.",
-            UpdateState.NotDeclared when (this.redirector?.Manifest ?? this.InstalledManifest()) is null =>
-                "[Gubal]No language pack is installed, so there is nothing to check.",
-            UpdateState.NotDeclared =>
-                "[Gubal]This language pack declares no update address, so it cannot say whether a newer one exists.",
-            UpdateState.Unreachable => "[Gubal]Could not reach the language pack's update address. See /xllog for why.",
-            _ => null,
-        };
-
-        if (line is not null)
-        {
-            this.Print(() => this.chat.Print(line));
-        }
     }
 
     private void OnLanguageChanged(string code)
@@ -702,7 +576,7 @@ public sealed class Plugin : IDalamudPlugin
             }
         }
 
-        this.Announce(verbose: false);
+        this.Announce();
     }
 
     private static SeString BuildUpdateAnnouncement(PackManifest published, DalamudLinkPayload link)
