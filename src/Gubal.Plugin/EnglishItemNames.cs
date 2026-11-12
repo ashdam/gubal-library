@@ -128,7 +128,7 @@ internal sealed unsafe class EnglishItemNames : IDisposable
         return result;
     }
 
-    private string OriginalName(uint rawId)
+    internal string OriginalName(uint rawId)
     {
         if (rawId == this.lastItemId) return this.lastName;
         // Shared Dalamud sheets can contain the language pack. Read the original archives.

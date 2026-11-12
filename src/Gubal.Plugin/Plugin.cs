@@ -31,6 +31,7 @@ public sealed class Plugin : IDalamudPlugin
     private readonly LobbyUpdateNotice lobbyUpdateNotice;
     private readonly DialogueCodex dialogueCodex;
     private readonly EnglishItemNames englishItemNames;
+    private readonly BilingualMarketSearch marketSearch;
     private readonly IDalamudPluginInterface pluginInterface;
     private readonly bool waitedForPluginsAtBoot;
 
@@ -185,6 +186,7 @@ public sealed class Plugin : IDalamudPlugin
 
             this.englishItemNames = new EnglishItemNames(this.config, data, gameGui,
                 addonLifecycle, framework, interop, contextMenu, log);
+            this.marketSearch = new BilingualMarketSearch(data, this.englishItemNames, sigScanner, interop, log);
 
             this.operations = new PackOperations(this.installer, framework, log);
             this.configWindow = new ConfigWindow(
@@ -327,6 +329,7 @@ public sealed class Plugin : IDalamudPlugin
             this.commands.RemoveHandler(CommandName);
             this.fileDialogs.Reset();
             this.dialogueCodex?.Dispose();
+            this.marketSearch?.Dispose();
             this.englishItemNames?.Dispose();
 
             this.configWindow?.DisposeDevPreview();
