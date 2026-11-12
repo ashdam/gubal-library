@@ -11,5 +11,6 @@
     <InternalsVisibleTo Include="GubalStandalone.Runtime" />
     <InternalsVisibleTo Include="GubalStandalone.Launcher" />
     <InternalsVisibleTo Include="Gubal.Game" />
+    <InternalsVisibleTo Include="Gubal.Core.Tests" />
   </ItemGroup>
 </Project>

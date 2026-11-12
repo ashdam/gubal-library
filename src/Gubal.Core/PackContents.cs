@@ -1,5 +1,4 @@
-using CheapLoc;
-using Dalamud.Plugin.Services;
+using Loc = GubalLibrary.CoreLanguage;
 
 namespace GubalLibrary;
 
@@ -18,15 +17,7 @@ internal sealed record PartView(TranslationPart Part, string[] Sheets)
 internal sealed record GroupView(
     string Id, string Name, string Description, PartView[] Parts);
 
-/// <summary>
-///     What an installed language pack holds, read once and kept.
-/// </summary>
-/// <remarks>
-///     Separate from <see cref="ExdRedirector" />, which exists only while a pack is being served —
-///     the window has to describe one that is switched off, or installed and waiting for a restart,
-///     which are the moments somebody is deciding what to switch on. <b>Read once</b>, when the path
-///     changes: a pack is four thousand files and ImGui draws sixty times a second.
-/// </remarks>
+// Cache pack contents until the selected pack path changes.
 internal sealed class PackContents
 {
     /// <summary>Only .fdt and .tex files are accepted from this font folder.</summary>
@@ -200,10 +191,10 @@ internal sealed class PackContents
     }
 
     /// <summary>Layouts are served only while the Addon translation is enabled.</summary>
-    public Dictionary<string, string> ServableLayouts(ICollection<string> disabledSheets, bool lifestreamCompatibility = false)
+    public Dictionary<string, string> ServableLayouts(ICollection<string> disabledSheets)
     {
         var served = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-        if (!disabledSheets.Contains("addon") && !lifestreamCompatibility)
+        if (!disabledSheets.Contains("addon"))
         {
             foreach (var layout in this.layouts)
             {
@@ -229,13 +220,13 @@ internal sealed class PackContents
     ///     redirector's dictionary, so its read misses and the game reads its own copy — no fallback
     ///     text, no second code path, nothing extra on the hot read path.
     /// </remarks>
-    public Dictionary<string, string> Servable(ICollection<string> disabledSheets, bool lifestreamCompatibility = false)
+    public Dictionary<string, string> Servable(ICollection<string> disabledSheets)
     {
         var served = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
 
         foreach (var page in this.pages)
         {
-            if (!disabledSheets.Contains(page.Sheet) && !PackCompatibility.Excludes(page.GamePath, lifestreamCompatibility))
+            if (!disabledSheets.Contains(page.Sheet))
             {
                 served[page.GamePath] = page.LocalPath;
             }
@@ -257,15 +248,15 @@ internal sealed class PackContents
         || path.StartsWith("ui/icon/181000/"u8)
         || (path.StartsWith("ui/uld/moviesubtitle_"u8) && path.EndsWith(".tex"u8));
 
-    public IReadOnlyList<PackPage> ServableScreenImages(ICollection<string> disabledSheets, bool lifestreamCompatibility = false) =>
-        disabledSheets.Contains("addon") || lifestreamCompatibility ? [] : this.screenImages;
+    public IReadOnlyList<PackPage> ServableScreenImages(ICollection<string> disabledSheets) =>
+        disabledSheets.Contains("addon") ? [] : this.screenImages;
 
     /// <summary>Says in the log which parts were held back, since the page count alone cannot.</summary>
     /// <remarks>
     ///     A pack serving fewer pages than it holds looks identical to one that failed to read half
     ///     of itself. Naming the sheets is the difference between a decision and a bug.
     /// </remarks>
-    public void LogOmissions(IPluginLog log, ICollection<string> disabledSheets)
+    public void LogOmissions(IPackInstallLog log, ICollection<string> disabledSheets)
     {
         if (disabledSheets.Count == 0)
         {
@@ -284,7 +275,7 @@ internal sealed class PackContents
             .Where(disabledSheets.Contains)
             .Order(StringComparer.OrdinalIgnoreCase);
 
-        Diagnostics.Log(log,
+        log.Information(
             "{Count} page(s) are not being served because you switched their part off: {Sheets}.",
             held,
             string.Join(", ", off));

@@ -8,6 +8,7 @@
     <Reference Include="FFXIVClientStructs"><HintPath>$(GameDependencyPath)\FFXIVClientStructs.dll</HintPath><Private>false</Private></Reference>
     <Reference Include="InteropGenerator.Runtime"><HintPath>$(GameDependencyPath)\InteropGenerator.Runtime.dll</HintPath><Private>false</Private></Reference>
     <Reference Include="Lumina"><HintPath>$(GameDependencyPath)\Lumina.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="Lumina.Excel"><HintPath>$(GameDependencyPath)\Lumina.Excel.dll</HintPath><Private>false</Private></Reference>
     <InternalsVisibleTo Include="GubalLibrary" />
     <InternalsVisibleTo Include="GubalStandalone.Runtime" />
   </ItemGroup>

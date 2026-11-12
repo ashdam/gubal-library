@@ -1,0 +1,21 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <RuntimeIdentifier />
+    <SelfContained>false</SelfContained>
+    <IsTestProject>true</IsTestProject>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="18.0.1" PrivateAssets="all" />
+    <PackageReference Include="xunit.v3" Version="3.2.2" PrivateAssets="all" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="3.1.5" PrivateAssets="all" />
+    <Using Include="Xunit" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="../../src/Gubal.Core/Gubal.Core.csproj" />
+    <Reference Include="CheapLoc"><HintPath>$(GameDependencyPath)\CheapLoc.dll</HintPath></Reference>
+    <Reference Include="Lumina"><HintPath>$(GameDependencyPath)\Lumina.dll</HintPath></Reference>
+    <None Include="../../loc/*.json" Link="loc/%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+</Project>

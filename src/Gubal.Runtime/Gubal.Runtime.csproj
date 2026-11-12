@@ -11,6 +11,7 @@
     <Reference Include="FFXIVClientStructs"><HintPath>$(GameDependencyPath)\FFXIVClientStructs.dll</HintPath></Reference>
     <Reference Include="InteropGenerator.Runtime"><HintPath>$(GameDependencyPath)\InteropGenerator.Runtime.dll</HintPath></Reference>
     <Reference Include="Lumina"><HintPath>$(GameDependencyPath)\Lumina.dll</HintPath></Reference>
+    <Reference Include="Lumina.Excel"><HintPath>$(GameDependencyPath)\Lumina.Excel.dll</HintPath></Reference>
     <Reference Include="CheapLoc"><HintPath>$(GameDependencyPath)\CheapLoc.dll</HintPath></Reference>
     <Reference Include="Newtonsoft.Json"><HintPath>$(GameDependencyPath)\Newtonsoft.Json.dll</HintPath></Reference>
     <Reference Include="goatcorp.Reloaded.Hooks"><HintPath>$(GameDependencyPath)\goatcorp.Reloaded.Hooks.dll</HintPath></Reference>

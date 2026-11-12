@@ -165,7 +165,6 @@ internal sealed unsafe class ExdRedirector : IDisposable
         string directory,
         PackContents contents,
         ICollection<string> disabledSheets,
-        bool lifestreamCompatibility,
         IDataManager data,
         string compatibilityCache,
         Func<bool> canWait)
@@ -204,10 +203,10 @@ internal sealed unsafe class ExdRedirector : IDisposable
             return (null, "That folder holds no .exd files, so it is not a language pack.");
         }
 
-        var pages = contents.Servable(disabledSheets, lifestreamCompatibility);
-        var layouts = contents.ServableLayouts(disabledSheets, lifestreamCompatibility);
+        var pages = contents.Servable(disabledSheets);
+        var layouts = contents.ServableLayouts(disabledSheets);
         var fontFiles = contents.Fonts;
-        IReadOnlyList<PackPage> screenImages = contents.ServableScreenImages(disabledSheets, lifestreamCompatibility);
+        IReadOnlyList<PackPage> screenImages = contents.ServableScreenImages(disabledSheets);
         if (compatibility is not null)
         {
             PackResourceCompatibility.Restrict(compatibility, pages.Keys.Concat(layouts.Keys)
@@ -225,7 +224,7 @@ internal sealed unsafe class ExdRedirector : IDisposable
                 Diagnostics.Log(log, "Using the game original for {Path}: compatibility source {Source} changed or is unavailable.", path, source);
         }
 
-        contents.LogOmissions(log, disabledSheets);
+        contents.LogOmissions(new DalamudGameLog(log), disabledSheets);
         if (pages.Count == 0)
         {
             if (compatibility is { Excluded.Count: > 0 })

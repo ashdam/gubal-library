@@ -111,7 +111,7 @@ internal sealed class ImageSignatures : INativeSignatures
     }
 }
 
-internal sealed class RuntimeLog(Action<string> write) : IPackInstallLog
+internal sealed class RuntimeLog(Action<string> write, Action<Exception>? reportError = null) : IPackInstallLog
 {
     private int traces;
     public void Information(string message, params object[] values)
@@ -120,6 +120,10 @@ internal sealed class RuntimeLog(Action<string> write) : IPackInstallLog
     }
     public void Warning(string message, params object[] values) => Write(message, values);
     public void Warning(Exception error, string message, params object[] values) => Write(message + " " + error.Message, values);
-    public void Error(Exception error, string message, params object[] values) => Write(message + " " + error, values);
+    public void Error(Exception error, string message, params object[] values)
+    {
+        Write(message + " " + error, values);
+        reportError?.Invoke(error);
+    }
     private void Write(string message, object[] values) => write(message + " " + string.Join(" ", values));
 }

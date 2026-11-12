@@ -10,4 +10,7 @@
     <Project Path="src/Gubal.Plugin/GubalLibrary.csproj"><Platform Project="x64" /></Project>
     <Project Path="src/Gubal.Runtime/Gubal.Runtime.csproj"><Platform Project="x64" /></Project>
   </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/Gubal.Core.Tests/Gubal.Core.Tests.csproj"><Platform Project="x64" /></Project>
+  </Folder>
 </Solution>
