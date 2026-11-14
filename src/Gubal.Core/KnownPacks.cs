@@ -42,7 +42,14 @@ internal static class KnownPacks
     /// repository or this is a 404.</summary>
     public const string Discussions = "https://github.com/ashdam/gubal-library/discussions";
 
-    public static readonly string[] ContactEmails = ["mini@eorzealocalized.com", "shin@eorzealocalized.com"];
+    public static readonly (string Language, string Email)[] ReviewerContacts =
+    [
+        ("Español", "shin@eorzealocalized.com"),
+        ("Español", "mini@eorzealocalized.com"),
+        ("Italiano", "xeladon@eorzealocalized.com"),
+    ];
+
+    public static readonly string[] ContactEmails = ReviewerContacts.Select(contact => contact.Email).ToArray();
 
     /// <summary>Where a language's translators are pointed: one tutorial page per language.</summary>
     private const string Tutorial = "https://eorzealocalized.com/localize/";

@@ -1,3 +1,5 @@
+using System.Numerics;
+using CheapLoc;
 using System.Text.Json;
 using System.Buffers.Binary;
 using System.Runtime.InteropServices;
@@ -444,14 +446,10 @@ internal sealed partial class ConfigWindow
     {
         if (!this.DevToolsEnabled) return;
         this.initializeDevPreview?.Invoke();
-        using var tab = ImRaii.TabItem("Dev");
-        if (!tab)
-        {
-            this.RestorePreviewBackground();
-            return;
-        }
+        this.DrawPageHeading(Loc.Localize("Library.DeveloperTools", "Developer tools"),
+            Loc.Localize("Library.DeveloperIntro", "Compare original and translated banners in the game."));
         var previewUpdate = this.PreviewPluginUpdate;
-        if (ImGui.Checkbox("Preview lobby update notice", ref previewUpdate))
+        if (PluginUi.Checkbox("Preview lobby update notice", ref previewUpdate))
             this.PreviewPluginUpdate = previewUpdate;
         if (this.previewCatalogPath != this.config.LanguagePackPath) this.LoadDevBanners();
         if (this.previewRequested)
@@ -471,16 +469,16 @@ internal sealed partial class ConfigWindow
             ImGui.TextWrapped(this.requiredNativeImages.Length > 0 && this.requiredNativeImages.All(this.nativeSceneSeen.Contains)
                 ? "Comparison textures verified in native nodes."
                 : "Waiting for the game to draw the scene textures.");
-        if (ImGui.Button("Reload list")) this.LoadDevBanners();
+        if (PluginUi.Button("Reload list")) this.LoadDevBanners();
         ImGui.SameLine();
         ImGui.TextUnformatted($"{this.previewBanners.Length} banners");
         if (this.previewCatalogLoad is { IsCompleted: false }) ImGui.TextUnformatted("Loading game catalog...");
-        ImGui.InputText("Search", ref this.previewFilter, 200);
+        PluginUi.TextField("Search", ref this.previewFilter, 200);
         ImGui.InputInt("Texture ID", ref this.previewId);
         using (ImRaii.Disabled(selected?.NativeScene is null))
-            if (ImGui.Button("Show again")) this.previewRequested = true;
+            if (PluginUi.Button("Show again")) this.previewRequested = true;
         ImGui.SameLine();
-        if (ImGui.Button("Stop preview")) this.ReleaseDevTexture();
+        if (PluginUi.Button("Stop preview")) this.ReleaseDevTexture();
         if (this.previewCatalogError != null) ImGui.TextWrapped(this.previewCatalogError);
         if (this.previewNeedsShow) ImGui.TextUnformatted("Loading texture...");
         using var list = ImRaii.Child("##devBanners");
@@ -507,7 +505,7 @@ internal sealed partial class ConfigWindow
             ImGui.TableNextColumn();
             using var unavailable = ImRaii.Disabled(row.NativeScene is null);
             var original = string.IsNullOrWhiteSpace(row.OriginalName) ? "Uncataloged text" : row.OriginalName;
-            if (ImGui.RadioButton($"{original}##original{row.Id}", this.previewId == row.Id && this.previewOriginal))
+            if (PluginUi.Selectable($"{original}##original{row.Id}", this.previewId == row.Id && this.previewOriginal, Vector2.Zero))
             {
                 this.previewId = row.Id;
                 this.previewOriginal = true;
@@ -519,7 +517,7 @@ internal sealed partial class ConfigWindow
                 ImGui.TextUnformatted("N/A");
                 continue;
             }
-            if (ImGui.RadioButton($"{row.Name}##translated{row.Id}", this.previewId == row.Id && !this.previewOriginal))
+            if (PluginUi.Selectable($"{row.Name}##translated{row.Id}", this.previewId == row.Id && !this.previewOriginal, Vector2.Zero))
             {
                 this.previewId = row.Id;
                 this.previewOriginal = false;

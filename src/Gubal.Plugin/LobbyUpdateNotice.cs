@@ -80,7 +80,7 @@ internal sealed class LobbyUpdateNotice(IDalamudPluginInterface plugin, ITexture
                     ImGui.SameLine();
                 }
                 ImGui.BeginGroup();
-                if (ImGui.Button(Loc.Localize("PluginUpdate.OpenInstaller", "Open plugin catalog")))
+                if (PluginUi.Button(Loc.Localize("PluginUpdate.OpenInstaller", "Open plugin catalog")))
                 {
                     this.installerError = plugin.OpenPluginInstallerTo(PluginInstallerOpenKind.InstalledPlugins, "Gubal")
                         ? null : Loc.Localize("PluginUpdate.InstallerError", "Could not open the Dalamud installer.");
@@ -96,7 +96,7 @@ internal sealed class LobbyUpdateNotice(IDalamudPluginInterface plugin, ITexture
                 ImGui.TextDisabled(string.Format(Loc.Localize("PluginUpdate.AutoClose", "Closes in {0} seconds"),
                     (int)Math.Ceiling(10 - this.elapsed)));
                 ImGui.PushStyleColor(ImGuiCol.PlotHistogram, new Vector4(0.55f, 0.16f, 0.18f, 1f));
-                ImGui.ProgressBar(1 - this.elapsed / 10, new Vector2(-1, 3 * ImGuiHelpers.GlobalScale), string.Empty);
+                PluginUi.ProgressBar(1 - this.elapsed / 10, new Vector2(-1, 3 * ImGuiHelpers.GlobalScale), string.Empty);
                 ImGui.PopStyleColor();
             }
         }

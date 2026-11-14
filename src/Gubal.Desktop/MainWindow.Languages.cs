@@ -171,7 +171,7 @@ internal sealed partial class MainWindow
                     reviewerImage = new Bitmap(source);
                 }
                 review.Image = reviewerImage;
-                var reviewText = UiText.Get("Reviewers") + "\n" + string.Join("\n", reviewers.Select(name => "@" + name));
+                var reviewText = UiText.Get("Reviewers") + "\n" + string.Join("\n", reviewers);
                 tooltips.SetToolTip(review, reviewText);
                 button.AccessibleDescription += ". " + reviewText;
             }

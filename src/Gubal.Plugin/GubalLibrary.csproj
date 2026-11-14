@@ -41,4 +41,12 @@
     <EmbeddedResource Include="../../loc/*.json" LogicalName="GubalLibrary.loc.%(Filename)%(Extension)" />
   </ItemGroup>
 
+  <ItemGroup>
+    <PackageReference Include="Glasswork.Dalamud" Version="0.1.0-beta.3" />
+    <Reference Include="TerraFX.Interop.Windows">
+      <HintPath>$(DalamudLibPath)TerraFX.Interop.Windows.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+  </ItemGroup>
+
 </Project>

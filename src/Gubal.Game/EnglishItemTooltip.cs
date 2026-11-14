@@ -4,6 +4,8 @@ using FFXIVClientStructs.FFXIV.Client.System.Memory;
 using FFXIVClientStructs.FFXIV.Client.UI;
 using FFXIVClientStructs.FFXIV.Client.UI.Agent;
 using FFXIVClientStructs.FFXIV.Component.GUI;
+using Lumina.Data.Files;
+using Lumina.Data.Parsing.Uld;
 
 namespace GubalLibrary;
 
@@ -17,12 +19,9 @@ internal sealed unsafe class EnglishItemTooltip
     private AtkTextNode* modifiedName;
     private byte[] originalText = [];
     private byte[] renderedText = [];
-    private byte originalFont;
-    private byte originalAlignment;
-    private ushort originalHeight;
-    private float originalY;
     private TextFlags originalFlags;
     private bool failed;
+    private readonly ItemNameLayout? originalLayout;
 
     private readonly ItemNames names;
     private readonly Func<bool> enabled;
@@ -35,6 +34,20 @@ internal sealed unsafe class EnglishItemTooltip
         this.enabled = enabled;
         this.translated = translated;
         this.log = log;
+        try
+        {
+            var uld = names.Original.GetFile<UldFile>("ui/uld/ItemDetail.uld")
+                ?? throw new InvalidDataException("The original ItemDetail layout is unavailable.");
+            var node = uld.WidgetData.Nodes.First(node => node.NodeId == 33);
+            if (node.Node is not NodeData.TextNode text)
+                throw new InvalidDataException("The original item name node is not a text node.");
+            this.originalLayout = new ItemNameLayout(node.Y, node.H, text.FontSize,
+                (AlignmentType)text.Alignment);
+        }
+        catch (Exception error)
+        {
+            log.Warning(error, "Could not load the original item name layout.");
+        }
     }
 
     public void RecordHover(InventoryItem* item)
@@ -46,56 +59,70 @@ internal sealed unsafe class EnglishItemTooltip
     public void Prepare(AddonItemDetail* addon)
     {
         if (this.owner != null && this.owner != addon) this.Release(addon);
-        this.RestoreName();
+        this.RestoreText();
         if (this.english != null) this.english->ToggleVisibility(false);
         if (!this.enabled())
         {
+            this.RestoreName();
             this.failed = false;
             return;
         }
-        if (this.failed || !this.translated()) return;
+        if (this.failed || this.originalLayout == null || !this.translated())
+        {
+            this.RestoreName();
+            return;
+        }
         try
         {
             var name = addon->ItemNameText;
             var agent = AgentItemDetail.Instance();
             if (name == null || agent == null || agent->ItemId == 0
-                || name->ParentNode == null || !name->IsVisible()) return;
+                || name->ParentNode == null || !name->IsVisible())
+            {
+                this.RestoreName();
+                return;
+            }
+            if (this.modifiedName != null && this.modifiedName != name) this.RestoreName();
             var id = agent->ItemId;
             if (!addon->DisplayingItemName)
             {
-                if (ItemNames.BaseId(id) != this.hoveredBaseId || this.hoveredGlamourId == 0) return;
+                if (ItemNames.BaseId(id) != this.hoveredBaseId || this.hoveredGlamourId == 0)
+                {
+                    this.RestoreName();
+                    return;
+                }
                 id = this.hoveredGlamourId;
             }
             var text = this.names.OriginalName(id);
             var displayed = new Lumina.Text.ReadOnly.ReadOnlySeStringSpan(name->NodeText.AsSpan()).ExtractText();
             displayed = string.Concat(displayed.Where(c => char.GetUnicodeCategory(c) != UnicodeCategory.PrivateUse)).Trim();
-            if (text.Length == 0 || string.Equals(displayed, text, StringComparison.OrdinalIgnoreCase)) return;
+            if (text.Length == 0 || string.Equals(displayed, text, StringComparison.OrdinalIgnoreCase))
+            {
+                this.RestoreName();
+                return;
+            }
             if (this.english == null) this.Attach(addon, name);
 
             var before = name->NodeText.AsSpan();
             this.originalText = new byte[before.Length + 1];
             before.CopyTo(this.originalText);
-            this.originalFont = name->FontSize;
-            this.originalAlignment = name->AlignmentFontType;
             this.originalFlags = name->TextFlags;
-            this.originalHeight = name->Height;
-            this.originalY = name->Y;
             this.modifiedName = name;
 
             name->FontSize = 13;
-            name->SetAlignment(AlignmentType.TopLeft);
+            name->SetAlignment(AlignmentType.Left);
             name->TextFlags = TextFlags.Edge | TextFlags.Ellipsis;
             name->SetHeight(20);
-            name->SetYFloat(this.originalY + 6);
+            name->SetYFloat(22);
             name->SetText(addon->DisplayingItemName ? addon->ItemName.AsSpan() : addon->GlamourItemName.AsSpan());
             name->ApplyTextFlow();
             this.renderedText = name->NodeText.AsSpan().ToArray();
 
             this.english->FontSize = 11;
-            this.english->SetAlignment(AlignmentType.TopLeft);
+            this.english->SetAlignment(AlignmentType.Left);
             this.english->SetWidth(name->Width);
             this.english->SetHeight(18);
-            this.english->SetPositionFloat(name->X, this.originalY + 18);
+            this.english->SetPositionFloat(name->X, 42);
             var label = addon->SpiritbondLabel;
             this.english->TextColor = label != null ? label->TextColor : name->TextColor;
             this.english->EdgeColor = label != null ? label->EdgeColor : name->EdgeColor;
@@ -142,19 +169,35 @@ internal sealed unsafe class EnglishItemTooltip
         addon->UldManager.UpdateDrawNodeList();
     }
 
-    // Keep the style through rendering. Restore it before the next game update.
-    public void Restore() => this.RestoreName();
+    public void Restore()
+    {
+        // Keep the active geometry while the game updates node transforms.
+        if (this.enabled() && this.translated()) this.RestoreText();
+        else
+        {
+            this.RestoreName();
+            if (this.english != null) this.english->ToggleVisibility(false);
+        }
+    }
 
     private void RestoreName()
     {
         var name = this.modifiedName;
         if (name == null) return;
+        this.RestoreText();
+        var layout = this.originalLayout!.Value;
+        name->FontSize = layout.FontSize;
+        name->SetAlignment(layout.Alignment);
+        name->SetHeight(layout.Height);
+        name->SetYFloat(layout.Y);
         this.modifiedName = null;
-        name->FontSize = this.originalFont;
-        name->AlignmentFontType = this.originalAlignment;
+    }
+
+    private void RestoreText()
+    {
+        var name = this.modifiedName;
+        if (name == null || this.originalText.Length == 0) return;
         name->TextFlags = this.originalFlags;
-        name->SetHeight(this.originalHeight);
-        name->SetYFloat(this.originalY);
         // Do not replace text that the game has already updated for another item.
         if (name->NodeText.AsSpan().SequenceEqual(this.renderedText))
             name->SetText(this.originalText.AsSpan());
@@ -175,6 +218,8 @@ internal sealed unsafe class EnglishItemTooltip
         this.RestoreName();
         RemoveNameNodes(live);
     }
+
+    private readonly record struct ItemNameLayout(float Y, ushort Height, byte FontSize, AlignmentType Alignment);
 
     private static void RemoveNameNodes(AddonItemDetail* addon)
     {

@@ -32,9 +32,21 @@ internal sealed class PackManifest
 
     [JsonPropertyName("reviewers")] public List<string>? Reviewers { get; init; }
 
-    [JsonIgnore] public IEnumerable<string> ReviewerNames => (this.Reviewers ?? [])
-        .Where(name => !string.IsNullOrWhiteSpace(name)).Select(name => name.Trim())
-        .Distinct(StringComparer.OrdinalIgnoreCase);
+    [JsonIgnore] public IEnumerable<string> ReviewerNames
+    {
+        get
+        {
+            var reviewers = (this.Reviewers ?? []).Where(name => !string.IsNullOrWhiteSpace(name))
+                .Select(name => name.Trim()).Distinct(StringComparer.OrdinalIgnoreCase).ToArray();
+            var names = new HashSet<string>(reviewers, StringComparer.OrdinalIgnoreCase);
+            if (string.Equals(this.Language, "es-es", StringComparison.OrdinalIgnoreCase)
+                && names.SetEquals(["ashdam", "lord-croquet"]))
+                return KnownPacks.ReviewerContacts.Where(contact => contact.Language == "Español").Select(contact => contact.Email);
+            if (string.Equals(this.Language, "it", StringComparison.OrdinalIgnoreCase) && names.SetEquals(["IsamuBarbieri"]))
+                return KnownPacks.ReviewerContacts.Where(contact => contact.Language == "Italiano").Select(contact => contact.Email);
+            return reviewers;
+        }
+    }
 
     /// <summary>
     ///     A manifest to fetch to find out whether a newer generation exists. Optional.
