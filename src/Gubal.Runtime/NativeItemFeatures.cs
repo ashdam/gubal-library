@@ -10,6 +10,7 @@ internal sealed unsafe class NativeItemFeatures
 {
     private readonly ItemNames names;
     private readonly EnglishItemTooltip tooltip;
+    private readonly NativeActionFeatures actions;
     private readonly BilingualMarketSearch market;
     private readonly StandaloneHooks hooks = new();
     private readonly RuntimeLog log;
@@ -27,9 +28,12 @@ internal sealed unsafe class NativeItemFeatures
     {
         this.log = log;
         this.names = new ItemNames(sqpack);
+        this.names.Preload(log);
         this.tooltip = new EnglishItemTooltip(this.names, () => true, () => true, log);
+        this.actions = new NativeActionFeatures(this.names, this.hooks, log);
         var localized = new PackItemNames(this.names, pages);
-        this.market = new BilingualMarketSearch(() => this.names.MarketItems(localized.Get), signatures, this.hooks, log);
+        this.market = new BilingualMarketSearch(() => this.names.MarketItems(localized.Get), signatures, this.hooks, log,
+            () => this.names.IsReady);
         try
         {
             var hoverAddress = AgentItemDetail.Addresses.OnItemHovered.Value;

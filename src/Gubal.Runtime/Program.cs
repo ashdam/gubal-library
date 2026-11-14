@@ -84,7 +84,10 @@ public static unsafe class Entry
             }
             hook = ReloadedHooks.Instance.CreateHook<FileThread.Delegates.DoFileJob>(Read, address);
             hook.Activate();
-            if (redirect && pages.Keys.Any(path => path.StartsWith("exd/item_", StringComparison.OrdinalIgnoreCase)))
+            if (redirect && pages.Keys.Any(path => path.StartsWith("exd/item_", StringComparison.OrdinalIgnoreCase)
+                || path.StartsWith("exd/action_", StringComparison.OrdinalIgnoreCase)
+                || path.StartsWith("exd/craftaction_", StringComparison.OrdinalIgnoreCase)
+                || path.StartsWith("exd/trait_", StringComparison.OrdinalIgnoreCase)))
             {
                 var signatures = new ImageSignatures(settings.GameExecutable, Process.GetCurrentProcess().MainModule!.BaseAddress);
                 items = new NativeItemFeatures(Path.Combine(Path.GetDirectoryName(settings.GameExecutable)!, "sqpack"),
