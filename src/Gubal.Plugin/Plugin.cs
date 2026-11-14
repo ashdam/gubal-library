@@ -22,15 +22,20 @@ public sealed class Plugin : IDalamudPlugin
     private readonly IPluginLog log;
     private readonly IClientState clientState;
     private readonly IFramework framework;
+    private readonly IKeyState keys;
     private readonly ICommandManager commands;
     private readonly FileDialogManager fileDialogs = new();
     private readonly Configuration config;
+    private readonly string sessionPackSource = string.Empty;
+    private readonly string sessionPackPath = string.Empty;
     private readonly CancellationTokenSource usageCancellation = new();
     private Task? usageTask;
     private readonly UsageOutbox usageOutbox;
     private readonly ConfigWindow configWindow;
     private readonly LobbyUpdateNotice lobbyUpdateNotice;
     private readonly DialogueCodex dialogueCodex;
+    private readonly IssueReporter issueReporter;
+    private readonly PluginUi ui;
     private readonly EnglishItemNames englishItemNames;
     private readonly BilingualMarketSearch marketSearch;
     private readonly IDalamudPluginInterface pluginInterface;
@@ -75,10 +80,13 @@ public sealed class Plugin : IDalamudPlugin
         ICommandManager commands,
         IChatGui chat,
         IClientState clientState,
+        IPlayerState playerState,
         IFramework framework,
+        IKeyState keys,
         IGameInteropProvider interop,
         ISigScanner sigScanner,
         ITextureProvider textures,
+        ITextureReadbackProvider readback,
         IDataManager data,
         IGameGui gameGui,
         IAddonLifecycle addonLifecycle,
@@ -97,6 +105,7 @@ public sealed class Plugin : IDalamudPlugin
         this.log = log;
         this.clientState = clientState;
         this.framework = framework;
+        this.keys = keys;
         // Changing the wait setting cannot pause a game that has already started.
         this.waitedForPluginsAtBoot = pluginInterface.Reason == PluginLoadReason.Boot
             && DalamudBootWait.IsOn(pluginInterface) is true;
@@ -184,16 +193,40 @@ public sealed class Plugin : IDalamudPlugin
             this.dialogueCodex = new DialogueCodex(this.config, data, gameGui, clientState,
                 addonLifecycle, framework, log, sigScanner, pluginInterface.UiBuilder);
 
+            this.sessionPackSource = this.config.InstalledFrom;
+            this.sessionPackPath = this.config.LanguagePackPath;
+            var sessionManifest = this.redirector?.Manifest;
+            var sessionPack = KnownPacks.ForCode(sessionManifest?.Language);
+            this.ui = new PluginUi(pluginInterface, log);
+            this.issueReporter = new IssueReporter(this.config, this.ui, () =>
+            {
+                if (sessionManifest is null || sessionPack is not { } pack
+                    || !string.Equals(sessionManifest.IssuesUrl ?? pack.Issues, pack.Issues, StringComparison.OrdinalIgnoreCase)) return null;
+                if (this.config.UsageInstallationId == Guid.Empty)
+                {
+                    this.config.UsageInstallationId = Guid.NewGuid();
+                    this.SaveConfig(this.config);
+                }
+                return new IssueReport(1, Guid.NewGuid(), Convert.ToHexStringLower(System.Security.Cryptography.RandomNumberGenerator.GetBytes(32)),
+                    this.config.UsageInstallationId, pack.Code.ToLowerInvariant(), sessionManifest.TranslationVersion,
+                    pluginInterface.Manifest.AssemblyVersion.ToString(), ExdRedirector.RunningGameVersion(), string.Empty, string.Empty, null);
+            }, () => sessionManifest?.IssuesUrl ?? this.InstalledManifest()?.IssuesUrl
+                ?? KnownPacks.ForCode(sessionManifest?.Language ?? this.InstalledManifest()?.Language)?.Issues,
+                () => playerState.IsLoaded ? playerState.CharacterName : string.Empty,
+                textures, readback, log, pluginInterface.GetPluginConfigDirectory());
+
             this.englishItemNames = new EnglishItemNames(this.config, data, gameGui,
                 addonLifecycle, framework, interop, contextMenu, log);
             this.marketSearch = new BilingualMarketSearch(() => data.GetExcelSheet<Item>()
                     .Where(item => item.ItemSearchCategory.RowId != 0)
                     .Select(item => new MarketItem(item.RowId, item.Name.ExtractText(), this.englishItemNames.OriginalName(item.RowId))),
-                new DalamudGameSignatures(sigScanner), new DalamudGameHooks(interop), new DalamudGameLog(log));
+                new DalamudGameSignatures(sigScanner), new DalamudGameHooks(interop), new DalamudGameLog(log),
+                () => this.englishItemNames.AreNamesReady);
 
             this.operations = new PackOperations(this.installer, framework, log);
             this.configWindow = new ConfigWindow(
                 this.config,
+                this.ui,
                 this.SaveConfig,
                 this.fileDialogs,
                 this.PageSnapshot,
@@ -211,7 +244,9 @@ public sealed class Plugin : IDalamudPlugin
                 pluginInterface.Manifest.AssemblyVersion.ToString(),
                 () => this.clientState.IsLoggedIn);
 
-            this.configWindow.ConfigureActionFont(pluginInterface.UiBuilder);
+            this.configWindow.DrawIssueReport = this.issueReporter.DrawForm;
+            this.issueReporter.OpenTab = this.configWindow.OpenIssueReporting;
+            this.issueReporter.IsVisible = () => this.configWindow.IsOpen && this.configWindow.IsIssueReportingVisible;
             this.configWindow.ConfigureDevPreview(addonLifecycle, sigScanner, framework);
             this.windows.AddWindow(this.configWindow);
 
@@ -228,6 +263,7 @@ public sealed class Plugin : IDalamudPlugin
             });
 
             pluginInterface.UiBuilder.Draw += this.DrawUi;
+            this.framework.Update += this.UpdateReportShortcut;
             pluginInterface.UiBuilder.DisableCutsceneUiHide = true;
             pluginInterface.UiBuilder.OpenConfigUi += this.OpenConfig;
             pluginInterface.UiBuilder.OpenMainUi += this.OpenConfig;
@@ -291,10 +327,16 @@ public sealed class Plugin : IDalamudPlugin
         }
     }
 
+    private void UpdateReportShortcut(IFramework _) =>
+        this.issueReporter.UpdateShortcut(this.keys, this.clientState.IsLoggedIn);
+
     private void DrawUi()
     {
+        this.ui.Glasswork.BeginFrame();
         try
         {
+            this.issueReporter.Draw();
+            if (this.issueReporter.Selecting) return;
             this.dialogueCodex.DrawLinks();
             if (!this.pluginInterface.UiBuilder.CutsceneActive)
                 this.configWindow.PreviewPluginUpdate = this.lobbyUpdateNotice.Draw(
@@ -306,6 +348,10 @@ public sealed class Plugin : IDalamudPlugin
         {
             this.log.Error(error, "Could not draw the plugin interface.");
             throw;
+        }
+        finally
+        {
+            this.ui.Glasswork.EndFrame();
         }
     }
 
@@ -322,6 +368,7 @@ public sealed class Plugin : IDalamudPlugin
             else
                 this.usageCancellation.Dispose();
             this.pluginInterface.UiBuilder.Draw -= this.DrawUi;
+            this.framework.Update -= this.UpdateReportShortcut;
             this.pluginInterface.UiBuilder.OpenConfigUi -= this.OpenConfig;
             this.pluginInterface.UiBuilder.OpenMainUi -= this.OpenConfig;
 
@@ -332,12 +379,14 @@ public sealed class Plugin : IDalamudPlugin
             this.commands.RemoveHandler(CommandName);
             this.fileDialogs.Reset();
             this.dialogueCodex?.Dispose();
+            this.issueReporter?.Dispose();
             this.marketSearch?.Dispose();
             this.englishItemNames?.Dispose();
 
             this.configWindow?.DisposeDevPreview();
+            this.configWindow?.DisposeHeaderLogo();
             this.windows.RemoveAllWindows();
-            this.configWindow?.DisposeActionFont();
+            this.ui?.Dispose();
         }
         finally
         {
@@ -350,6 +399,12 @@ public sealed class Plugin : IDalamudPlugin
     {
         switch (arguments.Trim().ToLowerInvariant())
         {
+            case "report":
+                this.issueReporter.Open();
+                break;
+            case "report settings":
+                this.configWindow.OpenIssueReporting();
+                break;
             case "":
                 this.OpenConfig();
                 break;
@@ -382,7 +437,7 @@ public sealed class Plugin : IDalamudPlugin
                 break;
 
             default:
-                this.chat.Print("[Gubal]Usage: /gubal [dev|debug|debug on|debug off]");
+                this.chat.Print("[Gubal]Usage: /gubal [report|report settings|dev|debug|debug on|debug off]");
                 break;
         }
     }
@@ -404,7 +459,7 @@ public sealed class Plugin : IDalamudPlugin
     {
         return this.redirector is { } r
             ? new PageStatus(
-                true, r.PageCount, r.ServedCount, r.FontCount, r.FontsServedCount, null, r.Manifest, this.update, r.Compatibility)
+                true, r.PageCount, r.ServedCount, r.FontCount, r.FontsServedCount, null, r.Manifest, this.update, r.Compatibility, this.sessionPackSource, this.sessionPackPath)
             : new PageStatus(false, 0, 0, 0, 0, this.redirectorError, this.InstalledManifest(), this.update);
     }
 

@@ -10,6 +10,11 @@ internal sealed class Configuration : IPluginConfiguration
     public Guid UsageInstallationId { get; set; }
     public long UsageSequence { get; set; }
 
+    public bool ReportHotkeyCtrl { get; set; } = true;
+    public bool ReportHotkeyShift { get; set; } = true;
+    public bool ReportHotkeyAlt { get; set; }
+    public int ReportHotkeyFunction { get; set; } = 10;
+
     public string PackSource { get; set; } = string.Empty;
 
     public string LanguagePackPath { get; set; } = string.Empty;
@@ -30,6 +35,8 @@ internal sealed class Configuration : IPluginConfiguration
     public bool EnableCodexLinks { get; set; }
 
     public bool ShowEnglishItemNames { get; set; } = true;
+    public bool ShowEnglishActionNames { get; set; } = true;
+    public bool ShowEnglishTraitNames { get; set; } = true;
 
     // Store lowercase sheet keys, including keys absent from the current pack.
     public HashSet<string> DisabledSheets { get; set; } = [];

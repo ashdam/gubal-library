@@ -55,6 +55,8 @@ Both clients accept a local pack folder through **Custom**.
 | Command | Action |
 | --- | --- |
 | `/gubal` | Open settings. |
+| `/gubal report` | Capture a translation error or open the saved report. |
+| `/gubal report settings` | Open the Report an issue tab to set the shortcut and show or hide the owl. |
 | `/gubal debug on` / `off` | Enable or disable diagnostic logging. |
 | `/gubal dev` | Toggle the Dev tab; disabled by default. |
 
@@ -65,6 +67,8 @@ Dev compares original and translated banners through native game presentation. I
 
 Report plugin or Desktop problems in [Issues](https://github.com/ashdam/gubal-library/issues).
 Report translation problems to the relevant language pack, linked from the website.
+In the plugin, click the screenshot placeholder or press `Ctrl+Shift+F10` to capture an error. Use **Report an issue** to edit and send reports and configure the shortcut. The shortcut captures a new image for the current draft. A report with confirmed delivery starts a new draft. Crop the image. Select **Censor area** and drag over a private area to cover it in black. Censor mode stays active until you select the button again. **Clear censored areas** restores the original capture from the local draft. The original is not sent with the report. A screenshot and an issue description are required before sending. Clear the player-name checkbox to omit the name. Confirmed reports are stored in the local **Report history** with their issue links, descriptions, and metadata. The form resets after the history is saved. Each send has at most 12 automatic status checks. **Send again** resends the same report ID and starts a new set of checks.
+Submitted translation reports and images are public on GitHub. The client keeps the local draft until it is removed. Images are limited to 2048 × 2048 pixels and 2 MiB.
 
 - Plugin log: `%APPDATA%/XIVLauncher/dalamud.log`.
 - Desktop settings, packs and logs: `%LOCALAPPDATA%/GubalDesktop`.

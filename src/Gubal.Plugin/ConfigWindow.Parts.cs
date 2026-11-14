@@ -16,7 +16,7 @@ internal sealed partial class ConfigWindow
 
     private void DrawPartSelection(PackContents pack, ref bool changed)
     {
-        using var body = ImRaii.Child("##localizationParts", new Vector2(0, -ImGui.GetFrameHeightWithSpacing() * 2),
+        using var body = ImRaii.Child("##localizationParts", Vector2.Zero,
             false, ImGuiWindowFlags.NoScrollbar | ImGuiWindowFlags.NoScrollWithMouse);
         if (!body) return;
 
@@ -26,17 +26,13 @@ internal sealed partial class ConfigWindow
 
         if (ImGui.GetContentRegionAvail().X < 680f * ImGuiHelpers.GlobalScale)
         {
-            if (ImGui.BeginCombo("##partCategory", selected.Name))
+            var categories = pack.Layout.Select(group => group.Name).ToArray();
+            var selectedIndex = 0;
+            for (var i = 0; i < pack.Layout.Count; i++) if (pack.Layout[i] == selected) selectedIndex = i;
+            if (PluginUi.ComboBox("##partCategory", ref selectedIndex, categories))
             {
-                foreach (var group in pack.Layout)
-                {
-                    if (ImGui.Selectable(group.Name, group == selected))
-                    {
-                        selected = group;
-                        this.selectedPartCategory = CategoryKey(group);
-                    }
-                }
-                ImGui.EndCombo();
+                selected = pack.Layout[selectedIndex];
+                this.selectedPartCategory = CategoryKey(selected);
             }
             using var options = ImRaii.Child("##partOptions");
             if (options) this.DrawPartCategory(selected, ref changed);
@@ -63,7 +59,7 @@ internal sealed partial class ConfigWindow
                 for (var i = 0; i < pack.Layout.Count; i++)
                 {
                     var group = pack.Layout[i];
-                    if (ImGui.Selectable($"{labels[i]}##category_{i}", group == selected))
+                    if (PluginUi.Selectable($"{labels[i]}##category_{i}", group == selected, Vector2.Zero))
                     {
                         selected = group;
                         this.selectedPartCategory = CategoryKey(group);
@@ -82,16 +78,7 @@ internal sealed partial class ConfigWindow
     {
         var active = group.Parts.Count(part => !part.Sheets.Any(this.config.DisabledSheets.Contains));
         var all = active == group.Parts.Length;
-        ImGui.SetWindowFontScale(1.25f);
-        bool categoryChanged;
-        try
-        {
-            categoryChanged = DrawPartSwitch(group.Name, "category", ref all, alignRight: true);
-        }
-        finally
-        {
-            ImGui.SetWindowFontScale(1f);
-        }
+        var categoryChanged = DrawPartSwitch(group.Name, "category", ref all, alignRight: true, heading: true);
         if (categoryChanged)
         {
             this.SetSheets(group.Parts.SelectMany(part => part.Sheets), all);
@@ -99,7 +86,7 @@ internal sealed partial class ConfigWindow
             changed = true;
         }
         if (active > 0 && active < group.Parts.Length)
-            ImGui.TextColored(Amber, string.Format(Loc.Localize("Parts.Count", "{0} of {1} on"), active, group.Parts.Length));
+            ImGui.TextColored(Amber, string.Format(Loc.Localize("Parts.Count", "{0} of {1} ON"), active, group.Parts.Length));
         using (ImRaii.PushColor(ImGuiCol.Text, Grey)) ImGui.TextWrapped(group.Description);
         ImGui.Spacing();
         ImGui.Separator();
@@ -128,7 +115,7 @@ internal sealed partial class ConfigWindow
     }
 
     // A switch is enabled only when all its sheets are enabled.
-    private static bool DrawPartSwitch(string label, string id, ref bool on, bool alignRight = false)
+    private static bool DrawPartSwitch(string label, string id, ref bool on, bool alignRight = false, bool heading = false)
     {
         var height = ImGui.GetFrameHeight();
         var width = height * 1.8f;
@@ -141,7 +128,8 @@ internal sealed partial class ConfigWindow
             var available = ImGui.GetContentRegionAvail().X;
             ImGui.PushTextWrapPos(ImGui.GetCursorPosX() + Math.Max(1f, available - width - ImGui.GetStyle().ItemSpacing.X));
             ImGui.AlignTextToFramePadding();
-            ImGui.TextWrapped(label);
+            if (heading) PluginUi.DrawSubheading(label);
+            else ImGui.TextWrapped(label);
             ImGui.PopTextWrapPos();
             labelBottom = ImGui.GetItemRectMax().Y;
             if (ImGui.IsItemHovered())
@@ -153,22 +141,7 @@ internal sealed partial class ConfigWindow
             start.X += Math.Max(0f, available - width);
             ImGui.SetCursorScreenPos(start);
         }
-        bool pressed;
-        using (ImRaii.PushColor(ImGuiCol.Button, Vector4.Zero))
-        using (ImRaii.PushColor(ImGuiCol.ButtonHovered, Vector4.Zero))
-        using (ImRaii.PushColor(ImGuiCol.ButtonActive, Vector4.Zero))
-            pressed = ImGui.Button($"##switch_{id}", new Vector2(width, height));
-        if (pressed) on = !on;
-        var hovered = ImGui.IsItemHovered();
-        var draw = ImGui.GetWindowDrawList();
-        var color = on ? hovered ? ThemeColor(0xf2d99b) : ThemeGold
-            : ImGui.GetStyle().Colors[(int)(hovered ? ImGuiCol.FrameBgHovered : ImGuiCol.FrameBg)];
-        draw.AddRectFilled(start, start + new Vector2(width, height), ImGui.GetColorU32(color), height / 2);
-        var radius = Math.Max(1f, height / 2 - 3f * ImGuiHelpers.GlobalScale);
-        draw.AddCircleFilled(start + new Vector2(on ? width - height / 2 : height / 2, height / 2),
-            radius, ImGui.GetColorU32(on ? ThemeInk : ImGui.GetStyle().Colors[(int)ImGuiCol.Text]));
-        if (ImGui.IsItemFocused())
-            draw.AddRect(start, start + new Vector2(width, height), ImGui.GetColorU32(Blue), height / 2);
+        var pressed = PluginUi.Toggle($"##switch_{id}", ref on);
         if (alignRight)
         {
             ImGui.SetCursorScreenPos(new Vector2(rowStart.X,

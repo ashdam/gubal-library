@@ -14,15 +14,17 @@ internal sealed unsafe class BilingualMarketSearch : IDisposable
     private delegate void SearchUpdate(AgentItemSearch* agent);
     private readonly Func<IEnumerable<MarketItem>> items;
     private readonly IPackInstallLog log;
+    private readonly Func<bool>? isReady;
     private INativeHook<SearchUpdate>? hook;
     private SearchUpdate? push;
     private MarketItem[] entries = [];
 
     public BilingualMarketSearch(Func<IEnumerable<MarketItem>> items, INativeSignatures scanner,
-        INativeHooks interop, IPackInstallLog log)
+        INativeHooks interop, IPackInstallLog log, Func<bool>? isReady = null)
     {
         this.items = items;
         this.log = log;
+        this.isReady = isReady;
         try
         {
             if (!scanner.TryScanText(UpdateSignature, out var updateAddress)
@@ -43,7 +45,7 @@ internal sealed unsafe class BilingualMarketSearch : IDisposable
     private void Update(AgentItemSearch* agent)
     {
         if (agent == null || !agent->IsPartialSearching || agent->IsItemPushPending
-            || agent->StringData == null || agent->ItemBuffer == null)
+            || agent->StringData == null || agent->ItemBuffer == null || !(this.isReady?.Invoke() ?? true))
         {
             this.hook!.Original(agent);
             return;

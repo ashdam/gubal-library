@@ -27,43 +27,47 @@ internal sealed partial class ConfigWindow
         return labels.LabelWidth + labels.ValueWidth + 22f * ImGuiHelpers.GlobalScale;
     }
 
-    private void DrawPackSizes(string action, PackManifest? manifest)
+    private void DrawPackSizes(string action, PackManifest? manifest, string? detail = null)
     {
         var labels = PackSizeLabels(manifest);
         var storage = this.operations.Storage(manifest);
         var gap = 10f * ImGuiHelpers.GlobalScale;
-        var size = this.PackActionButtonSize(action);
+        var size = this.PackActionButtonSize(action, detail);
         var width = labels.LabelWidth + gap + labels.ValueWidth;
-        var start = ImGui.GetCursorPos();
+        var start = ImGui.GetCursorScreenPos();
         start.X += Math.Max(0, ImGui.GetContentRegionAvail().X - width - gap - size.X);
-        var height = ImGui.GetTextLineHeight() * 2 + ImGui.GetStyle().ItemSpacing.Y;
-        ImGui.SetCursorPos(start + new Vector2(0, Math.Max(0, (size.Y - height) / 2)));
-        using (var padding = ImRaii.PushStyle(ImGuiStyleVar.CellPadding, new Vector2(0, ImGui.GetStyle().ItemSpacing.Y / 2)))
-        using (var table = ImRaii.Table("##packSizes", 2,
-                   ImGuiTableFlags.SizingFixedFit | ImGuiTableFlags.NoPadOuterX, new Vector2(width, 0)))
+        var download = PackStorage.FormatBytes(manifest?.DownloadBytes);
+        var installed = PackStorage.FormatBytes(manifest?.InstalledBytes);
+        var downloadInk = PluginUi.TextInkBounds(download);
+        var installedInk = PluginUi.TextInkBounds(installed);
+        var labelInk = PluginUi.TextInkBounds(labels.Download + labels.Installed);
+        var top = Math.Min(labelInk.Top, Math.Min(downloadInk.Top, installedInk.Top));
+        var bottom = Math.Max(labelInk.Bottom, Math.Max(downloadInk.Bottom, installedInk.Bottom));
+        var lineStep = ImGui.GetTextLineHeightWithSpacing();
+        var height = bottom - top + lineStep;
+        var position = start + new Vector2(0, Math.Max(0, (size.Y - height) / 2));
+        using (ImRaii.Group())
         {
-            if (table)
-            {
-                ImGui.TableSetupColumn("##label", ImGuiTableColumnFlags.WidthFixed, labels.LabelWidth + gap);
-                ImGui.TableSetupColumn("##value", ImGuiTableColumnFlags.WidthFixed, labels.ValueWidth);
-                ImGui.TableNextRow();
-                ImGui.TableNextColumn();
-                ImGui.TextDisabled(labels.Download);
-                ImGui.TableNextColumn();
-                ImGui.TextUnformatted(PackStorage.FormatBytes(manifest?.DownloadBytes));
-                ImGui.TableNextRow();
-                ImGui.TableNextColumn();
-                if (storage is { Insufficient: true }) ImGui.TextColored(DiskSpaceWarningColor, labels.Installed);
-                else ImGui.TextDisabled(labels.Installed);
-                DrawStorageTooltip(storage);
-                ImGui.TableNextColumn();
-                if (storage is { Insufficient: true }) ImGui.TextColored(DiskSpaceWarningColor, PackStorage.FormatBytes(manifest?.InstalledBytes));
-                else ImGui.TextUnformatted(PackStorage.FormatBytes(manifest?.InstalledBytes));
-                DrawStorageTooltip(storage);
-            }
+            DrawSizeText(labels.Download, position, Grey, top, bottom);
+            DrawSizeText(download, position + new Vector2(width - ImGui.CalcTextSize(download).X, 0),
+                ImGui.GetStyle().Colors[(int)ImGuiCol.Text], top, bottom);
+            position.Y += lineStep;
+            var color = storage is { Insufficient: true } ? DiskSpaceWarningColor : Grey;
+            DrawSizeText(labels.Installed, position, color, top, bottom);
+            DrawStorageTooltip(storage);
+            DrawSizeText(installed, position + new Vector2(width - ImGui.CalcTextSize(installed).X, 0),
+                storage is { Insufficient: true } ? DiskSpaceWarningColor : ImGui.GetStyle().Colors[(int)ImGuiCol.Text], top, bottom);
+            DrawStorageTooltip(storage);
         }
         ImGui.SameLine();
-        ImGui.SetCursorPos(new Vector2(start.X + width + gap, start.Y));
+        ImGui.SetCursorScreenPos(new Vector2(start.X + width + gap, start.Y));
+    }
+
+    private static void DrawSizeText(string text, Vector2 position, Vector4 color, float top, float bottom)
+    {
+        ImGui.SetCursorScreenPos(position);
+        ImGui.GetWindowDrawList().AddText(position - new Vector2(0, top), ImGui.GetColorU32(color), text);
+        ImGui.Dummy(new Vector2(ImGui.CalcTextSize(text).X, bottom - top));
     }
 
     private static void DrawStorageTooltip(PackStorageStatus? storage)
