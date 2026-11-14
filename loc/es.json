@@ -75,7 +75,7 @@
   "Report.SaveHistory": { "message": "Guardar en el historial" },
   "Report.HistoryError": { "message": "No se ha podido leer o guardar el historial local. Se conserva el informe actual." },
   "Report.StatusChecks": { "message": "Consultas de estado: {0}/{1}" },
-  "Report.PollingStopped": { "message": "No se ha podido confirmar la creación del issue tras 12 consultas. Pulsa Volver a enviar para reintentar el mismo informe." },
+  "Report.PollingStopped": { "message": "No hemos podido confirmar la creación del issue. Tu informe se conserva. Pulsa «Volver a enviar» más tarde para comprobar su estado." },
   "Report.OriginalCapture": { "message": "Captura a tamaño original" },
   "Report.ClosePreview": { "message": "Cerrar vista previa" },
   "Report.CapturePlaceholder": { "message": "Haz clic para capturar pantalla." },

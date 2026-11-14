@@ -337,7 +337,7 @@ internal sealed class IssueReporter : IDisposable
             if (report.Receipt?.Status == "failed")
                 DrawReportError(T("Failed", "The report is saved on the server, but the issue could not be created. Keep the report ID for support."));
             else if (report.Receipt?.Status is "received" or "processing" && report.AutomaticStatusChecks >= MaxAutomaticStatusChecks)
-                DrawReportError(T("PollingStopped", "Issue creation could not be confirmed after 12 checks. Select Send again to retry the same report."));
+                DrawReportError(T("PollingStopped", "We could not confirm that your issue was created. Your report is kept. Select Send again later to check its status."));
             else
                 ImGui.TextWrapped(report.Receipt is not null ? T("Received", "Report received. Issue creation is pending.")
                     : T("Unconfirmed", "Delivery is not confirmed. Retry the same report to check or send it safely."));

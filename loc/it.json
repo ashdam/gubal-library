@@ -75,7 +75,7 @@
   "Report.SaveHistory": { "message": "Salva nella cronologia" },
   "Report.HistoryError": { "message": "Non è stato possibile leggere o salvare la cronologia locale. La segnalazione attuale viene conservata." },
   "Report.StatusChecks": { "message": "Controlli dello stato: {0}/{1}" },
-  "Report.PollingStopped": { "message": "Non è stato possibile confermare la creazione della issue dopo 12 controlli. Seleziona Invia di nuovo per riprovare con la stessa segnalazione." },
+  "Report.PollingStopped": { "message": "Non è stato possibile confermare la creazione della issue. La segnalazione viene conservata. Seleziona «Invia di nuovo» più tardi per verificarne lo stato." },
   "Report.OriginalCapture": { "message": "Cattura nelle dimensioni originali" },
   "Report.ClosePreview": { "message": "Chiudi anteprima" },
   "Report.CapturePlaceholder": { "message": "Fai clic per catturare lo schermo." },

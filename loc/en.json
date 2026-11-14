@@ -75,7 +75,7 @@
   "Report.SaveHistory": { "message": "Save report history" },
   "Report.HistoryError": { "message": "The local report history could not be read or saved. The current report is kept." },
   "Report.StatusChecks": { "message": "Status checks: {0}/{1}" },
-  "Report.PollingStopped": { "message": "Issue creation could not be confirmed after 12 checks. Select Send again to retry the same report." },
+  "Report.PollingStopped": { "message": "We could not confirm that your issue was created. Your report is kept. Select Send again later to check its status." },
   "Report.OriginalCapture": { "message": "Capture at original size" },
   "Report.ClosePreview": { "message": "Close preview" },
   "Report.CapturePlaceholder": { "message": "Click to capture the screen." },

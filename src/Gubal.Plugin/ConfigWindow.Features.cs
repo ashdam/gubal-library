@@ -55,7 +55,7 @@ internal sealed partial class ConfigWindow
         var actions = this.config.ShowEnglishActionNames;
         if (this.DrawFeatureOption("englishActionNames", actionLabel,
                 Loc.Localize("Actions.EnglishNamesHint", "Show the original action name below the translated name."),
-                null, ref actions, labelColor: PluginTheme.Gold))
+                "ability-english-tooltips", ref actions, labelColor: PluginTheme.Gold))
         {
             this.config.ShowEnglishActionNames = actions;
             changed = true;
@@ -65,7 +65,7 @@ internal sealed partial class ConfigWindow
         var traits = this.config.ShowEnglishTraitNames;
         if (this.DrawFeatureOption("englishTraitNames", traitLabel,
                 Loc.Localize("Traits.EnglishNamesHint", "Show the original trait name below the translated name."),
-                null, ref traits, labelColor: PluginTheme.Gold))
+                "trait-english-tooltips", ref traits, labelColor: PluginTheme.Gold))
         {
             this.config.ShowEnglishTraitNames = traits;
             changed = true;
