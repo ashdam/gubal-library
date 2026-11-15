@@ -4,6 +4,9 @@
     "rollForward": "latestMinor",
     "allowPrerelease": false
   },
+  "test": {
+    "runner": "Microsoft.Testing.Platform"
+  },
 
   "//": [
     "Dalamud.NET.Sdk is pinned here rather than on the csproj's Sdk attribute. MSBuild asks for it",
