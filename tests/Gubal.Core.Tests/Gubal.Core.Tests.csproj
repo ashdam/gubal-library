@@ -4,6 +4,7 @@
     <RuntimeIdentifier />
     <SelfContained>false</SelfContained>
     <IsTestProject>true</IsTestProject>
+    <UseMicrosoftTestingPlatformRunner>true</UseMicrosoftTestingPlatformRunner>
     <IsPackable>false</IsPackable>
   </PropertyGroup>
   <ItemGroup>

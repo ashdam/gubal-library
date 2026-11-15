@@ -15,6 +15,7 @@ on:
       - "build/**"
       - "Directory.Build.props"
       - "Directory.Build.targets"
+      - "global.json"
       - "Gubal.slnx"
       - "loc/**"
 
@@ -136,7 +137,10 @@ jobs:
       - name: "Run unit tests"
         env:
           DALAMUD_HOME: ${{ runner.temp }}/dalamud
-        run: dotnet test tests/Gubal.Core.Tests/Gubal.Core.Tests.csproj -c Release --logger "trx;LogFileName=core-tests.trx" --results-directory TestResults
+        run: >-
+          dotnet test --project tests/Gubal.Core.Tests/Gubal.Core.Tests.csproj -c Release
+          --results-directory "$GITHUB_WORKSPACE/TestResults"
+          -- --report-xunit-trx --report-xunit-trx-filename core-tests.trx
       - name: "Upload test results"
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2

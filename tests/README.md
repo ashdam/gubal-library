@@ -4,7 +4,7 @@
 Use the same Dalamud dependency directory as the application build.
 
 ```powershell
-dotnet test tests/Gubal.Core.Tests/Gubal.Core.Tests.csproj -c Release
+dotnet test --project tests/Gubal.Core.Tests/Gubal.Core.Tests.csproj -c Release
 ```
 
 Native hooks and game UI changes require an in-game check. These tests do not start FFXIV.
