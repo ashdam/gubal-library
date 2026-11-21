@@ -16,33 +16,33 @@
       },
       "Glasswork.Dalamud": {
         "type": "Direct",
-        "requested": "[0.1.0-beta.3, )",
-        "resolved": "0.1.0-beta.3",
-        "contentHash": "qtKwtwE/YGlLtmXmXqhy9wpvtvKpzWckGEmN/rhjAd0+0IBqYcI4NtnxjP44OCP16cVp673QGc/sJya1jX297A==",
+        "requested": "[0.1.0-beta.5, )",
+        "resolved": "0.1.0-beta.5",
+        "contentHash": "MQ/F036hQx+7TUG1dH/nNC9YIS1EV/lvzgcZaETWs4BKdCEifvZeYeRbfn7fapCAWhJGAOQGKjEQUwXarTSAsw==",
         "dependencies": {
-          "Glasswork.Backend": "0.1.0-beta.3"
+          "Glasswork.Backend": "0.1.0-beta.5"
         }
       },
       "Glasswork": {
         "type": "Transitive",
-        "resolved": "0.1.0-beta.3",
-        "contentHash": "0f5lLp4ehX0b3O4Oy7lTrENtmUmfzMIsrGstrzEU0O9iqVoJIQiNN2KvGfO/hpWdsSQNxe7hRsWi/q+MEvDpFQ=="
+        "resolved": "0.1.0-beta.5",
+        "contentHash": "Ttts7F4DrubOZDcttYGelGwCBchk5mcdtdSPBFH/uqosJZQiq4YN6uQM2mGjZ4v3bBDJVli5ERTjew9OxG5yww=="
       },
       "Glasswork.Backend": {
         "type": "Transitive",
-        "resolved": "0.1.0-beta.3",
-        "contentHash": "eVUUav5kLZmhVEcl/f5Iot2DwUzJ5zVwNDcqHfJJPd5+lPHFBC9OiKJ9KLzoZtVdkEJettyEH/eD/pDYA3vIUQ==",
+        "resolved": "0.1.0-beta.5",
+        "contentHash": "abgAIo5k0L5gEk2r3bW7fnoVI1Ki9CfGYb9vc/16puyNXpe3DS6UHMfmu8ZfGW2PMmfJ5tbdUJ0218P+LY5C0Q==",
         "dependencies": {
-          "Glasswork": "0.1.0-beta.3",
-          "Glasswork.Glass": "0.1.0-beta.3"
+          "Glasswork": "0.1.0-beta.5",
+          "Glasswork.Glass": "0.1.0-beta.5"
         }
       },
       "Glasswork.Glass": {
         "type": "Transitive",
-        "resolved": "0.1.0-beta.3",
-        "contentHash": "+wYrCDgM+ICo3bBDe+kxZHJIxSl7B7O6+gujN7ihSgPgsdDOWsx8LaffRDD4HJWIX44FGuJK+IaJxCrtzJTsFQ==",
+        "resolved": "0.1.0-beta.5",
+        "contentHash": "tml2W5qq17kVkmk+kgwUvDjC2PqVS/F2bv2RezJiO4R7aGQ7NVEE1u2EYYBSgpVN3VDA+abX3Ux2IjLoFs0MhA==",
         "dependencies": {
-          "Glasswork": "0.1.0-beta.3"
+          "Glasswork": "0.1.0-beta.5"
         }
       },
       "gubal.core": {
@@ -51,7 +51,7 @@
       "gubal.game": {
         "type": "Project",
         "dependencies": {
-          "Gubal.Core": "[0.7.8, )"
+          "Gubal.Core": "[0.8.5.1, )"
         }
       }
     },
