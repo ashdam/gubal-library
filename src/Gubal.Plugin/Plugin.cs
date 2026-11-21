@@ -472,6 +472,12 @@ public sealed class Plugin : IDalamudPlugin
 
     private void BeginUpdateCheck()
     {
+        var source = this.redirector is not null ? this.sessionPackSource : this.config.InstalledFrom;
+        if (!PackInstaller.IsRemote(source))
+        {
+            this.update = UpdateStatus.NotDeclared;
+            return;
+        }
         if (this.disposed || this.checking)
         {
             return;
