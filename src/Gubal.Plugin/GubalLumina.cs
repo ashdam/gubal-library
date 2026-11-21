@@ -43,23 +43,27 @@ internal sealed class GubalLumina
 
             var stamp = Stamp(pages);
             var stampPath = Path.Combine(folder, StampName);
-            var built = File.Exists(stampPath) ? File.ReadAllText(stampPath).Trim() : null;
+            var built = File.Exists(stampPath) ? FileOperationDiagnostics.Run("read-cache-stamp", "sheet-cache", stampPath,
+                () => File.ReadAllText(stampPath).Trim()) : null;
 
             if (built != stamp)
             {
                 Diagnostics.Log(log, $"[shadow] building for {stamp} (was {built ?? "nothing"})");
-                var placed = Build(source, folder, pages, log);
-                File.WriteAllText(stampPath, stamp);
+                var placed = FileOperationDiagnostics.Run("build-cache", "sheet-cache", folder,
+                    () => Build(source, folder, pages, log));
+                FileOperationDiagnostics.Run("write-cache-stamp", "sheet-cache", stampPath,
+                    () => File.WriteAllText(stampPath, stamp));
                 Diagnostics.Log(log, $"[shadow] {placed:N0} page(s) placed");
             }
 
-            return Point(gameData, folder) is { } reason
+            return FileOperationDiagnostics.Run("activate-cache", "sheet-cache", folder,
+                () => Point(gameData, folder)) is { } reason
                 ? new ShadowState(false, reason, folder)
                 : new ShadowState(true, "serving the pack to other plugins", folder);
         }
         catch (Exception e)
         {
-            log.Error($"[shadow] not installed: {e}");
+            log.Error(e, "[shadow] not installed.");
             return new ShadowState(false, e.Message, folder);
         }
     }
@@ -85,16 +89,20 @@ internal sealed class GubalLumina
         Clear(folder, log);
 
         var index = Path.Combine(folder, IndexName);
-        File.Copy(source, index, overwrite: true);
+        FileOperationDiagnostics.Run("copy-cache-index", "sheet-cache", index,
+            () => File.Copy(source, index, overwrite: true));
 
         var index2 = Path.Combine(Path.GetDirectoryName(source)!, Index2Name);
         if (File.Exists(index2))
         {
-            File.Copy(index2, Path.Combine(folder, Index2Name), overwrite: true);
+            var targetIndex2 = Path.Combine(folder, Index2Name);
+            FileOperationDiagnostics.Run("copy-cache-index", "sheet-cache", targetIndex2,
+                () => File.Copy(index2, targetIndex2, overwrite: true));
         }
 
         var dat1 = Path.Combine(folder, Dat1Name);
-        var bytes = File.ReadAllBytes(index);
+        var bytes = FileOperationDiagnostics.Run("read-cache-index", "sheet-cache", index,
+            () => File.ReadAllBytes(index));
         var entriesAt = BinaryPrimitives.ReadUInt32LittleEndian(bytes.AsSpan(IndexHeaderAt + 8));
         var entriesSize = BinaryPrimitives.ReadUInt32LittleEndian(bytes.AsSpan(IndexHeaderAt + 12));
 
@@ -110,41 +118,54 @@ internal sealed class GubalLumina
         var end = 0L;
 
         // Write only, and a buffer worth having: this is one sequential append of about 100 MB.
-        using (var dat = new FileStream(dat1, FileMode.Create, FileAccess.Write, FileShare.None, 1 << 20))
+        try
         {
-            foreach (var (path, file) in pages)
+            using (var dat = FileOperationDiagnostics.Run("create-cache-data", "sheet-cache", dat1,
+                () => new FileStream(dat1, FileMode.Create, FileAccess.Write, FileShare.None, 1 << 20)))
             {
-                var gamePath = path.ToLowerInvariant();
-                var slash = gamePath.LastIndexOf('/');
-                if (slash < 0)
+                foreach (var (path, file) in pages)
                 {
-                    skipped++;
-                    continue;
-                }
+                    var gamePath = path.ToLowerInvariant();
+                    var slash = gamePath.LastIndexOf('/');
+                    if (slash < 0)
+                    {
+                        skipped++;
+                        continue;
+                    }
 
-                var hash = ((ulong)Crc32.Get(gamePath[..slash]) << 32) | Crc32.Get(gamePath[(slash + 1)..]);
-                if (!entryOf.TryGetValue(hash, out var entryAt))
-                {
-                    skipped++;
-                    continue;
-                }
+                    var hash = ((ulong)Crc32.Get(gamePath[..slash]) << 32) | Crc32.Get(gamePath[(slash + 1)..]);
+                    if (!entryOf.TryGetValue(hash, out var entryAt))
+                    {
+                        skipped++;
+                        continue;
+                    }
 
-                var at = Append(dat, File.ReadAllBytes(file), ref end);
-                if (at / 8 > 0xFFFFFFF0)
-                {
-                    throw new InvalidOperationException("the Excel archive outgrew what the index can address");
-                }
+                    var payload = FileOperationDiagnostics.Run("read-pack-page", "pack", file,
+                        () => File.ReadAllBytes(file));
+                    var at = Append(dat, payload, ref end);
+                    if (at / 8 > 0xFFFFFFF0)
+                    {
+                        throw new InvalidOperationException("the Excel archive outgrew what the index can address");
+                    }
 
-                BinaryPrimitives.WriteUInt32LittleEndian(
-                    bytes.AsSpan(entryAt + 8),
-                    ((uint)(at / 8) & 0xFFFFFFF0) + 2u);   // .dat1
-                placed++;
+                    BinaryPrimitives.WriteUInt32LittleEndian(
+                        bytes.AsSpan(entryAt + 8),
+                        ((uint)(at / 8) & 0xFFFFFFF0) + 2u);   // .dat1
+                    placed++;
+                }
             }
+
+        }
+        catch (Exception error) when (error is not OperationCanceledException)
+        {
+            FileOperationDiagnostics.Attach(error, "write-cache-data", "sheet-cache", dat1);
+            throw;
         }
 
         // Without this the second archive does not exist as far as Lumina is concerned.
         BinaryPrimitives.WriteUInt32LittleEndian(bytes.AsSpan(IndexHeaderAt + 80), 2);
-        File.WriteAllBytes(index, bytes);
+        FileOperationDiagnostics.Run("write-cache-index", "sheet-cache", index,
+            () => File.WriteAllBytes(index, bytes));
 
         if (skipped > 0)
         {

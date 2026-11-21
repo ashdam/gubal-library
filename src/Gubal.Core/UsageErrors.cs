@@ -29,7 +29,8 @@ internal sealed class UsageErrorQueue
     {
         if (exception is OperationCanceledException) return;
         var cause = exception?.GetBaseException();
-        var detail = Clean(message + (cause is null ? "" : " " + cause.Message));
+        var detail = Clean(FileOperationDiagnostics.Describe(exception)
+            + message + (cause is null ? "" : " " + cause.Message));
         var fingerprint = $"{stage}|{code}|{detail}|{cause?.GetType().FullName}|{cause?.HResult}|{exitCode}";
         lock (gate)
         {

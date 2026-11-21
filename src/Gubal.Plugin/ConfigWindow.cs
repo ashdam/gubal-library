@@ -458,7 +458,7 @@ internal sealed partial class ConfigWindow : Window
 
     private void DrawUpdateNotice(PageStatus pages)
     {
-        if (pages.Manifest is null)
+        if (pages.Manifest is null || !PackInstaller.IsRemote(pages.Source ?? this.config.InstalledFrom))
         {
             return;
         }

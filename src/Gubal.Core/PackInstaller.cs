@@ -97,7 +97,8 @@ internal sealed class PackInstaller
                             PackStorage.Check(staging, PackStorage.RequiredBytes(expectedManifest.DownloadBytes.Value,
                                 expectedManifest.InstalledBytes.Value)).RequireSpace();
                     }
-                    if (IsRemote(source)) await this.DownloadAsync(source, progress, cancel).ConfigureAwait(false);
+                    if (IsRemote(source)) await FileOperationDiagnostics.RunAsync("download", "download-archive", download,
+                        () => this.DownloadAsync(source, progress, cancel)).ConfigureAwait(false);
                     else download = source;
                     if (!File.Exists(download)) return InstallResult.Failed($"No archive at '{source}'.");
                     Extract(download, staging, progress, cancel);
@@ -108,8 +109,9 @@ internal sealed class PackInstaller
                 }
                 cancel.ThrowIfCancellationRequested();
                 if (prepareForRestart)
-                    File.WriteAllText(Path.Combine(root, PendingFile),
-                        JsonSerializer.Serialize(new PendingPack(source, custom ? result.Path : null)));
+                    FileOperationDiagnostics.Run("write-pending-selection", "pending-pack", Path.Combine(root, PendingFile),
+                        () => File.WriteAllText(Path.Combine(root, PendingFile),
+                            JsonSerializer.Serialize(new PendingPack(source, custom ? result.Path : null))));
                 else DeleteFileIfPresent(Path.Combine(root, PendingFile));
                 this.ReplaceDirectory(root, destination, backup);
                 return InstallResult.Succeeded(custom ? result.Path : destination, result.Manifest!, !custom);
@@ -145,7 +147,8 @@ internal sealed class PackInstaller
             var root = File.Exists(Path.Combine(pending, PendingFile)) ? pending : this.InstalledPath;
             var selectionPath = Path.Combine(root, PendingFile);
             if (!File.Exists(selectionPath)) return null;
-            var selection = JsonSerializer.Deserialize<PendingPack>(File.ReadAllText(selectionPath))
+            var selection = JsonSerializer.Deserialize<PendingPack>(FileOperationDiagnostics.Run(
+                "read-pending-selection", "pending-pack", selectionPath, () => File.ReadAllText(selectionPath)))
                 ?? throw new InvalidDataException("Invalid pending pack selection.");
             if (string.IsNullOrWhiteSpace(selection.Source))
                 throw new InvalidDataException("The pending pack has no source.");
@@ -164,7 +167,7 @@ internal sealed class PackInstaller
             }
             if (selection.Folder is null && root != this.InstalledPath)
                 this.ReplaceDirectory(root, this.InstalledPath, backup, Apply);
-            else Apply();
+            else FileOperationDiagnostics.Run("activate-selection", "pack", activePath, Apply);
             // Retain the selection record until configuration has been saved.
             try { DeleteFileIfPresent(Path.Combine(selection.Folder is null ? this.InstalledPath : root, PendingFile)); }
             catch (Exception error) { this.log.Warning(error, "Could not remove the completed pack selection."); }
@@ -195,7 +198,8 @@ internal sealed class PackInstaller
     private static void Extract(
         string archivePath, string destination, IProgress<InstallProgress>? progress, CancellationToken cancel)
     {
-        using var archive = ZipFile.OpenRead(archivePath);
+        using var archive = FileOperationDiagnostics.Run("open-archive", "download-archive", archivePath,
+            () => ZipFile.OpenRead(archivePath));
 
         long unpacked = 0;
         foreach (var entry in archive.Entries) unpacked = checked(unpacked + entry.Length);
@@ -228,7 +232,8 @@ internal sealed class PackInstaller
             }
 
             Directory.CreateDirectory(Path.GetDirectoryName(target)!);
-            entry.ExtractToFile(target, overwrite: true);
+            FileOperationDiagnostics.Run("extract", "staging-pack", target,
+                () => entry.ExtractToFile(target, overwrite: true));
 
             // Often enough to move, rarely enough not to spend the install marshalling reports.
             if (done % 200 == 0 || done == total)
@@ -268,18 +273,22 @@ internal sealed class PackInstaller
     {
         DeleteIfPresent(backup);
         var existed = Directory.Exists(destination);
-        if (existed) Directory.Move(destination, backup);
+        if (existed) FileOperationDiagnostics.Run("backup-pack", "pack", destination,
+            () => Directory.Move(destination, backup));
         var moved = false;
         try
         {
-            Directory.Move(source, destination);
+            FileOperationDiagnostics.Run("activate-pack", "pack", destination,
+                () => Directory.Move(source, destination));
             moved = true;
-            apply?.Invoke();
+            if (apply is not null) FileOperationDiagnostics.Run("save-pack-selection", "pack", destination, apply);
         }
         catch
         {
-            if (moved) Directory.Move(destination, source);
-            if (existed) Directory.Move(backup, destination);
+            if (moved) FileOperationDiagnostics.Run("rollback-pack", "pack", destination,
+                () => Directory.Move(destination, source));
+            if (existed) FileOperationDiagnostics.Run("restore-backup", "backup-pack", backup,
+                () => Directory.Move(backup, destination));
             throw;
         }
         this.TryCleanup(backup);
@@ -308,7 +317,8 @@ internal sealed class PackInstaller
             PackStorage.Check(this.configDirectory, PackStorage.RequiredBytes(total.Value, 0)).RequireSpace();
 
         await using (var http = await response.Content.ReadAsStreamAsync(cancel).ConfigureAwait(false))
-        await using (var file = File.Create(target))
+        await using (var file = FileOperationDiagnostics.Run("create-download", "download-archive", target,
+            () => File.Create(target)))
         {
             // Copied by hand rather than with CopyToAsync, only so the bytes can be counted.
             var buffer = new byte[81920];
@@ -331,7 +341,8 @@ internal sealed class PackInstaller
     {
         Span<byte> magic = stackalloc byte[2];
 
-        using (var stream = File.OpenRead(file))
+        using (var stream = FileOperationDiagnostics.Run("check-archive", "download-archive", file,
+            () => File.OpenRead(file)))
         {
             if (stream.Read(magic) == magic.Length && magic[0] == (byte)'P' && magic[1] == (byte)'K')
             {
@@ -413,13 +424,18 @@ internal sealed class PackInstaller
     }
 
     // The lock also prevents an unloading instance from sharing staging files with its replacement.
-    private FileStream LockInstallation() => new(Path.Combine(this.configDirectory, "pack.install.lock"),
-        FileMode.OpenOrCreate, FileAccess.ReadWrite, FileShare.None);
+    private FileStream LockInstallation()
+    {
+        var path = Path.Combine(this.configDirectory, "pack.install.lock");
+        return FileOperationDiagnostics.Run("acquire-install-lock", "installation-lock", path,
+            () => new FileStream(path, FileMode.OpenOrCreate, FileAccess.ReadWrite, FileShare.None));
+    }
 
     private static void RecoverDirectory(string destination, string backup)
     {
         if (!Directory.Exists(backup)) return;
-        if (!Directory.Exists(destination)) Directory.Move(backup, destination);
+        if (!Directory.Exists(destination)) FileOperationDiagnostics.Run("recover-backup", "backup-pack", backup,
+            () => Directory.Move(backup, destination));
         else DeleteIfPresent(backup);
     }
 
@@ -435,11 +451,21 @@ internal sealed class PackInstaller
         catch (Exception error) { this.log.Warning(error, "Could not remove pack staging or backup files."); }
     }
 
+    private static string InstallationResource(string path) => Path.GetFileName(path) switch
+    {
+        DownloadFile => "download-archive",
+        StagingFolder => "staging-pack",
+        PendingFolder or PendingBackupFolder or PendingFile => "pending-pack",
+        BackupFolder => "backup-pack",
+        _ => "pack",
+    };
+
     private static void DeleteIfPresent(string directory)
     {
         if (Directory.Exists(directory))
         {
-            Directory.Delete(directory, recursive: true);
+            FileOperationDiagnostics.Run("remove-directory", InstallationResource(directory), directory,
+                () => Directory.Delete(directory, recursive: true));
         }
     }
 
@@ -447,7 +473,7 @@ internal sealed class PackInstaller
     {
         if (File.Exists(file))
         {
-            File.Delete(file);
+            FileOperationDiagnostics.Run("remove-file", InstallationResource(file), file, () => File.Delete(file));
         }
     }
 }
