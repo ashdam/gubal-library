@@ -132,10 +132,7 @@ internal sealed partial class ConfigWindow : Window
 
         if (this.operations.HasPending && this.config.ServeLanguagePack)
         {
-            var pending = KnownPacks.All.FirstOrDefault(pack => SameSource(pack.Source, this.operations.PendingSource));
-            this.restartReason = !string.IsNullOrWhiteSpace(pending.Name)
-                ? string.Format(Loc.Localize("Library.PackPrepared", "{0} is ready for the next game start. Close the game fully and start it again."), pending.Name)
-                : Loc.Localize("Restart.Installed", "The new language pack is ready. Restart the game to activate it before the game reads its files.");
+            this.restartReason = InstalledPackRestartMessage();
         }
         this.DrawLibrary(pages, ref changed);
 
@@ -405,10 +402,7 @@ internal sealed partial class ConfigWindow : Window
     {
         this.DrawCompatibilityNotice(pages);
 
-        if (this.restartReason is null)
-        {
-            this.DrawUpdateNotice(pages);
-        }
+        this.DrawUpdateNotice(pages);
 
         if (!pages.Active || pages.Manifest is null)
         {
@@ -463,63 +457,73 @@ internal sealed partial class ConfigWindow : Window
             return;
         }
 
-        switch (pages.Update.State)
+        var (icon, colour, message) = pages.Update.State switch
         {
-            case UpdateState.Checking:
-                Icon(FontAwesomeIcon.Hourglass, Grey);
-                ImGui.TextWrapped(Loc.Localize("Update.Checking",
-                    "Checking whether a newer language pack is published..."));
-                ImGui.PopStyleColor();
-                break;
+            UpdateState.Checking => (FontAwesomeIcon.Hourglass, Grey,
+                Loc.Localize("Update.Checking", "Checking whether a newer language pack is published...")),
+            UpdateState.Unreachable => (FontAwesomeIcon.ExclamationTriangle, Red,
+                Loc.Localize("Update.Unreachable", "No connection to the language pack update URL. If it persists, this pack "
+                    + "will not update itself, so check where you got it from.")),
+            UpdateState.NotDeclared => (FontAwesomeIcon.ExclamationTriangle, Amber,
+                Loc.Localize("Update.NotDeclared", "This language pack has no update URL, so it will never update itself.")),
+            _ => (default, default, string.Empty),
+        };
 
-            case UpdateState.Available:
-                break;
-
-            case UpdateState.UpToDate:
-                break;
-
-            case UpdateState.Unreachable:
-                Icon(FontAwesomeIcon.ExclamationTriangle, Red);
-                ImGui.TextWrapped(
-                    Loc.Localize("Update.Unreachable",
-                        "No connection to the language pack update URL. If it persists, this pack "
-                        + "will not update itself, so check where you got it from."));
-                ImGui.PopStyleColor();
-                break;
-
-            case UpdateState.NotDeclared:
-                Icon(FontAwesomeIcon.ExclamationTriangle, Amber);
-                ImGui.TextWrapped(
-                    Loc.Localize("Update.NotDeclared",
-                        "This language pack has no update URL, so it will never update itself."));
-                ImGui.PopStyleColor();
-                break;
+        var height = ImGui.GetTextLineHeight();
+        if (message.Length == 0 || this.restartReason is not null)
+        {
+            ImGui.Dummy(new Vector2(0, height));
+            return;
         }
+
+        Icon(icon, colour);
+        var start = ImGui.GetCursorScreenPos();
+        var size = new Vector2(Math.Max(1, ImGui.GetContentRegionAvail().X), height);
+        var draw = ImGui.GetWindowDrawList();
+        draw.PushClipRect(start, start + size, true);
+        draw.AddText(start, ImGui.GetColorU32(colour), message);
+        draw.PopClipRect();
+        ImGui.PopStyleColor();
+        ImGui.Dummy(size);
+        if (ImGui.IsItemHovered() && ImGui.CalcTextSize(message).X > size.X) SetTooltip(message);
     }
 
     private bool HasInactivePack(PageStatus pages) => (!pages.Active || pages.Manifest is null)
         && string.IsNullOrWhiteSpace(pages.Error) && this.config.ServeLanguagePack && this.config.LanguagePackPath.Length > 0;
 
-    private void DrawRestartBanner()
+    private void DrawRestartBanner(float contentX, float centerY, float controlsWidth)
     {
         var pages = this.pageStatus();
+        var cacheNotice = this.shadowState()?.RestartNotice;
         var inactivePack = this.HasInactivePack(pages);
-        var needsSetup = this.operations.HasPending && this.config.ServeLanguagePack && this.dalamudWaits() is not true;
-        if (!needsSetup && !inactivePack && string.IsNullOrWhiteSpace(this.restartReason)) return;
+        var pendingPack = this.operations.HasPending && this.config.ServeLanguagePack;
+        var needsSetup = cacheNotice is null && pendingPack && this.dalamudWaits() is not true;
+        if (cacheNotice is null && !needsSetup && !inactivePack && string.IsNullOrWhiteSpace(this.restartReason)) return;
         var reason = this.restartReason ?? Loc.Localize("Pack.Pending",
             "A language pack is installed but not in use yet. Restart the game.");
-        ImGui.SameLine(0, 24f * ImGuiHelpers.GlobalScale);
-        var versionWidth = ImGui.CalcTextSize("Gubal " + this.pluginVersion).X + ImGui.GetStyle().ItemSpacing.X * 2;
-        using var headerWrap = ImRaii.TextWrapPos(ImGui.GetCursorPosX() + Math.Max(1, ImGui.GetContentRegionAvail().X - versionWidth));
+        var label = cacheNotice ?? (needsSetup ? Loc.Localize("Setup.WaitRequired", "Setup required")
+            : pendingPack || inactivePack ? reason : Loc.Localize("Restart.Title", "RESTART THE GAME"));
+        var icon = (needsSetup ? FontAwesomeIcon.ExclamationTriangle : FontAwesomeIcon.PowerOff).ToIconString();
+        var colour = cacheNotice is not null ? Red : Amber;
+        var spacing = ImGui.GetStyle().ItemSpacing.X;
+        ImGui.SetCursorScreenPos(new Vector2(contentX, centerY - ImGui.GetTextLineHeight() / 2));
         using (ImRaii.Group())
+        using (ImRaii.PushColor(ImGuiCol.Text, colour))
         {
-            Icon(needsSetup ? FontAwesomeIcon.ExclamationTriangle : FontAwesomeIcon.PowerOff, Amber);
-            ImGui.TextWrapped(needsSetup ? Loc.Localize("Setup.WaitRequired", "Setup required")
-                : inactivePack ? reason : Loc.Localize("Restart.Title", "RESTART THE GAME"));
-            ImGui.PopStyleColor();
+            float iconWidth;
+            using (ImRaii.PushFont(UiBuilder.IconFont, true))
+            {
+                iconWidth = ImGui.CalcTextSize(icon).X;
+                ImGui.SetCursorScreenPos(new Vector2(contentX,
+                    centerY - ImGui.GetTextLineHeight() / 2));
+                DrawHeaderText(icon, centerY, colour);
+            }
+            ImGui.SetCursorScreenPos(new Vector2(contentX + iconWidth + spacing, centerY - ImGui.GetTextLineHeight() / 2));
+            var textWidth = Math.Max(1, ImGui.GetContentRegionAvail().X - controlsWidth - spacing);
+            DrawCenteredWrappedText(label, centerY, textWidth);
         }
         if (needsSetup && ImGui.IsItemClicked()) this.openDalamudSettings();
-        if (!ImGui.IsItemHovered()) return;
+        if (cacheNotice is not null || !ImGui.IsItemHovered()) return;
         using var tooltip = ImRaii.Tooltip();
         using var wrap = ImRaii.TextWrapPos(400f * ImGuiHelpers.GlobalScale);
         if (needsSetup)
@@ -527,7 +531,7 @@ internal sealed partial class ConfigWindow : Window
                 "Enable \"Wait for plugins before game loads\" in Dalamud's General settings to allow language pack activation and startup updates."));
         else
         {
-            ImGui.TextWrapped(reason);
+            if (!pendingPack) ImGui.TextWrapped(reason);
             var current = this.pageStatus();
             ImGui.TextWrapped(current.Active && current.Manifest is { } manifest
                 ? string.Format(Loc.Localize("Library.SessionUnchanged", "{0} remains active in this session."), manifest.LanguageName ?? manifest.DisplayName)
@@ -616,7 +620,11 @@ internal sealed partial class ConfigWindow : Window
         var newer = installed && pages.Manifest is { } current && published is not null
             && (string.CompareOrdinal(published.TranslationVersion, current.TranslationVersion) > 0
                 || published.GameVersion == this.RunningGame() && current.GameVersion != published.GameVersion);
-        if (this.DrawPackActionState(pack.Source, installed && pages.Active && !newer && !moved, published)) return;
+        var isUpdate = newer || moved;
+        var label = isUpdate ? Loc.Localize("Setup.Update", "Update") : Loc.Localize("Setup.Install", "Install");
+        var nextVersion = isUpdate ? published?.TranslationVersion : null;
+        var extraWidth = isUpdate ? 0 : InstallButtonExtraWidth;
+        if (this.DrawPackActionState(pack.Source, installed && pages.Active && !isUpdate, label, published, nextVersion, extraWidth)) return;
         if (!pack.Published)
         {
             var noPack = Loc.Localize("Setup.NoPackYet", "No pack yet");
@@ -625,20 +633,81 @@ internal sealed partial class ConfigWindow : Window
             return;
         }
         using var disabled = ImRaii.Disabled(this.operations.Installing || unavailable || pack.Source is null);
-        var isUpdate = newer || moved;
-        var label = isUpdate ? Loc.Localize("Setup.Update", "Update") : Loc.Localize("Setup.Install", "Install");
-        var nextVersion = isUpdate ? published?.TranslationVersion : null;
-        this.DrawPackSizes(label, published, nextVersion);
-        if (this.ui.DrawActionButton(label, true, detail: nextVersion))
+        this.DrawPackSizes(label, published, nextVersion, extraWidth: extraWidth);
+        if (this.ui.DrawActionButton(label, true, detail: nextVersion, extraWidth: extraWidth))
         {
             this.RequestPackChange(pack.Source!, pack.Name, published);
         }
         if (ImGui.IsItemHovered()) SetTooltip(Loc.Localize("Setup.InstallTip", "Prepare this language pack for the next game start."));
     }
 
-    private bool DrawPackActionState(string? source, bool active, PackManifest? manifest = null)
+    private static string PackRestartLabel() =>
+        Loc.Localize("Library.Ready", "Please restart the game to apply it.");
+
+    private static string InstalledPackRestartMessage() =>
+        string.Format(Loc.Localize("Restart.Installed", "You installed a new language pack. {0}"), PackRestartLabel());
+
+    private static void DrawCenteredWrappedText(string text, float centerY, float width)
     {
-        ImGui.AlignTextToFramePadding();
+        var position = ImGui.GetCursorScreenPos();
+        position.Y = centerY - ImGui.CalcTextSize(text, false, width).Y / 2;
+        ImGui.SetCursorScreenPos(position);
+        using var wrap = ImRaii.TextWrapPos(ImGui.GetCursorPosX() + width);
+        ImGui.TextUnformatted(text);
+    }
+
+    private static void DrawPackActionNotice(string text, Vector2 slot)
+    {
+        var words = text.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        if (words.Length == 0) return;
+
+        var width = slot.X + ImGui.GetStyle().WindowPadding.X / 2;
+        var textHeight = ImGui.GetTextLineHeight();
+        var lines = new List<string>(words.Length);
+        var scale = 1f;
+        while (true)
+        {
+            lines.Clear();
+            var line = words[0];
+            for (var i = 1; i < words.Length; i++)
+            {
+                var next = $"{line} {words[i]}";
+                if (ImGui.CalcTextSize(next).X * scale <= width) line = next;
+                else
+                {
+                    lines.Add(line);
+                    line = words[i];
+                }
+            }
+            lines.Add(line);
+
+            var widest = lines.Max(value => ImGui.CalcTextSize(value).X);
+            var fit = Math.Min(width / widest, slot.Y / (lines.Count * textHeight));
+            if (scale <= fit) break;
+            if (scale <= 0.5f)
+            {
+                scale = fit;
+                break;
+            }
+            scale -= 0.05f;
+        }
+
+        var lineHeight = textHeight * scale;
+        var start = ImGui.GetCursorScreenPos();
+        var y = start.Y + (slot.Y - lines.Count * lineHeight) / 2;
+        var draw = ImGui.GetWindowDrawList();
+        foreach (var value in lines)
+        {
+            var x = start.X + (width - ImGui.CalcTextSize(value).X * scale) / 2;
+            draw.AddText(ImGui.GetFont(), ImGui.GetFontSize() * scale, new Vector2(x, y), ImGui.GetColorU32(Amber), value);
+            y += lineHeight;
+        }
+        ImGui.Dummy(slot);
+    }
+
+    private bool DrawPackActionState(string? source, bool active, string action, PackManifest? manifest,
+        string? detail = null, float extraWidth = 0)
+    {
         if (SameSource(source, this.operations.InstallingSource))
         {
             this.DrawInstallProgress();
@@ -646,14 +715,15 @@ internal sealed partial class ConfigWindow : Window
         }
         if (this.config.ServeLanguagePack && SameSource(source, this.operations.PendingSource))
         {
-            var label = this.dalamudWaits() is true
-                ? Loc.Localize("Library.Ready", "Ready for next start")
+            var canRestart = this.dalamudWaits() is true;
+            var label = canRestart
+                ? PackRestartLabel()
                 : Loc.Localize("Setup.WaitRequired", "Setup required");
-            this.DrawPackSizes(label, manifest);
-            using var color = ImRaii.PushColor(ImGuiCol.Text, Amber);
-            ImGui.TextWrapped(label);
+            var slot = this.DrawPackSizes(action, manifest, detail, isNotice: true, extraWidth: extraWidth);
+            DrawPackActionNotice(label, slot);
             return true;
         }
+        ImGui.AlignTextToFramePadding();
         if (this.config.ServeLanguagePack && active)
         {
             this.DrawPackSizes(Loc.Localize("Setup.Active", "Active"), manifest);
@@ -762,8 +832,7 @@ internal sealed partial class ConfigWindow : Window
                 Loc.Localize("Install.Done", "Prepared {0} ({1}) for the next game start."),
                 pack.DisplayName,
                 pack.TranslationVersion ?? Loc.Localize("Pack.Unversioned", "unversioned"));
-            this.restartReason = Loc.Localize("Restart.Installed",
-                "The new language pack is ready. Restart the game to activate it before the game reads its files.");
+            this.restartReason = InstalledPackRestartMessage();
         });
     }
 

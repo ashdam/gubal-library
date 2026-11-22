@@ -19,7 +19,7 @@ internal sealed partial class ConfigWindow
         this.DrawCompatibilityNotice(pages);
         var known = KnownPacks.ForCode(manifest.Language);
         if (known is { } candidate && !this.IsInstalledOfficialPack(candidate, pages)) known = null;
-        if (known is not null && this.restartReason is null) this.DrawUpdateNotice(pages);
+        if (known is not null) this.DrawUpdateNotice(pages);
         var scale = ImGuiHelpers.GlobalScale;
         var wide = ImGui.GetContentRegionAvail().X >= 620f * scale;
         var line = ImGui.GetTextLineHeightWithSpacing();
@@ -83,15 +83,16 @@ internal sealed partial class ConfigWindow
             : canUpdate ? Loc.Localize("Setup.Update", "Update")
             : pages.Update.State == UpdateState.Unreachable ? Loc.Localize("Library.TryAgain", "Try again")
             : Loc.Localize("Library.CheckUpdates", "Check for updates");
+        var nextVersion = canUpdate && !chooseCurrent ? update?.TranslationVersion : null;
         if (SameSource(source, this.operations.InstallingSource)
             || this.config.ServeLanguagePack && SameSource(source, this.operations.PendingSource))
         {
-            this.DrawPackActionState(source, false, update ?? published ?? manifest);
+            this.DrawPackActionState(source, false, label, update ?? published ?? manifest, nextVersion);
             return;
         }
-        var nextVersion = canUpdate && !chooseCurrent ? update?.TranslationVersion : null;
         this.DrawPackSizes(label, update ?? published ?? manifest, nextVersion);
-        using var disabled = ImRaii.Disabled(this.operations.Installing || pages.Update.State == UpdateState.Checking);
+        var checking = pages.Update.State == UpdateState.Checking;
+        using var disabled = ImRaii.Disabled(this.operations.Installing || checking);
         if (this.ui.DrawActionButton(label, canUpdate || chooseCurrent, detail: nextVersion))
         {
             if (canUpdate || chooseCurrent)

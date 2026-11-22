@@ -269,6 +269,8 @@ public sealed class Plugin : IDalamudPlugin
             pluginInterface.UiBuilder.OpenMainUi += this.OpenConfig;
 
             this.ReportStartupUsage();
+            if (this.clientState.IsLoggedIn && this.shadow is { CacheLocked: true })
+                this.Print(this.AnnounceShadow);
         }
         catch (Exception error)
         {
@@ -610,10 +612,20 @@ public sealed class Plugin : IDalamudPlugin
             this.chat.Print($"[Gubal]Language pack updated to {version} before this session started.");
         }
 
+        this.AnnounceShadow();
+        this.Announce();
+    }
+
+    private void AnnounceShadow()
+    {
         if (this.shadow is { } state && !this.shadowAnnounced)
         {
             this.shadowAnnounced = true;
-            if (!state.Ok)
+            if (state.RestartNotice is { } notice)
+            {
+                this.chat.PrintError($"[Gubal] {notice}");
+            }
+            else if (!state.Ok)
             {
                 this.chat.PrintError(new SeStringBuilder()
                     .AddText($"[Gubal]Nothing is translated this session. {state.Message} ")
@@ -637,7 +649,6 @@ public sealed class Plugin : IDalamudPlugin
             }
         }
 
-        this.Announce();
     }
 
     private static SeString BuildUpdateAnnouncement(PackManifest published, DalamudLinkPayload link)

@@ -66,7 +66,7 @@ internal sealed partial class ConfigWindow
         finally { reduced?.Dispose(); }
     }
 
-    private void DrawLibraryBrand()
+    private void DrawLibraryBrand(float contentX)
     {
         var scale = ImGuiHelpers.GlobalScale;
         var start = ImGui.GetCursorScreenPos();
@@ -83,23 +83,25 @@ internal sealed partial class ConfigWindow
         if (ImGui.IsItemActive() && ImGui.IsMouseDragging(ImGuiMouseButton.Left) && !this.IsPinned)
             ImGui.SetWindowPos(ImGui.GetWindowPos() + ImGui.GetIO().MouseDelta);
         const float logoSize = 42f;
-        ImGui.SetCursorScreenPos(start + new Vector2(4f * scale, (height - logoSize * scale) / 2));
+        ImGui.SetCursorScreenPos(start + new Vector2(0, (height - logoSize * scale) / 2));
         if (this.textures.GetFromManifestResource(typeof(Plugin).Assembly, "GubalLibrary.images.icon.png").TryGetWrap(out var logo, out _))
         {
             var filtered = this.GetHeaderLogo(logo, Math.Max(1, (int)MathF.Ceiling(logoSize * scale)));
             DrawHeaderLogo(filtered.Handle, new Vector2(logoSize * scale), 11f * scale);
-            ImGui.SameLine(0, 12f * scale);
         }
-        var textX = ImGui.GetCursorScreenPos().X;
+        var textX = start.X + (logoSize + 12f) * scale;
+        var versionHeight = ImGui.GetTextLineHeight();
+        var centerY = start.Y + height / 2;
+        float titleHeight;
         using (this.ui.ActionFont.Push())
         {
-            ImGui.SetCursorScreenPos(new Vector2(textX, start.Y + (height - ImGui.GetTextLineHeight()) / 2));
-            DrawHeaderText("Gubal Library", start.Y + height / 2, ImGui.GetStyle().Colors[(int)ImGuiCol.Text]);
+            titleHeight = ImGui.GetTextLineHeight();
+            ImGui.SetCursorScreenPos(new Vector2(textX, centerY - (titleHeight + versionHeight) / 2));
+            DrawHeaderText("Gubal Library", centerY - versionHeight / 2, ImGui.GetStyle().Colors[(int)ImGuiCol.Text]);
         }
-        ImGui.SameLine(0, 12f * scale);
-        ImGui.SetCursorScreenPos(new Vector2(ImGui.GetCursorScreenPos().X, start.Y + (height - ImGui.GetTextLineHeight()) / 2));
-        DrawHeaderText(this.pluginVersion, start.Y + height / 2, Grey);
-        this.DrawRestartBanner();
+        ImGui.SetCursorScreenPos(new Vector2(textX, centerY + (titleHeight - versionHeight) / 2));
+        DrawHeaderText(this.pluginVersion, centerY + titleHeight / 2, Grey);
+        this.DrawRestartBanner(contentX, centerY, controlsWidth);
         var controls = new Vector2(start.X + width - controlsWidth, start.Y + (height - controlSize) / 2);
         if (this.DrawHeaderControl("##foldLibrary", controls, false))
         {

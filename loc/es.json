@@ -7,7 +7,6 @@
   "Library.EnglishNamesHint": { "message": "Conserva el nombre original del objeto junto a la traducción." },
   "Library.SessionUnchanged": { "message": "{0} sigue activo en esta sesión." },
   "Library.EnglishSession": { "message": "El juego sigue usando el inglés en esta sesión." },
-  "Library.PackPrepared": { "message": "{0} está listo para el próximo inicio. Cierra el juego por completo y vuelve a abrirlo." },
   "Library.TryAgain": { "message": "Reintentar" },
   "Library.UpToDate": { "message": "El pack está actualizado." },
   "Library.AvailableLanguages": { "message": "Idiomas disponibles" },
@@ -30,7 +29,7 @@
   "Library.OtherLanguages": { "message": "Otros idiomas" },
   "Library.LocalPack": { "message": "Usar un pack local" },
   "Library.AddLanguage": { "message": "¿Quieres añadir otro idioma?" },
-  "Library.Ready": { "message": "Listo para el próximo inicio" },
+  "Library.Ready": { "message": "Reinicia el juego para aplicar el cambio." },
   "Library.AboutPack": { "message": "Acerca de este pack" },
   "Library.HelpIntro": { "message": "Encuentra dónde dirigir tu consulta." },
   "Library.TranslationProblem": { "message": "Hay un error en la traducción" },
@@ -172,7 +171,7 @@
     "message": "Has cambiado qué partes se traducen. El juego lee todo su texto una sola vez, al arrancar, así que esto surte efecto la próxima vez que arranque."
   },
   "Restart.Installed": {
-    "message": "El nuevo paquete de idioma está preparado. Reinicia el juego para activarlo antes de que el juego lea sus archivos."
+    "message": "Has instalado un nuevo paquete de idioma. {0}"
   },
 
   "Restart.Serving": {
@@ -198,7 +197,7 @@
   "Pack.Fonts": { "message": "{0} de {1} fichero(s) de fuente servidos desde el pack" },
 
   "Update.Check": { "message": "Buscar actualizaciones" },
-  "Update.Checking": { "message": "Comprobando si hay un language pack más nuevo publicado..." },
+  "Update.Checking": { "message": "Comprobando si hay una versión nueva del paquete de idioma…" },
   "Update.Available": { "message": "Hay publicado un language pack más nuevo: {0}" },
   "Update.BuiltForGame": { "message": ", construido para la versión {0} del juego" },
   "Update.InstallNew": { "message": "Instalar la versión {0}" },
@@ -259,6 +258,7 @@
   "Contact.Email": { "message": "Correo electrónico" },
   "Contact.Copy": { "message": "Haz clic para copiarlo." },
 
+  "Pack.CacheLocked": { "message": "La caché de traducción está en uso. Cierra FFXIV por completo y vuelve a abrirlo para recuperar la traducción." },
   "Pack.NothingServed": { "message": "ESTA SESIÓN NO TIENE NADA TRADUCIDO" },
   "Setup.ColLanguage": { "message": "Idioma" },
   "Setup.LocalizationProgress": { "message": "Progreso de localización" },

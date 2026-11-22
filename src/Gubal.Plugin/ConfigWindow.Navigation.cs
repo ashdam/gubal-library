@@ -25,15 +25,16 @@ internal sealed partial class ConfigWindow
     {
         if (!this.DevToolsEnabled && this.selectedSection == LibrarySection.Developer)
             this.selectedSection = LibrarySection.Pack;
-        this.DrawLibraryBrand();
-        if (this.libraryCollapsed) return;
-        ImGui.Separator();
         var scale = ImGuiHelpers.GlobalScale;
         var sections = this.LibrarySections.Where(item => item.Section != LibrarySection.Developer || this.DevToolsEnabled).ToArray();
         float width;
         using (this.ui.NavigationFont.Push())
             width = Math.Max(180f * scale, sections.Max(item => ImGui.CalcTextSize(item.Label).X) + 52f * scale);
         width = Math.Min(width, ImGui.GetContentRegionAvail().X * 0.32f);
+        var contentX = ImGui.GetCursorScreenPos().X + MathF.Floor(width) + 2 * ImGui.GetStyle().CellPadding.X;
+        this.DrawLibraryBrand(contentX);
+        if (this.libraryCollapsed) return;
+        ImGui.Separator();
         using var columns = ImRaii.Table("##libraryLayout", 2, ImGuiTableFlags.SizingStretchProp | ImGuiTableFlags.NoSavedSettings);
         if (!columns) return;
         ImGui.TableSetupColumn("##navigation", ImGuiTableColumnFlags.WidthFixed, width);
@@ -157,7 +158,7 @@ internal sealed partial class ConfigWindow
     private void DrawLanguageContact()
     {
         var label = Loc.Localize("Library.AddLanguage", "Want to add another language?");
-        const string email = "minia@eorzealocalized.com";
+        const string email = KnownPacks.ProjectContactEmail;
         var width = ImGui.CalcTextSize(label).X + ImGui.CalcTextSize(email).X + ImGui.GetStyle().ItemSpacing.X * 2;
         using (ImRaii.PushFont(UiBuilder.IconFont)) width += ImGui.CalcTextSize(FontAwesomeIcon.Envelope.ToIconString()).X;
         var right = ImGui.GetCursorScreenPos().X + ImGui.GetContentRegionAvail().X;

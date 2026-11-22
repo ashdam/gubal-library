@@ -42,10 +42,12 @@ internal static class KnownPacks
     /// repository or this is a 404.</summary>
     public const string Discussions = "https://github.com/ashdam/gubal-library/discussions";
 
+    public const string ProjectContactEmail = "mini@eorzealocalized.com";
+
     public static readonly (string Language, string Email)[] ReviewerContacts =
     [
         ("Español", "shin@eorzealocalized.com"),
-        ("Español", "mini@eorzealocalized.com"),
+        ("Español", ProjectContactEmail),
         ("Italiano", "xeladon@eorzealocalized.com"),
     ];
 
