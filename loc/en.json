@@ -7,7 +7,6 @@
   "Library.EnglishNamesHint": { "message": "Keep the original item name visible alongside the translation." },
   "Library.SessionUnchanged": { "message": "{0} remains active in this session." },
   "Library.EnglishSession": { "message": "The game still uses English in this session." },
-  "Library.PackPrepared": { "message": "{0} is ready for the next game start. Close the game fully and start it again." },
   "Library.TryAgain": { "message": "Try again" },
   "Library.UpToDate": { "message": "Your pack is up to date." },
   "Library.AvailableLanguages": { "message": "Available languages" },
@@ -30,7 +29,7 @@
   "Library.OtherLanguages": { "message": "Other languages" },
   "Library.LocalPack": { "message": "Use a local pack" },
   "Library.AddLanguage": { "message": "Want to add another language?" },
-  "Library.Ready": { "message": "Ready for next start" },
+  "Library.Ready": { "message": "Please restart the game to apply it." },
   "Library.AboutPack": { "message": "About this pack" },
   "Library.HelpIntro": { "message": "Find the right place for your question." },
   "Library.TranslationProblem": { "message": "A translation is incorrect" },
@@ -200,6 +199,7 @@
     "message": "{0}, up to date: {1}",
     "description": "ConfigWindow.DrawInstalledPack"
   },
+  "Pack.CacheLocked": { "message": "The translation cache is in use. Close FFXIV completely and start it again to restore the translation." },
   "Pack.NothingServed": {
     "message": "NOTHING IS TRANSLATED THIS SESSION",
     "description": "ConfigWindow.DrawInstalledPack"
@@ -366,7 +366,7 @@
     "description": "<<Install>b__1>d.MoveNext"
   },
   "Restart.Installed": {
-    "message": "The new language pack is ready. Restart the game to activate it before the game reads its files.",
+    "message": "You installed a new language pack. {0}",
     "description": "<<Install>b__1>d.MoveNext"
   },
   "Group.Other.Tooltip": {

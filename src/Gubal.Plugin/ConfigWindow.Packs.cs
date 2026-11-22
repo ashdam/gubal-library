@@ -13,6 +13,7 @@ namespace GubalLibrary;
 internal sealed partial class ConfigWindow
 {
     private const float PackFooterSize = PluginTheme.ActionHeight;
+    private const float InstallButtonExtraWidth = 5f;
     private const float PackIconSize = PackFooterSize;
     private const float PackNameReviewerSize = 36f;
 
@@ -23,15 +24,13 @@ internal sealed partial class ConfigWindow
         {
             if (pages.Active && this.IsInstalledOfficialPack(pack, pages)) continue;
             var manifest = this.operations.Published(pack).Manifest;
-            var pending = this.config.ServeLanguagePack && SameSource(pack.Source, this.operations.PendingSource);
-            var label = pending
-                ? this.dalamudWaits() is true ? Loc.Localize("Library.Ready", "Ready for next start") : Loc.Localize("Setup.WaitRequired", "Setup required")
-                : Loc.Localize("Setup.Install", "Install");
+            var label = Loc.Localize("Setup.Install", "Install");
             var reviewerWidth = manifest?.ReviewerNames.Any() is true ? (PackNameReviewerSize + 18f) * ImGuiHelpers.GlobalScale : 0;
             float nameWidth;
             using (this.ui.ActionFont.Push()) nameWidth = this.PackNameWidth(pack);
             var width = Math.Max(nameWidth + reviewerWidth + 24f * ImGuiHelpers.GlobalScale,
-                (this.PackActionButtonSize(label).X + PackSizeWidth(manifest) + 12f * ImGuiHelpers.GlobalScale) * 2
+                (this.ui.MeasureActionButton(label, extraWidth: InstallButtonExtraWidth).X + PackSizeWidth(manifest)
+                    + 12f * ImGuiHelpers.GlobalScale) * 2
                 + 24f * ImGuiHelpers.GlobalScale);
             minimum = Math.Max(minimum, width);
         }
@@ -388,8 +387,8 @@ internal sealed partial class ConfigWindow
         ImGui.TableNextColumn();
         ImGui.SetCursorPosY(top + Math.Max(0, summaryBottom - top - PackFooterSize * ImGuiHelpers.GlobalScale));
         var folder = this.config.OwnPackFolder;
-        if (this.DrawPackActionState(folder, this.IsCustomPackActive(pages), manifest)) return;
         var useFolder = Loc.Localize("Setup.UseFolder", "Use this folder");
+        if (this.DrawPackActionState(folder, this.IsCustomPackActive(pages), useFolder, manifest)) return;
         this.DrawPackSizes(useFolder, manifest);
         using var disabled = ImRaii.Disabled(this.operations.Installing || manifest is null || string.IsNullOrWhiteSpace(folder));
         if (DrawPackActionButton(useFolder)) this.RequestPackChange(folder.Trim(), manifest!.DisplayName, manifest);

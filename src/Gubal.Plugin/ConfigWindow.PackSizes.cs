@@ -27,12 +27,13 @@ internal sealed partial class ConfigWindow
         return labels.LabelWidth + labels.ValueWidth + 22f * ImGuiHelpers.GlobalScale;
     }
 
-    private void DrawPackSizes(string action, PackManifest? manifest, string? detail = null)
+    private Vector2 DrawPackSizes(string action, PackManifest? manifest, string? detail = null, bool isNotice = false,
+        float extraWidth = 0)
     {
         var labels = PackSizeLabels(manifest);
         var storage = this.operations.Storage(manifest);
         var gap = 10f * ImGuiHelpers.GlobalScale;
-        var size = this.PackActionButtonSize(action, detail);
+        var size = this.ui.MeasureActionButton(action, detail: detail, extraWidth: extraWidth);
         var width = labels.LabelWidth + gap + labels.ValueWidth;
         var start = ImGui.GetCursorScreenPos();
         start.X += Math.Max(0, ImGui.GetContentRegionAvail().X - width - gap - size.X);
@@ -60,7 +61,9 @@ internal sealed partial class ConfigWindow
             DrawStorageTooltip(storage);
         }
         ImGui.SameLine();
-        ImGui.SetCursorScreenPos(new Vector2(start.X + width + gap, start.Y));
+        var noticeSpace = isNotice ? Math.Max(0, gap - ImGui.GetStyle().ItemInnerSpacing.X) : 0;
+        ImGui.SetCursorScreenPos(new Vector2(start.X + width + gap - noticeSpace, start.Y));
+        return new Vector2(size.X + noticeSpace, size.Y);
     }
 
     private static void DrawSizeText(string text, Vector2 position, Vector4 color, float top, float bottom)

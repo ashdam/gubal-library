@@ -61,9 +61,10 @@ internal sealed partial class PluginUi(IDalamudPluginInterface pluginInterface, 
     public IFontHandle NavigationFont { get; } = pluginInterface.UiBuilder.FontAtlas.NewDelegateFontHandle(step =>
         step.OnPreBuild(toolkit => toolkit.AddDalamudDefaultFont(UiBuilder.DefaultFontSizePx)));
 
-    public bool DrawActionButton(string label, bool primary, bool compact = false, string? detail = null, FontAwesomeIcon? icon = null)
+    public bool DrawActionButton(string label, bool primary, bool compact = false, string? detail = null, FontAwesomeIcon? icon = null,
+        float extraWidth = 0)
     {
-        var size = this.MeasureActionButton(label, compact, detail, icon);
+        var size = this.MeasureActionButton(label, compact, detail, icon, extraWidth);
         var clicked = Gw.Button(detail is null ? label : "##" + label,
             primary ? ButtonStyle.Prominent : ButtonStyle.Default,
             compact ? ButtonSize.Regular : ButtonSize.Large,
@@ -91,14 +92,15 @@ internal sealed partial class PluginUi(IDalamudPluginInterface pluginInterface, 
         return clicked;
     }
 
-    public Vector2 MeasureActionButton(string label, bool compact = false, string? detail = null, FontAwesomeIcon? icon = null)
+    public Vector2 MeasureActionButton(string label, bool compact = false, string? detail = null, FontAwesomeIcon? icon = null,
+        float extraWidth = 0)
     {
         var text = TextPaint.Measure(label, new TextStyle(TextRole.Headline), Frame.Look, Frame.Scale);
         var titleWidth = text.X + (icon is null ? 0 : TextPaint.Measure(icon.Value.ToIconString(), new TextStyle(TextRole.Icon), Frame.Look, Frame.Scale).X
             + Frame.Look.SpaceSmall * Frame.Scale);
         var width = detail is null ? titleWidth : Math.Max(titleWidth,
             TextPaint.Measure(detail, new TextStyle(TextRole.Caption), Frame.Look, Frame.Scale).X);
-        return new Vector2(MathF.Ceiling(width + (Frame.Look.SpaceLarge * 2 + 2) * Frame.Scale),
+        return new Vector2(MathF.Ceiling(width + (Frame.Look.SpaceLarge * 2 + 2 + extraWidth) * Frame.Scale),
             (compact ? PluginTheme.CompactActionHeight : PluginTheme.ActionHeight) * Frame.Scale);
     }
 

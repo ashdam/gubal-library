@@ -38,9 +38,14 @@ internal sealed partial class ConfigWindow
         }
         ImGui.TextWrapped(Loc.Localize("Library.CurrentSession", "The text in your current session will not change. Close the game fully and start it again to use the new settings."));
         ImGui.Spacing();
-        if (this.ui.DrawActionButton(Loc.Localize("Report.Cancel", "Cancel"), false)) ImGui.CloseCurrentPopup();
+        var cancel = Loc.Localize("Report.Cancel", "Cancel");
+        var confirm = Loc.Localize("Library.ConfirmPack", "Prepare for next start");
+        var buttonRowWidth = this.ui.MeasureActionButton(cancel).X + ImGui.GetStyle().ItemSpacing.X
+            + this.ui.MeasureActionButton(confirm).X;
+        ImGui.SetCursorPosX(ImGui.GetCursorPosX() + Math.Max(0, ImGui.GetContentRegionAvail().X - buttonRowWidth));
+        if (this.ui.DrawActionButton(cancel, false)) ImGui.CloseCurrentPopup();
         ImGui.SameLine();
-        if (this.ui.DrawActionButton(Loc.Localize("Library.ConfirmPack", "Prepare for next start"), true))
+        if (this.ui.DrawActionButton(confirm, true))
         {
             if (request.Source is { } source) this.Install(source);
             else

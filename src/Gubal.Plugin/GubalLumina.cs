@@ -9,7 +9,11 @@ using Lumina.Misc;
 
 namespace GubalLibrary;
 
-internal sealed record ShadowState(bool Ok, string Message, string Folder);
+internal sealed record ShadowState(bool Ok, string Message, string Folder, bool CacheLocked = false)
+{
+    public string? RestartNotice => this.CacheLocked ? CheapLoc.Loc.Localize("Pack.CacheLocked",
+        "The translation cache is in use. Close FFXIV completely and start it again to restore the translation.") : null;
+}
 
 internal sealed class GubalLumina
 {
@@ -64,7 +68,9 @@ internal sealed class GubalLumina
         catch (Exception e)
         {
             log.Error(e, "[shadow] not installed.");
-            return new ShadowState(false, e.Message, folder);
+            var cacheLocked = e.GetBaseException() is IOException io
+                && io.HResult is unchecked((int)0x80070020) or unchecked((int)0x80070021);
+            return new ShadowState(false, e.Message, folder, cacheLocked);
         }
     }
 

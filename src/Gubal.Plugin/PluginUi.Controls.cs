@@ -125,9 +125,23 @@ internal sealed partial class PluginUi
             var value = fraction < 0 ? (1f + MathF.Sin((float)ImGui.GetTime() * 2)) / 2 : fraction;
             Gw.ProgressBar(value, width / Frame.Scale);
             if (overlay.Length == 0) return;
-            var textSize = ImGui.CalcTextSize(overlay);
-            ImGui.GetWindowDrawList().AddText(ImGui.GetItemRectMin() + (new Vector2(width, size.Y) - textSize) / 2,
-                ImGui.GetColorU32(ImGuiCol.Text), overlay);
+            var min = ImGui.GetItemRectMin();
+            var max = ImGui.GetItemRectMax();
+            var fillX = min.X + (max.X - min.X) * Math.Clamp(value, 0f, 1f);
+            var textPosition = (min + max - ImGui.CalcTextSize(overlay)) / 2;
+            var draw = ImGui.GetWindowDrawList();
+            if (fillX > min.X)
+            {
+                draw.PushClipRect(min, new Vector2(fillX, max.Y), true);
+                draw.AddText(textPosition, Frame.Look.OnAccent.MultiplyAlpha(ImGui.GetStyle().Alpha).ToAbgr(), overlay);
+                draw.PopClipRect();
+            }
+            if (fillX < max.X)
+            {
+                draw.PushClipRect(new Vector2(fillX, min.Y), max, true);
+                draw.AddText(textPosition, ImGui.GetColorU32(ImGuiCol.Text), overlay);
+                draw.PopClipRect();
+            }
         }
         finally { Frame.Look.SliderTrackHeight = height; }
     }
