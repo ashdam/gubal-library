@@ -27,10 +27,19 @@ internal sealed partial class ConfigWindow
                 var value = row.GetProperty(name).GetUInt32();
                 return value > 0 ? value : throw new InvalidDataException($"Invalid {name} for native banner {id}.");
             }
+            uint[] ReadImageNodeIds()
+            {
+                var image = Required("imageNodeId");
+                if (!row.TryGetProperty("additionalImageNodeIds", out var additional)) return [image];
+                var ids = additional.EnumerateArray().Select(value => value.GetUInt32()).Prepend(image).ToArray();
+                if (ids.Length is < 2 or > 8 || ids.Contains(0u) || ids.Distinct().Count() != ids.Length)
+                    throw new InvalidDataException($"Invalid image nodes for native banner {id}.");
+                return ids;
+            }
             var scene = row.GetProperty("type").GetString() switch
             {
                 "nativeLayout" => new PreviewScene(Layout: new NativeLayout(
-                    row.GetProperty("uldName").GetString()!, Required("nodeId"), Required("imageNodeId"),
+                    row.GetProperty("uldName").GetString()!, Required("nodeId"), ReadImageNodeIds(),
                     row.GetProperty("timelineLabel").GetUInt16(),
                     row.TryGetProperty("contentNodeId", out _) ? Required("contentNodeId") : null)),
                 "screenImage" => new PreviewScene(ScreenImageId: Required("rowId")),

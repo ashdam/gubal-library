@@ -7,7 +7,7 @@ namespace GubalLibrary;
 
 internal sealed partial class ConfigWindow
 {
-    private sealed record NativeLayout(string UldName, uint NodeId, uint ImageNodeId, ushort TimelineLabel, uint? ContentNodeId);
+    private sealed record NativeLayout(string UldName, uint NodeId, uint[] ImageNodeIds, ushort TimelineLabel, uint? ContentNodeId);
     private nint loadLayoutResources;
     private nint updateLayoutScale;
     private nint previewLayoutUnit;
@@ -16,9 +16,7 @@ internal sealed partial class ConfigWindow
     private bool previewLayoutReady;
     private bool previewLayoutPlaying;
     private uint? previewLayoutFrame;
-    private nint previewLayoutImageParts;
-    private nint previewLayoutImageNode;
-    private bool previewLayoutImageTextureReady;
+    private readonly Dictionary<nint, nint> previewLayoutImageParts = [];
 
     private struct LayoutImageParts
     {
@@ -38,7 +36,7 @@ internal sealed partial class ConfigWindow
         if (this.loadLayoutResources == 0 || this.updateLayoutScale == 0)
             throw new InvalidOperationException("Native layout loading is unavailable.");
         if (string.IsNullOrEmpty(layout.UldName) || !layout.UldName.All(c => char.IsAsciiLetterOrDigit(c) || c == '_')
-            || layout.NodeId == 0 || layout.ImageNodeId == 0)
+            || layout.NodeId == 0)
             throw new InvalidDataException("Invalid native layout configuration.");
         var unit = IMemorySpace.GetUISpace()->Create<AtkUnitBase>();
         if (unit == null) throw new OutOfMemoryException();
@@ -86,13 +84,18 @@ internal sealed partial class ConfigWindow
                 unit->WidgetAlignment = ((AtkUldWidgetInfo*)objects)->WidgetAlignment;
                 var branch = unit->GetNodeById(layout.NodeId);
                 var content = unit->GetNodeById(layout.ContentNodeId ?? layout.NodeId);
-                var image = unit->GetImageNodeById(layout.ImageNodeId);
-                if (unit->RootNode == null || branch == null || content == null || image == null
+                if (unit->RootNode == null || branch == null || content == null
                     || (layout.TimelineLabel != 0 && branch->Timeline == null)
-                    || !IsLayoutDescendant(content, branch)
-                    || !IsLayoutDescendant(&image->AtkResNode, content))
+                    || !IsLayoutDescendant(content, branch))
                     throw new InvalidDataException("The native layout does not contain the configured banner nodes.");
-                this.PrepareLayoutImage(image);
+                foreach (var imageId in layout.ImageNodeIds)
+                {
+                    var image = unit->GetImageNodeById(imageId);
+                    if (image == null || !IsLayoutDescendant(&image->AtkResNode, content))
+                        throw new InvalidDataException("The native layout does not contain the configured banner images.");
+                    this.PrepareLayoutImage(image);
+                    image->LoadIconTexture((uint)this.previewId, (int)this.previewData!.Language + 2);
+                }
                 foreach (var node in unit->UldManager.Nodes)
                 {
                     var current = node.Value;
@@ -108,7 +111,6 @@ internal sealed partial class ConfigWindow
                         }
                     }
                 }
-                image->LoadIconTexture((uint)this.previewId, (int)this.previewData!.Language + 2);
                 unit->Flags1A1 |= 1;
                 unit->LoadState = AtkUnitBaseLoadState.FullyLoaded;
                 unit->VisibilityState = AtkUnitBaseVisibilityState.Show | AtkUnitBaseVisibilityState.TransitionComplete;
@@ -121,11 +123,12 @@ internal sealed partial class ConfigWindow
             // Base vfunc 25 applies the widget's ULD alignment through the game's viewport rules.
             var align = (delegate* unmanaged<AtkUnitBase*, void>)(*(nint**)unit)[25];
             align(unit);
-            if (!IsLayoutImageReady(unit->GetImageNodeById(layout.ImageNodeId)))
-            {
-                this.CheckLayoutLoadTimeout();
-                return;
-            }
+            foreach (var imageId in layout.ImageNodeIds)
+                if (!IsLayoutImageReady(unit->GetImageNodeById(imageId)))
+                {
+                    this.CheckLayoutLoadTimeout();
+                    return;
+                }
             var now = Stopwatch.GetTimestamp();
             if (!this.previewLayoutPlaying)
             {
@@ -178,10 +181,8 @@ internal sealed partial class ConfigWindow
             var parts = (LayoutImageParts*)IMemorySpace.GetUISpace()->Malloc<LayoutImageParts>();
             if (parts == null) throw new OutOfMemoryException();
             *parts = default;
-            this.previewLayoutImageParts = (nint)parts;
-            this.previewLayoutImageNode = (nint)image;
             parts->Asset.AtkTexture.Ctor();
-            this.previewLayoutImageTextureReady = true;
+            this.previewLayoutImageParts.Add((nint)image, (nint)parts);
             parts->Part.UldAsset = &parts->Asset;
             parts->Part.Width = image->Width;
             parts->Part.Height = image->Height;
@@ -219,16 +220,15 @@ internal sealed partial class ConfigWindow
         if (this.previewLayoutUnit == 0) return;
         var unit = (AtkUnitBase*)this.previewLayoutUnit;
         this.RestoreSceneTextures(this.previewLayoutUnit);
-        if (this.previewLayoutImageParts != 0)
+        foreach (var (imageAddress, partsAddress) in this.previewLayoutImageParts)
         {
-            var parts = (LayoutImageParts*)this.previewLayoutImageParts;
-            var image = (AtkImageNode*)this.previewLayoutImageNode;
+            var parts = (LayoutImageParts*)partsAddress;
+            var image = (AtkImageNode*)imageAddress;
             if (image->PartsList == &parts->List) image->PartsList = null;
-            if (this.previewLayoutImageTextureReady) parts->Asset.AtkTexture.ReleaseTexture();
+            parts->Asset.AtkTexture.ReleaseTexture();
             IMemorySpace.Free(parts, (ulong)sizeof(LayoutImageParts));
-            this.previewLayoutImageParts = this.previewLayoutImageNode = 0;
-            this.previewLayoutImageTextureReady = false;
         }
+        this.previewLayoutImageParts.Clear();
         this.previewLayoutUnit = 0;
         // This widget is not in AtkUnitManager. Release only its owned visual resources.
         unit->UldManager.Finalizer();

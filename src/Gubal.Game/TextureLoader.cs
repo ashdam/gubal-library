@@ -141,7 +141,7 @@ internal sealed unsafe class TextureLoader : IDisposable
     /// <summary>The client's file key: CRC-32 of the folder in the high word, CRC-32 of the name in the low word, both lower case.</summary>
     private static ulong Crc64(string rootedPath)
     {
-        var lower = rootedPath.ToLowerInvariant();
+        var lower = RootedResource.LowercaseForHash(rootedPath);
         var slash = lower.LastIndexOf('/');
         return ((ulong)Crc32.Get(lower[..slash]) << 32) | Crc32.Get(lower[(slash + 1)..]);
     }
