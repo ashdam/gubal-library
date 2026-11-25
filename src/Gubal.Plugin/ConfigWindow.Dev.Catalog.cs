@@ -36,12 +36,22 @@ internal sealed partial class ConfigWindow
                     throw new InvalidDataException($"Invalid image nodes for native banner {id}.");
                 return ids;
             }
+            NativeCounter? ReadCounter()
+            {
+                if (!row.TryGetProperty("counter", out var value)) return null;
+                var counter = new NativeCounter(value.GetProperty("componentNodeId").GetUInt32(),
+                    value.GetProperty("valueNodeId").GetUInt32(), value.GetProperty("value").GetInt32(),
+                    value.GetProperty("timelineLabel").GetUInt16());
+                if (counter is not { ComponentNodeId: > 0, ValueNodeId: > 0, Value: >= 0, TimelineLabel: > 0 })
+                    throw new InvalidDataException($"Invalid counter for native banner {id}.");
+                return counter;
+            }
             var scene = row.GetProperty("type").GetString() switch
             {
                 "nativeLayout" => new PreviewScene(Layout: new NativeLayout(
                     row.GetProperty("uldName").GetString()!, Required("nodeId"), ReadImageNodeIds(),
                     row.GetProperty("timelineLabel").GetUInt16(),
-                    row.TryGetProperty("contentNodeId", out _) ? Required("contentNodeId") : null)),
+                    row.TryGetProperty("contentNodeId", out _) ? Required("contentNodeId") : null, ReadCounter())),
                 "screenImage" => new PreviewScene(ScreenImageId: Required("rowId")),
                 "ktgCountdown" => new PreviewScene(KtgCountdown: true),
                 "cutScreenImage" => new PreviewScene(CutScreenImageId: Required("rowId")),

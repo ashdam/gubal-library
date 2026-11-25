@@ -11,8 +11,13 @@ namespace GubalLibrary;
 
 internal sealed record ShadowState(bool Ok, string Message, string Folder, bool CacheLocked = false)
 {
-    public string? RestartNotice => this.CacheLocked ? CheapLoc.Loc.Localize("Pack.CacheLocked",
-        "The translation cache is in use. Close FFXIV completely and start it again to restore the translation.") : null;
+    public bool ClientStillServing { get; init; }
+
+    public string? RestartNotice => !this.CacheLocked ? null : this.ClientStillServing
+        ? CheapLoc.Loc.Localize("Pack.CacheLockedWhileServing",
+            "Restart FFXIV so other plugins use the current translation.")
+        : CheapLoc.Loc.Localize("Pack.CacheLocked",
+            "The translation cache is in use. Close FFXIV completely and start it again to restore the translation.");
 }
 
 internal sealed class GubalLumina

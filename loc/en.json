@@ -200,6 +200,7 @@
     "description": "ConfigWindow.DrawInstalledPack"
   },
   "Pack.CacheLocked": { "message": "The translation cache is in use. Close FFXIV completely and start it again to restore the translation." },
+  "Pack.CacheLockedWhileServing": { "message": "Restart FFXIV so other plugins use the current translation." },
   "Pack.NothingServed": {
     "message": "NOTHING IS TRANSLATED THIS SESSION",
     "description": "ConfigWindow.DrawInstalledPack"

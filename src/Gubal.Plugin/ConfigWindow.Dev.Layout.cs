@@ -7,7 +7,9 @@ namespace GubalLibrary;
 
 internal sealed partial class ConfigWindow
 {
-    private sealed record NativeLayout(string UldName, uint NodeId, uint[] ImageNodeIds, ushort TimelineLabel, uint? ContentNodeId);
+    private sealed record NativeCounter(uint ComponentNodeId, uint ValueNodeId, int Value, ushort TimelineLabel);
+    private sealed record NativeLayout(string UldName, uint NodeId, uint[] ImageNodeIds, ushort TimelineLabel,
+        uint? ContentNodeId, NativeCounter? Counter);
     private nint loadLayoutResources;
     private nint updateLayoutScale;
     private nint previewLayoutUnit;
@@ -135,6 +137,8 @@ internal sealed partial class ConfigWindow
                 var branch = unit->GetNodeById(layout.NodeId);
                 if (layout.TimelineLabel != 0)
                     branch->Timeline->PlayAnimation(AtkTimelineJumpBehavior.LoopForever, layout.TimelineLabel, 0, 0);
+                if (layout.Counter is { } counter)
+                    StartLayoutCounter(unit, unit->GetNodeById(layout.ContentNodeId ?? layout.NodeId), counter);
                 this.previewLayoutPlaying = true;
                 this.previewLayoutTick = now;
             }
@@ -162,6 +166,20 @@ internal sealed partial class ConfigWindow
         for (var depth = 0; node != null && depth < 128; depth++, node = node->ParentNode)
             if (node == ancestor) return true;
         return false;
+    }
+
+    private static unsafe void StartLayoutCounter(AtkUnitBase* unit, AtkResNode* content, NativeCounter counter)
+    {
+        var node = unit->GetNodeById(counter.ComponentNodeId);
+        if (node == null || (int)node->Type < 1000 || !IsLayoutDescendant(node, content)
+            || node->ParentNode == null || node->ParentNode->Timeline == null)
+            throw new InvalidDataException("The native layout does not contain the configured counter component.");
+        var component = ((AtkComponentNode*)node)->Component;
+        var valueNode = component == null ? null : component->GetNodeById(counter.ValueNodeId);
+        if (valueNode == null || valueNode->Type != NodeType.Counter)
+            throw new InvalidDataException("The native layout does not contain the configured counter node.");
+        ((AtkCounterNode*)valueNode)->SetNumber(counter.Value);
+        node->ParentNode->Timeline->PlayAnimation(AtkTimelineJumpBehavior.LoopForever, counter.TimelineLabel, 0, 0);
     }
 
     private static unsafe bool IsLayoutImageReady(AtkImageNode* image)
