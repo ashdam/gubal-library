@@ -179,8 +179,15 @@ internal sealed partial class ConfigWindow
                     var translated = File.Exists(Path.Combine(pack, relative));
                     var label = names.GetValueOrDefault(id);
                     var scene = scenes.GetValueOrDefault(id);
-                    rows.Add(new(id, translated ? string.IsNullOrWhiteSpace(label?.Name) ? "Uncataloged text" : label.Name : "N/A",
-                        RelativePath: relative, OriginalName: label?.OriginalName ?? "",
+                    var original = label?.OriginalName ?? "";
+                    var translation = label?.Name ?? "";
+                    if (scene?.Layout?.Counter is { } counter)
+                    {
+                        original = FormatCounterCaption(original, counter.Value);
+                        translation = FormatCounterCaption(translation, counter.Value);
+                    }
+                    rows.Add(new(id, translated ? string.IsNullOrWhiteSpace(translation) ? "Uncataloged text" : translation : "N/A",
+                        RelativePath: relative, OriginalName: original,
                         NativeScene: scene, HasTranslation: translated));
                 }
                 return rows.OrderBy(row => row.Id).ToArray();
@@ -191,6 +198,13 @@ internal sealed partial class ConfigWindow
         {
             this.previewCatalogError = error.Message;
         }
+    }
+
+    private static string FormatCounterCaption(string caption, int value)
+    {
+        if (string.IsNullOrWhiteSpace(caption)) return caption;
+        var separator = caption.EndsWith('#') ? "" : " ";
+        return string.Create(CultureInfo.InvariantCulture, $"{caption}{separator}{value}");
     }
 
     private void ShowDevBanner()

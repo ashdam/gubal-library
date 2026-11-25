@@ -177,13 +177,20 @@ public sealed class Plugin : IDalamudPlugin
                         GubalLumina.Folder(pluginInterface.GetPluginConfigDirectory()),
                         log);
 
-                    // The game and other plugins must receive the same selected pages.
                     if (!this.shadow.Ok)
                     {
                         this.usageOutbox.Errors.Capture("shared-sheets", "pack-load-failed", this.shadow.Message);
-                        this.redirector.Dispose();
-                        this.redirector = null;
-                        log.Warning("[shadow] the pack was withdrawn from the client too, rather than serve half");
+                        if (this.shadow.CacheLocked && (pluginInterface.Reason != PluginLoadReason.Boot || clientState.IsLoggedIn))
+                        {
+                            this.shadow = this.shadow with { ClientStillServing = true };
+                            log.Warning("[shadow] Keeping game translation active until the next restart.");
+                        }
+                        else
+                        {
+                            this.redirector.Dispose();
+                            this.redirector = null;
+                            log.Warning("[shadow] Game translation is disabled because the shared sheets could not load.");
+                        }
                     }
 
                     Diagnostics.Log(log, $"[shadow] {this.shadow.Message} [{this.shadow.Folder}]");

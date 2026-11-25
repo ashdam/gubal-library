@@ -57,7 +57,7 @@ internal sealed partial class ConfigWindow
                 }
             }
         }
-        if (this.shadowState() is { Ok: false } failed)
+        if (this.shadowState() is { Ok: false, CacheLocked: false } failed)
         {
             ImGui.TextColored(Red, Loc.Localize("Pack.NothingServed", "NOTHING IS TRANSLATED THIS SESSION"));
             ImGui.TextWrapped(failed.Message);

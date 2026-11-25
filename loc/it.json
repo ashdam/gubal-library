@@ -258,6 +258,7 @@
   "Contact.Copy": { "message": "Clicca per copiarlo." },
 
   "Pack.CacheLocked": { "message": "La cache delle traduzioni è in uso. Chiudi completamente FFXIV e riaprilo per ripristinare la traduzione." },
+  "Pack.CacheLockedWhileServing": { "message": "Riavvia FFXIV per far usare agli altri plugin la traduzione corrente." },
   "Pack.NothingServed": { "message": "QUESTA SESSIONE NON HA NIENTE DI TRADOTTO" },
   "Setup.ColLanguage": { "message": "Lingua" },
   "Setup.LocalizationProgress": { "message": "Avanzamento della localizzazione" },
