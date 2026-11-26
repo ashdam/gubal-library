@@ -29,7 +29,7 @@ internal static class FileOperationDiagnostics
         }
     }
 
-    public static void Attach(Exception error, string operation, string resource, string path)
+    public static void Attach(Exception error, string operation, string resource, string path, string? detail = null)
     {
         if (Describe(error).Length > 0) return;
         // Keep only the final component of an OS-reported path or the operation target.
@@ -39,7 +39,8 @@ internal static class FileOperationDiagnostics
         var name = target.Replace('\\', '/').TrimEnd('/');
         name = name[(name.LastIndexOf('/') + 1)..];
         if (name.Length > 128) name = name[..128];
-        error.Data[ContextKey] = $"Operation: {operation}; resource: {resource}; file: '{name}'. ";
+        error.Data[ContextKey] = $"Operation: {operation}; resource: {resource}; file: '{name}'. "
+            + (detail is null ? "" : detail + " ");
     }
 
     public static string Describe(Exception? error)

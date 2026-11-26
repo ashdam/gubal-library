@@ -15,10 +15,12 @@ internal sealed class PackInstaller
     private const string PendingFile = "gubal-pending-install.json";
 
     private const string DownloadFile = "pack.download.zip";
+    private const int SharingViolation = unchecked((int)0x80070020);
 
     private static readonly TimeSpan DownloadTimeout = TimeSpan.FromMinutes(10);
 
     private static readonly TimeSpan ManifestTimeout = TimeSpan.FromSeconds(20);
+    private static readonly TimeSpan ActivationRetryDelay = TimeSpan.FromSeconds(5);
 
     private readonly IPackInstallLog log;
     private readonly string configDirectory;
@@ -134,15 +136,22 @@ internal sealed class PackInstaller
     }
 
     // Call only during game boot, before any resource hooks are installed.
-    public InstallResult? ActivatePending(Action<string, string> applySelection)
+    public InstallResult? ActivatePending(Action<string, string> applySelection, CancellationToken cancel = default,
+        Action? ensureCanActivate = null)
     {
         try
         {
-            using var installLock = this.LockInstallation();
             var pending = Path.Combine(this.configDirectory, PendingFolder);
             var backup = Path.Combine(this.configDirectory, BackupFolder);
+            var pendingBackup = Path.Combine(this.configDirectory, PendingBackupFolder);
+            if (!Directory.Exists(backup) && !Directory.Exists(pendingBackup) && !this.HasPending)
+                return null;
+
+            using var installLock = this.LockInstallation(retryOnSharingViolation: true, cancel);
+            cancel.ThrowIfCancellationRequested();
+            ensureCanActivate?.Invoke();
             RecoverDirectory(this.InstalledPath, backup);
-            RecoverDirectory(pending, Path.Combine(this.configDirectory, PendingBackupFolder));
+            RecoverDirectory(pending, pendingBackup);
             // An interrupted activation can leave its selection record in the installed folder.
             var root = File.Exists(Path.Combine(pending, PendingFile)) ? pending : this.InstalledPath;
             var selectionPath = Path.Combine(root, PendingFile);
@@ -174,7 +183,7 @@ internal sealed class PackInstaller
             if (root == pending) this.TryCleanup(pending);
             return InstallResult.Succeeded(activePath, result.Manifest!, selection.Folder is null);
         }
-        catch (Exception error)
+        catch (Exception error) when (error is not OperationCanceledException)
         {
             this.log.Error(error, "Could not activate the pending language pack.");
             return InstallResult.Failed(error.Message);
@@ -424,11 +433,46 @@ internal sealed class PackInstaller
     }
 
     // The lock also prevents an unloading instance from sharing staging files with its replacement.
-    private FileStream LockInstallation()
+    private FileStream LockInstallation(bool retryOnSharingViolation = false, CancellationToken cancel = default)
     {
+        const string operation = "acquire-install-lock";
+        const string resource = "installation-lock";
         var path = Path.Combine(this.configDirectory, "pack.install.lock");
-        return FileOperationDiagnostics.Run("acquire-install-lock", "installation-lock", path,
-            () => new FileStream(path, FileMode.OpenOrCreate, FileAccess.ReadWrite, FileShare.None));
+        FileStream Open() => new(path, FileMode.OpenOrCreate, FileAccess.ReadWrite, FileShare.None);
+
+        try
+        {
+            return FileOperationDiagnostics.Run(operation, resource, path, Open);
+        }
+        catch (IOException error) when (retryOnSharingViolation && error.HResult == SharingViolation)
+        {
+            var owner = Task.Run(() => InstallLockOwner.Query(path));
+            Task.Delay(ActivationRetryDelay, cancel).GetAwaiter().GetResult();
+            var observed = owner.IsCompletedSuccessfully ? owner.Result : "indeterminate";
+
+            FileStream acquired;
+            try
+            {
+                acquired = Open();
+            }
+            catch (Exception retryError) when (retryError is IOException or UnauthorizedAccessException)
+            {
+                FileOperationDiagnostics.Attach(retryError, operation, resource, path,
+                    $"Windows observed after the first failure: {observed}. Lock retry failed.");
+                throw;
+            }
+
+            try
+            {
+                this.log.Warning(error, $"Windows observed after the first failure: {observed}. Lock retry succeeded.");
+                return acquired;
+            }
+            catch
+            {
+                acquired.Dispose();
+                throw;
+            }
+        }
     }
 
     private static void RecoverDirectory(string destination, string backup)
