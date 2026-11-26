@@ -289,9 +289,8 @@ internal sealed partial class MainWindow : Form
             throw new InvalidOperationException(result.Error);
         }
         // Recheck before activation. Never replace a pack while the game is open.
-        GameDetection.RequireClosed();
-        cancel.ThrowIfCancellationRequested();
-        var activation = await Task.Run(() => installer.ActivatePending((_, _) => store.Save(settings with { Language = selectedLanguage })), cancel);
+        var activation = await Task.Run(() => installer.ActivatePending(
+            (_, _) => store.Save(settings with { Language = selectedLanguage }), cancel, GameDetection.RequireClosed), cancel);
         if (activation is not { Success: true }) throw new InvalidOperationException(activation?.Error ?? UiText.Get("ActivationFailed"));
         settings = settings with { Language = selectedLanguage };
         chooseLanguage = false;
@@ -365,7 +364,8 @@ internal sealed partial class MainWindow : Form
         var installer = IsCustomPack ? null : Installer;
         if (installer is { HasPending: true })
         {
-            var result = installer.ActivatePending((_, _) => store.Save(settings));
+            var result = await Task.Run(() => installer.ActivatePending(
+                (_, _) => store.Save(settings), cancel, GameDetection.RequireClosed), cancel);
             if (result is not { Success: true }) throw new InvalidOperationException(result?.Error ?? UiText.Get("PendingFailed"));
         }
         if (!IsCustomPack && settings.AutoUpdate)
