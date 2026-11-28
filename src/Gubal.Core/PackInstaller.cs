@@ -20,7 +20,7 @@ internal sealed class PackInstaller
     private static readonly TimeSpan DownloadTimeout = TimeSpan.FromMinutes(10);
 
     private static readonly TimeSpan ManifestTimeout = TimeSpan.FromSeconds(20);
-    private static readonly TimeSpan ActivationRetryDelay = TimeSpan.FromSeconds(5);
+    private static readonly TimeSpan LockRetryDelay = TimeSpan.FromSeconds(5);
 
     private readonly IPackInstallLog log;
     private readonly string configDirectory;
@@ -60,14 +60,15 @@ internal sealed class PackInstaller
     }
 
     public async Task<InstallResult> InstallAsync(string source, IProgress<InstallProgress>? progress = null,
-        CancellationToken cancel = default, bool prepareForRestart = false, PackManifest? expectedManifest = null)
+        CancellationToken cancel = default, bool prepareForRestart = false, PackManifest? expectedManifest = null,
+        bool startupUpdate = false)
     {
         source = source.Trim();
         if (source.Length == 0) return InstallResult.Failed("Nothing to install.");
         try
         {
             if (!IsRemote(source)) this.RequireExternalSource(source);
-            using var installLock = this.LockInstallation();
+            using var installLock = this.LockInstallation(startupUpdate ? "startup update" : null, cancel);
             var destination = Path.Combine(this.configDirectory, prepareForRestart ? PendingFolder : InstalledFolder);
             var backup = Path.Combine(this.configDirectory, prepareForRestart ? PendingBackupFolder : BackupFolder);
             RecoverDirectory(destination, backup);
@@ -130,8 +131,9 @@ internal sealed class PackInstaller
         }
         catch (Exception error)
         {
-            this.log.Error(error, "Could not install the language pack from {Source}.", source);
-            return InstallResult.Failed(error.Message);
+            this.log.Error(error, startupUpdate ? "Could not install the startup language pack update from {Source}."
+                : "Could not install the language pack from {Source}.", source);
+            return InstallResult.Failed(error.Message) with { ErrorLogged = true };
         }
     }
 
@@ -147,7 +149,7 @@ internal sealed class PackInstaller
             if (!Directory.Exists(backup) && !Directory.Exists(pendingBackup) && !this.HasPending)
                 return null;
 
-            using var installLock = this.LockInstallation(retryOnSharingViolation: true, cancel);
+            using var installLock = this.LockInstallation("pending pack activation", cancel);
             cancel.ThrowIfCancellationRequested();
             ensureCanActivate?.Invoke();
             RecoverDirectory(this.InstalledPath, backup);
@@ -433,7 +435,7 @@ internal sealed class PackInstaller
     }
 
     // The lock also prevents an unloading instance from sharing staging files with its replacement.
-    private FileStream LockInstallation(bool retryOnSharingViolation = false, CancellationToken cancel = default)
+    private FileStream LockInstallation(string? retryContext, CancellationToken cancel)
     {
         const string operation = "acquire-install-lock";
         const string resource = "installation-lock";
@@ -444,11 +446,12 @@ internal sealed class PackInstaller
         {
             return FileOperationDiagnostics.Run(operation, resource, path, Open);
         }
-        catch (IOException error) when (retryOnSharingViolation && error.HResult == SharingViolation)
+        catch (IOException error) when (retryContext is not null && error.HResult == SharingViolation)
         {
             var owner = Task.Run(() => InstallLockOwner.Query(path));
-            Task.Delay(ActivationRetryDelay, cancel).GetAwaiter().GetResult();
+            Task.Delay(LockRetryDelay, cancel).GetAwaiter().GetResult();
             var observed = owner.IsCompletedSuccessfully ? owner.Result : "indeterminate";
+            var detail = $"During {retryContext}, Windows observed after the first failure: {observed}.";
 
             FileStream acquired;
             try
@@ -458,13 +461,13 @@ internal sealed class PackInstaller
             catch (Exception retryError) when (retryError is IOException or UnauthorizedAccessException)
             {
                 FileOperationDiagnostics.Attach(retryError, operation, resource, path,
-                    $"Windows observed after the first failure: {observed}. Lock retry failed.");
+                    $"{detail} Lock retry failed.");
                 throw;
             }
 
             try
             {
-                this.log.Warning(error, $"Windows observed after the first failure: {observed}. Lock retry succeeded.");
+                this.log.Warning(error, $"{detail} Lock retry succeeded.");
                 return acquired;
             }
             catch
@@ -565,6 +568,8 @@ internal enum UpdateState
 internal readonly record struct InstallResult(
     bool Success, string Path, PackManifest? Manifest, bool Unpacked, string? Error)
 {
+    public bool ErrorLogged { get; init; }
+
     public static InstallResult Succeeded(string path, PackManifest manifest, bool unpacked) =>
         new(true, path, manifest, unpacked, null);
 
