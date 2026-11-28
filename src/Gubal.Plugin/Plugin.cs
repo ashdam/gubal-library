@@ -566,13 +566,15 @@ public sealed class Plugin : IDalamudPlugin
 
         Diagnostics.Log(log, "Taking language pack {Version} before the game reads its text.", version);
 
-        var result = await this.installer.InstallAsync(this.config.PackSource, null, cancel).ConfigureAwait(false);
+        var result = await this.installer.InstallAsync(this.config.PackSource, cancel: cancel, startupUpdate: true)
+            .ConfigureAwait(false);
 
         if (!result.Success)
         {
-            log.Error(
-                "The startup update did not happen: {Error} The installed pack is untouched.",
-                result.Error ?? "no reason given.");
+            if (!result.ErrorLogged)
+                log.Error(
+                    "The startup update did not happen: {Error} The installed pack is untouched.",
+                    result.Error ?? "no reason given.");
             return null;
         }
 
