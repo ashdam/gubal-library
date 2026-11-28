@@ -39,7 +39,42 @@ internal sealed class GubalLumina
 
     public static string Folder(string configDirectory) => Path.Combine(configDirectory, "sheets");
 
-    public static ShadowState Install(IDataManager data, IReadOnlyDictionary<string, string> pages, string folder, IPluginLog log)
+    public static void Prepare(string gameDataRoot, string folder, string workingPack, string installedPack,
+        PackManifest manifest, ICollection<string> disabledSheets, IPluginLog log, CancellationToken cancel)
+    {
+        var version = ExdRedirector.RunningGameVersion();
+        if (string.IsNullOrWhiteSpace(version) || !string.Equals(manifest.GameVersion, version, StringComparison.Ordinal))
+            return;
+
+        var source = Path.Combine(gameDataRoot, "ffxiv", IndexName);
+        if (!File.Exists(source)) return;
+
+        workingPack = Path.TrimEndingDirectorySeparator(Path.GetFullPath(workingPack));
+        installedPack = Path.TrimEndingDirectorySeparator(Path.GetFullPath(installedPack));
+        var pathLimit = ExdRedirector.MaxLocalPathLength + workingPack.Length - installedPack.Length;
+        var pages = PackContents.Load(workingPack, pathLimit).Servable(disabledSheets);
+        if (pages.Count == 0) return;
+
+        var stamp = Stamp(pages, version, installedPack);
+        var pending = folder + ".pending";
+        if (ReadStamp(folder) == stamp || ReadStamp(pending) == stamp) return;
+
+        var staging = folder + ".staging";
+        try
+        {
+            BuildCache(source, staging, pages, stamp, log, cancel);
+            cancel.ThrowIfCancellationRequested();
+            MoveCache(staging, pending, log);
+            Diagnostics.Log(log, "[shadow] prepared the archive for the next game start.");
+        }
+        finally
+        {
+            RemoveCache(staging, log);
+        }
+    }
+
+    public static ShadowState Install(IDataManager data, IReadOnlyDictionary<string, string> pages, string folder,
+        IPluginLog log, bool usePrepared)
     {
         try
         {
@@ -50,19 +85,21 @@ internal sealed class GubalLumina
                 return new ShadowState(false, $"the game's Excel index is not at {source}.", folder);
             }
 
-            var stamp = Stamp(pages);
-            var stampPath = Path.Combine(folder, StampName);
-            var built = File.Exists(stampPath) ? FileOperationDiagnostics.Run("read-cache-stamp", "sheet-cache", stampPath,
-                () => File.ReadAllText(stampPath).Trim()) : null;
+            var stamp = Stamp(pages, ExdRedirector.RunningGameVersion());
+            var built = ReadStamp(folder);
+            var pending = folder + ".pending";
+            if (built != stamp && usePrepared && ReadStamp(pending) == stamp)
+            {
+                FileOperationDiagnostics.Run("activate-prepared-cache", "sheet-cache", folder,
+                    () => MoveCache(pending, folder, log));
+                built = ReadStamp(folder);
+                if (built == stamp) Diagnostics.Log(log, "[shadow] reusing the prepared archive.");
+            }
 
             if (built != stamp)
             {
                 Diagnostics.Log(log, $"[shadow] building for {stamp} (was {built ?? "nothing"})");
-                var placed = FileOperationDiagnostics.Run("build-cache", "sheet-cache", folder,
-                    () => Build(source, folder, pages, log));
-                FileOperationDiagnostics.Run("write-cache-stamp", "sheet-cache", stampPath,
-                    () => File.WriteAllText(stampPath, stamp));
-                Diagnostics.Log(log, $"[shadow] {placed:N0} page(s) placed");
+                BuildCache(source, folder, pages, stamp, log);
             }
 
             return FileOperationDiagnostics.Run("activate-cache", "sheet-cache", folder,
@@ -80,21 +117,70 @@ internal sealed class GubalLumina
     }
 
     // Include every selected path and its metadata so changes to parts rebuild the archive.
-    private static string Stamp(IReadOnlyDictionary<string, string> pages)
+    private static string Stamp(IReadOnlyDictionary<string, string> pages, string? gameVersion, string? installedPack = null)
     {
         var identity = new StringBuilder();
         foreach (var (gamePath, file) in pages.OrderBy(p => p.Key, StringComparer.Ordinal))
         {
             var fi = new FileInfo(file);
-            identity.Append(gamePath).Append('\0').Append(fi.FullName).Append('\0')
+            var installedPath = installedPack is null ? fi.FullName
+                : Path.Combine(installedPack, gamePath.Replace('/', Path.DirectorySeparatorChar));
+            identity.Append(gamePath).Append('\0').Append(installedPath).Append('\0')
                 .Append(fi.Length).Append(':').Append(fi.LastWriteTimeUtc.Ticks).Append('\n');
         }
 
         var hash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(identity.ToString())));
-        return $"{ExdRedirector.RunningGameVersion() ?? "unknown"}:{hash}";
+        return $"{gameVersion ?? "unknown"}:{hash}";
     }
 
-    private static int Build(string source, string folder, IReadOnlyDictionary<string, string> pages, IPluginLog log)
+    private static string? ReadStamp(string folder)
+    {
+        var path = Path.Combine(folder, StampName);
+        return File.Exists(path) && File.Exists(Path.Combine(folder, IndexName)) && File.Exists(Path.Combine(folder, Dat1Name))
+            ? FileOperationDiagnostics.Run("read-cache-stamp", "sheet-cache", path, () => File.ReadAllText(path).Trim())
+            : null;
+    }
+
+    private static void BuildCache(string source, string folder, IReadOnlyDictionary<string, string> pages, string stamp,
+        IPluginLog log, CancellationToken cancel = default)
+    {
+        var placed = FileOperationDiagnostics.Run("build-cache", "sheet-cache", folder,
+            () => Build(source, folder, pages, log, cancel));
+        var path = Path.Combine(folder, StampName);
+        FileOperationDiagnostics.Run("write-cache-stamp", "sheet-cache", path, () => File.WriteAllText(path, stamp));
+        Diagnostics.Log(log, $"[shadow] {placed:N0} page(s) placed");
+    }
+
+    private static void MoveCache(string source, string destination, IPluginLog log)
+    {
+        var backup = destination + ".backup";
+        if (Directory.Exists(destination))
+        {
+            RemoveCache(backup, log);
+            Directory.Move(destination, backup);
+        }
+
+        try { Directory.Move(source, destination); }
+        catch
+        {
+            if (!Directory.Exists(destination) && Directory.Exists(backup))
+                Directory.Move(backup, destination);
+            throw;
+        }
+        RemoveCache(backup, log);
+    }
+
+    private static void RemoveCache(string folder, IPluginLog log)
+    {
+        try
+        {
+            if (Directory.Exists(folder)) Directory.Delete(folder, recursive: true);
+        }
+        catch (Exception error) { log.Warning(error, "Could not remove the unused shared translation archive."); }
+    }
+
+    private static int Build(string source, string folder, IReadOnlyDictionary<string, string> pages, IPluginLog log,
+        CancellationToken cancel)
     {
         Directory.CreateDirectory(folder);
         Clear(folder, log);
@@ -136,6 +222,7 @@ internal sealed class GubalLumina
             {
                 foreach (var (path, file) in pages)
                 {
+                    cancel.ThrowIfCancellationRequested();
                     var gamePath = path.ToLowerInvariant();
                     var slash = gamePath.LastIndexOf('/');
                     if (slash < 0)

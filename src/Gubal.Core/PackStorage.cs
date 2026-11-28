@@ -56,7 +56,13 @@ internal readonly record struct PackStorageStatus(string Path, long RequiredByte
     public void RequireSpace()
     {
         if (this.Insufficient)
-            throw new IOException($"Not enough free space for '{this.Path}'. Required: {PackStorage.FormatBytes(this.RequiredBytes)}. "
-                + $"Available: {PackStorage.FormatBytes(this.AvailableBytes)}. Includes download, extraction, and a safety reserve.");
+            throw new PackInsufficientSpaceException(this);
     }
+}
+
+internal sealed class PackInsufficientSpaceException(PackStorageStatus status) : IOException(
+    $"Not enough free space for '{status.Path}'. Required: {PackStorage.FormatBytes(status.RequiredBytes)}. "
+    + $"Available: {PackStorage.FormatBytes(status.AvailableBytes)}. Includes download, extraction, and a safety reserve.")
+{
+    public PackStorageStatus Status { get; } = status;
 }

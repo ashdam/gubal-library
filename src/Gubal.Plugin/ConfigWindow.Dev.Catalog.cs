@@ -22,6 +22,8 @@ internal sealed partial class ConfigWindow
             var index = row.GetProperty("index").GetInt32();
             var images = row.GetProperty("images").EnumerateArray().Select(value => value.GetInt32()).ToArray();
             var requests = row.GetProperty("requestImages").EnumerateArray().Select(value => value.GetInt32()).ToArray();
+            var variant = row.TryGetProperty("variant", out var variantField) ? variantField.GetInt32() : 0;
+            var soundEffect = row.TryGetProperty("soundEffect", out var soundField) ? soundField.GetUInt16() : -1;
             uint Required(string name)
             {
                 var value = row.GetProperty(name).GetUInt32();
@@ -55,11 +57,11 @@ internal sealed partial class ConfigWindow
                 "screenImage" => new PreviewScene(ScreenImageId: Required("rowId")),
                 "ktgCountdown" => new PreviewScene(KtgCountdown: true),
                 "cutScreenImage" => new PreviewScene(CutScreenImageId: Required("rowId")),
-                "streak" when Required("value") is 1 or 2 => new PreviewScene(Streak: (int)Required("value")),
-                "maneuverStreak" when Required("value") == 1 => new PreviewScene(ManeuverStreak: 1),
+                "streak" when variant is >= 0 and <= 2 => new PreviewScene(Streak: checked((int)Required("value")), StreakVariant: variant),
+                "maneuverStreak" when variant is 0 or 1 => new PreviewScene(ManeuverStreak: checked((int)Required("value")), StreakVariant: variant),
                 "companyRank" when Required("companyId") is >= 1 and <= 3 => new PreviewScene(CompanyId: Required("companyId")),
                 "directImage" when row.GetProperty("displayType").GetInt32() is >= 0 and <= 3 =>
-                    new PreviewScene(ImageId: (uint)id, DisplayType: row.GetProperty("displayType").GetInt32()),
+                    new PreviewScene(ImageId: (uint)id, DisplayType: row.GetProperty("displayType").GetInt32(), SoundEffect: soundEffect),
                 "locationTitle" => new PreviewScene(TerritoryId: Required("territoryId"),
                     LocationImageId: row.TryGetProperty("replacementTitleId", out _) ? Required("replacementTitleId") : 0,
                     SourceTitleId: row.TryGetProperty("sourceTitleId", out _) ? Required("sourceTitleId") : 0),

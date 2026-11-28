@@ -114,6 +114,8 @@
   "Setup.DownloadSize": { "message": "Download" },
   "Setup.InstalledSize": { "message": "On disk" },
   "Setup.InsufficientDiskSpace": { "message": "Not enough free disk space." },
+  "Update.InsufficientDiskSpace": { "message": "Could not install the language pack update. Not enough free disk space." },
+  "Update.InsufficientDiskSpaceDetails": { "message": "Could not install the language pack update. Not enough free disk space. Required: {0}. Available: {1}." },
   "Setup.DiskSpaceUnknown": { "message": "Could not check free disk space." },
   "Setup.DiskSpaceDetails": { "message": "Required: {0}\nAvailable: {1}" },
   "Items.CopyEnglishName": { "message": "Copy English name" },
@@ -308,11 +310,11 @@
     "description": "ConfigWindow.NoteServing"
   },
   "Setup.Auto": {
-    "message": "Auto-update at start",
+    "message": "Prepare updates automatically",
     "description": "ConfigWindow.DrawAutoUpdateRow"
   },
   "Boot.NotWaiting": {
-    "message": "Enable \"Wait for plugins before game loads\" in Dalamud's General settings to allow language pack activation and startup updates.",
+    "message": "Enable \"Wait for plugins before game loads\" in Dalamud's General settings to activate prepared language packs.",
     "description": "ConfigWindow.DrawBootWaitState"
   },
   "Boot.OpenSettings": {
@@ -362,14 +364,13 @@
     "message": "Select the folder your language pack was built into",
     "description": "ConfigWindow.BrowseForLanguagePack"
   },
+  "Install.PreparingShadow": { "message": "Preparing shared translation" },
   "Install.Done": {
     "message": "Prepared {0} ({1}) for the next game start.",
     "description": "<<Install>b__1>d.MoveNext"
   },
-  "Restart.Installed": {
-    "message": "You installed a new language pack. {0}",
-    "description": "<<Install>b__1>d.MoveNext"
-  },
+  "Restart.PackReady": { "message": "The {0} language pack is ready. Restart FFXIV to apply it." },
+  "Restart.LocalPackReady": { "message": "The language pack is ready. Restart FFXIV to apply it." },
   "Group.Other.Tooltip": {
     "message": "Sheets with no assigned localization category.",
     "description": "PackContents.BuildLayout"
