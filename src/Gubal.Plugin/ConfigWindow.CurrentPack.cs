@@ -44,7 +44,7 @@ internal sealed partial class ConfigWindow
                     {
                         ImGui.TableNextColumn();
                         var top = ImGui.GetCursorPosY();
-                        ImGui.TextDisabled(Loc.Localize("Library.ActivePack", "Active pack"));
+                        ImGui.TextColored(Green, Loc.Localize("Library.ActivePack", "Active pack"));
                         this.DrawPackNameWithReviewers(known?.Code, known is null ? FontAwesomeIcon.FolderOpen : null,
                             known?.Name ?? Loc.Localize("Setup.LanguageOwn", "Custom"), manifest, true, known?.Site);
                         ImGui.Spacing();

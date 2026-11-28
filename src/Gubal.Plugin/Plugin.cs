@@ -1,3 +1,4 @@
+using CheapLoc;
 using Dalamud.Game.Command;
 using Dalamud.Game.Text.SeStringHandling;
 using Dalamud.Game.Text.SeStringHandling.Payloads;
@@ -15,8 +16,6 @@ public sealed class Plugin : IDalamudPlugin
     private const string CommandName = "/gubal";
 
     private const uint OpenConfigLinkId = 1;
-
-    private static readonly TimeSpan BootUpdateBudget = TimeSpan.FromMinutes(2);
 
     private readonly IChatGui chat;
     private readonly IPluginLog log;
@@ -70,6 +69,7 @@ public sealed class Plugin : IDalamudPlugin
     private readonly string? bootUpdate;
 
     private bool bootUpdateAnnounced;
+    private bool packNoticeAnnouncement;
 
     private bool checking;
 
@@ -136,6 +136,7 @@ public sealed class Plugin : IDalamudPlugin
             this.probe = this.config.Debug ? new SqPackProbe(interop, log) : null;
 
             this.installer = DalamudPackInstaller.Create(log, pluginInterface.GetPluginConfigDirectory());
+            var shadowFolder = GubalLumina.Folder(pluginInterface.GetPluginConfigDirectory());
 
             if (this.waitedForPluginsAtBoot)
             {
@@ -145,9 +146,6 @@ public sealed class Plugin : IDalamudPlugin
                 else if (activated is { Success: true, Manifest: { } manifest })
                     this.bootUpdate = manifest.TranslationVersion;
             }
-            if (!this.installer.HasPending)
-                this.bootUpdate = this.UpdateBeforeTheGameReads(log) ?? this.bootUpdate;
-
             if (this.config.ServeLanguagePack && this.config.LanguagePackPath.Length > 0)
             {
                 // Install before the client caches its Excel pages.
@@ -174,8 +172,9 @@ public sealed class Plugin : IDalamudPlugin
                     this.shadow = GubalLumina.Install(
                         data,
                         this.redirector.ServedPages,
-                        GubalLumina.Folder(pluginInterface.GetPluginConfigDirectory()),
-                        log);
+                        shadowFolder,
+                        log,
+                        usePrepared: this.waitedForPluginsAtBoot);
 
                     if (!this.shadow.Ok)
                     {
@@ -230,7 +229,7 @@ public sealed class Plugin : IDalamudPlugin
                 new DalamudGameSignatures(sigScanner), new DalamudGameHooks(interop), new DalamudGameLog(log),
                 () => this.englishItemNames.AreNamesReady);
 
-            this.operations = new PackOperations(this.installer, framework, log);
+            this.operations = new PackOperations(this.installer, framework, log, data.GameData.DataPath.FullName, shadowFolder);
             this.configWindow = new ConfigWindow(
                 this.config,
                 this.ui,
@@ -242,7 +241,7 @@ public sealed class Plugin : IDalamudPlugin
                 data,
                 gameGui,
                 this.operations,
-                this.OnPackPrepared,
+                this.OnPackNotice,
                 this.BeginUpdateCheck,
                 this.SetAutoUpdate,
                 () => DalamudBootWait.IsOn(this.pluginInterface),
@@ -262,7 +261,7 @@ public sealed class Plugin : IDalamudPlugin
             this.clientState.Login += this.OnLogin;
             pluginInterface.LanguageChanged += this.OnLanguageChanged;
 
-            this.BeginUpdateCheck();
+            this.CheckForPackUpdate(prepareAutomatically: pluginInterface.Reason == PluginLoadReason.Boot);
 
             this.commands.AddHandler(CommandName, new CommandInfo(this.OnCommand)
             {
@@ -472,14 +471,33 @@ public sealed class Plugin : IDalamudPlugin
             : new PageStatus(false, 0, 0, 0, 0, this.redirectorError, this.InstalledManifest(), this.update);
     }
 
-    private void OnPackPrepared()
+    private void OnPackNotice()
     {
-        this.chat.Print(DalamudBootWait.IsOn(this.pluginInterface) is true
-            ? "[Gubal]Language pack prepared. Restart the game to activate it."
-            : "[Gubal]Language pack prepared. Enable 'Wait for plugins before game loads' in Dalamud settings to continue.");
+        this.packNoticeAnnouncement = true;
+        this.AnnouncePackNotice();
     }
 
-    private void BeginUpdateCheck()
+    private void AnnouncePackNotice()
+    {
+        if (!this.packNoticeAnnouncement || !this.clientState.IsLoggedIn) return;
+
+        this.packNoticeAnnouncement = false;
+        if (this.operations.UpdateSpaceNotice is { } spaceNotice)
+        {
+            this.chat.PrintError($"[Gubal] {spaceNotice}");
+            return;
+        }
+        if (!this.operations.HasPending || !this.config.ServeLanguagePack) return;
+        var message = DalamudBootWait.IsOn(this.pluginInterface) is true
+            ? this.operations.PendingRestartNotice
+            : Loc.Localize("Boot.NotWaiting",
+                "Enable \"Wait for plugins before game loads\" in Dalamud's General settings to activate prepared language packs.");
+        this.chat.Print($"[Gubal] {message}");
+    }
+
+    private void BeginUpdateCheck() => this.CheckForPackUpdate(prepareAutomatically: false);
+
+    private void CheckForPackUpdate(bool prepareAutomatically)
     {
         var source = this.redirector is not null ? this.sessionPackSource : this.config.InstalledFrom;
         if (!PackInstaller.IsRemote(source))
@@ -497,88 +515,23 @@ public sealed class Plugin : IDalamudPlugin
         this.update = default;
 
         var installed = this.redirector?.Manifest ?? this.InstalledManifest();
-        this.operations.Check(installed, ExdRedirector.RunningGameVersion(), result =>
+        var gameVersion = ExdRedirector.RunningGameVersion();
+        this.operations.Check(installed, gameVersion, result =>
         {
             this.update = result;
             this.checking = false;
+            if (prepareAutomatically && result is { State: UpdateState.Available, Published: { } published }
+                && this.config.AutoUpdatePack && this.config.ServeLanguagePack
+                && !this.operations.HasPending && !this.operations.Installing
+                && string.Equals(source, this.config.PackSource, StringComparison.OrdinalIgnoreCase)
+                && string.Equals(this.config.LanguagePackPath, this.installer.InstalledPath, StringComparison.OrdinalIgnoreCase)
+                && PackVersion.Error(published.GameVersion, gameVersion) is null)
+            {
+                this.configWindow.Install(source, automaticUpdate: published);
+                return;
+            }
             this.Announce();
         });
-    }
-
-    // Startup updates must finish while Dalamud holds the game boot.
-    private string? UpdateBeforeTheGameReads(IPluginLog log)
-    {
-        if (this.pluginInterface.Reason != PluginLoadReason.Boot
-            || !this.config.AutoUpdatePack
-            || !this.config.ServeLanguagePack
-            || !PackInstaller.IsRemote(this.config.PackSource)
-            || !string.Equals(
-                this.config.LanguagePackPath, this.installer.InstalledPath, StringComparison.OrdinalIgnoreCase))
-        {
-            return null;
-        }
-
-        if (!this.waitedForPluginsAtBoot)
-        {
-            log.Warning(
-                "Skipping the startup pack update: Dalamud was not waiting for plugins when this session started. "
-                + "Startup waiting must be enabled before restarting the game.");
-            return null;
-        }
-
-        try
-        {
-            using var budget = new CancellationTokenSource(BootUpdateBudget);
-            return Task.Run(() => this.TakeUpdateAsync(log, budget.Token)).GetAwaiter().GetResult();
-        }
-        catch (Exception e)
-        {
-            log.Error(e, "Updating the language pack during startup failed.");
-            return null;
-        }
-    }
-
-    private async Task<string?> TakeUpdateAsync(IPluginLog log, CancellationToken cancel)
-    {
-        var installed = PackManifest.Read(this.config.LanguagePackPath).Manifest;
-
-        if (await this.installer.CheckForUpdateAsync(installed, cancel, ExdRedirector.RunningGameVersion()).ConfigureAwait(false)
-            is not { State: UpdateState.Available, Published: { } published })
-        {
-            return null;
-        }
-
-        // Automatic updates require the current game version.
-        var version = published.TranslationVersion ?? "unversioned";
-        var running = ExdRedirector.RunningGameVersion();
-
-        var builtFor = published.GameVersion;
-        if (PackVersion.Error(builtFor, running) is not null)
-        {
-            log.Warning(
-                "Not taking language pack {Version}: it is built for game {BuiltFor} and this client "
-                + "runs {Running}. The installed pack is left alone.",
-                version,
-                builtFor ?? "an unknown version",
-                running ?? "an unknown version");
-            return null;
-        }
-
-        Diagnostics.Log(log, "Taking language pack {Version} before the game reads its text.", version);
-
-        var result = await this.installer.InstallAsync(this.config.PackSource, cancel: cancel, startupUpdate: true)
-            .ConfigureAwait(false);
-
-        if (!result.Success)
-        {
-            if (!result.ErrorLogged)
-                log.Error(
-                    "The startup update did not happen: {Error} The installed pack is untouched.",
-                    result.Error ?? "no reason given.");
-            return null;
-        }
-
-        return result.Manifest?.TranslationVersion ?? "unversioned";
     }
 
     private void SetAutoUpdate(bool value)
@@ -590,6 +543,7 @@ public sealed class Plugin : IDalamudPlugin
 
     private void Announce()
     {
+        if (this.operations.Installing || this.operations.HasPending || this.operations.AutomaticUpdateNeedsSpace) return;
         var status = this.update;
 
         if (status is { State: UpdateState.Available, Published: { TranslationVersion: { Length: > 0 } version } published })
@@ -622,6 +576,7 @@ public sealed class Plugin : IDalamudPlugin
         }
 
         this.AnnounceShadow();
+        this.AnnouncePackNotice();
         this.Announce();
     }
 
@@ -646,18 +601,7 @@ public sealed class Plugin : IDalamudPlugin
                     .AddText(" to see it again, and please report it.")
                     .Build());
             }
-            else
-            {
-                this.chat.Print(new SeStringBuilder()
-                    .AddText("[Gubal]Other plugins read the translation too. ")
-                    .AddUiForeground(539)
-                    .AddText("If one of them starts behaving oddly, please say which one")
-                    .AddUiForegroundOff()
-                    .AddText(", that is a bug worth fixing rather than living with.")
-                    .Build());
-            }
         }
-
     }
 
     private static SeString BuildUpdateAnnouncement(PackManifest published, DalamudLinkPayload link)

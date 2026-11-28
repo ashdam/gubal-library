@@ -114,6 +114,8 @@
   "Setup.DownloadSize": { "message": "Download" },
   "Setup.InstalledSize": { "message": "Su disco" },
   "Setup.InsufficientDiskSpace": { "message": "Spazio libero insufficiente." },
+  "Update.InsufficientDiskSpace": { "message": "Impossibile installare l’aggiornamento del pacchetto lingua per mancanza di spazio libero." },
+  "Update.InsufficientDiskSpaceDetails": { "message": "Impossibile installare l’aggiornamento del pacchetto lingua per mancanza di spazio libero. Necessario: {0}. Disponibile: {1}." },
   "Setup.DiskSpaceUnknown": { "message": "Impossibile verificare lo spazio libero." },
   "Setup.DiskSpaceDetails": { "message": "Necessario: {0}\nDisponibile: {1}" },
   "Items.CopyEnglishName": { "message": "Copia nome in inglese" },
@@ -169,9 +171,8 @@
   "Restart.Parts": {
     "message": "Hai cambiato quali parti vengono tradotte. Il gioco legge tutto il suo testo una sola volta, all'avvio, quindi questo avrà effetto la prossima volta che parte."
   },
-  "Restart.Installed": {
-    "message": "Hai installato un nuovo pacchetto lingua. {0}"
-  },
+  "Restart.PackReady": { "message": "Il pacchetto «{0}» è pronto. Riavvia FFXIV per applicarlo." },
+  "Restart.LocalPackReady": { "message": "Il pacchetto lingua è pronto. Riavvia FFXIV per applicarlo." },
 
   "Restart.Serving": {
     "message": "Hai cambiato lingua. Il gioco legge tutto il suo testo una volta, all'avvio, quindi questo ha effetto al prossimo avvio."
@@ -236,17 +237,18 @@
   "Setup.Browse": { "message": "Sfoglia..." },
   "Setup.Install": { "message": "Installa" },
   "Setup.LanguageEnglish": { "message": "Inglese (nessuna traduzione)" },
-  "Setup.Auto": { "message": "Aggiorna da solo all'avvio" },
+  "Setup.Auto": { "message": "Prepara automaticamente gli aggiornamenti" },
   "Setup.PickerTitle": { "message": "Scegli la cartella in cui è stato costruito il tuo language pack" },
 
   "Boot.NotWaiting": {
-    "message": "Attiva «Wait for plugins before game loads» nella scheda General delle impostazioni di Dalamud per consentire l’attivazione dei pacchetti e gli aggiornamenti all’avvio."
+    "message": "Attiva «Wait for plugins before game loads» nella scheda General delle impostazioni di Dalamud per attivare i pacchetti già preparati."
   },
   "Boot.OpenSettings": { "message": "Apri le impostazioni di Dalamud" },
   "Boot.WhereTip": {
     "message": "È nella scheda General, si chiama «Wait for plugins before game loads»."
   },
 
+  "Install.PreparingShadow": { "message": "Preparazione della traduzione condivisa" },
   "Install.Done": { "message": "Preparato {0} ({1}) per il prossimo avvio del gioco." },
 
   "Help.ReportBug": { "message": "Segnala un errore" },

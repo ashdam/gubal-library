@@ -56,7 +56,7 @@ internal sealed partial class ConfigWindow
     private sealed record BannerPreview(int Id, string Name,
         string RelativePath = "", string OriginalName = "", PreviewScene? NativeScene = null, bool HasTranslation = false);
 
-    private sealed record PreviewScene(uint CutScreenImageId = 0, uint ScreenImageId = 0, int Streak = 0, int ManeuverStreak = 0, uint TerritoryId = 0, uint CompanyId = 0, uint ImageId = 0, int DisplayType = 0, uint LocationImageId = 0, uint SourceTitleId = 0, int Mode = 0, int Index = 0, int[]? Images = null, int[]? RequestImages = null, bool KtgCountdown = false, NativeLayout? Layout = null);
+    private sealed record PreviewScene(uint CutScreenImageId = 0, uint ScreenImageId = 0, int Streak = 0, int ManeuverStreak = 0, uint TerritoryId = 0, uint CompanyId = 0, uint ImageId = 0, int DisplayType = 0, uint LocationImageId = 0, uint SourceTitleId = 0, int Mode = 0, int Index = 0, int[]? Images = null, int[]? RequestImages = null, bool KtgCountdown = false, NativeLayout? Layout = null, int StreakVariant = 0, int SoundEffect = -1);
     private sealed record SceneTexture(nint Asset, AtkTexture Texture, nint Metadata);
     private Task<Dictionary<int, IDalamudTextureWrap>>? previewSceneTextures;
     private readonly Dictionary<int, nint> nativeSceneTextures = [];
@@ -298,14 +298,14 @@ internal sealed partial class ConfigWindow
             this.BeginSceneRequest(mode, index, scene.RequestImages
                 ?? throw new InvalidDataException("Native request images are missing from the catalog."));
             if (scene.KtgCountdown) this.ShowKtgCountdown(scene);
-            else if (scene.Streak != 0) ui->ShowStreak(scene.Streak, 0);
-            else if (scene.ManeuverStreak != 0) ui->ShowAddonKillStreakForManeuvers(scene.ManeuverStreak, 0);
+            else if (scene.Streak != 0) ui->ShowStreak(scene.Streak, scene.StreakVariant);
+            else if (scene.ManeuverStreak != 0) ui->ShowAddonKillStreakForManeuvers(scene.ManeuverStreak, scene.StreakVariant);
             else if (scene.CompanyId != 0) ui->ShowGrandCompanyRankUp(scene.CompanyId, 1, false);
             else if (scene.ImageId != 0)
             {
                 if (this.showRawImage == 0) throw new InvalidOperationException("Native image function was not found.");
                 var show = (delegate* unmanaged<RaptureAtkModule*, uint, byte, int, int, byte>)this.showRawImage;
-                if (show(ui->GetRaptureAtkModule(), scene.ImageId, 1, scene.DisplayType, -1) == 0)
+                if (show(ui->GetRaptureAtkModule(), scene.ImageId, 1, scene.DisplayType, scene.SoundEffect) == 0)
                     throw new InvalidOperationException("The game did not open the native image.");
             }
             else if (scene.TerritoryId != 0)

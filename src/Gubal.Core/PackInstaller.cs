@@ -16,6 +16,8 @@ internal sealed class PackInstaller
 
     private const string DownloadFile = "pack.download.zip";
     private const int SharingViolation = unchecked((int)0x80070020);
+    private const int DiskFull = unchecked((int)0x80070070);
+    private const int HandleDiskFull = unchecked((int)0x80070027);
 
     private static readonly TimeSpan DownloadTimeout = TimeSpan.FromMinutes(10);
 
@@ -61,14 +63,14 @@ internal sealed class PackInstaller
 
     public async Task<InstallResult> InstallAsync(string source, IProgress<InstallProgress>? progress = null,
         CancellationToken cancel = default, bool prepareForRestart = false, PackManifest? expectedManifest = null,
-        bool startupUpdate = false)
+        bool automaticUpdate = false, Action<string, string, PackManifest, CancellationToken>? preparePending = null)
     {
         source = source.Trim();
         if (source.Length == 0) return InstallResult.Failed("Nothing to install.");
         try
         {
             if (!IsRemote(source)) this.RequireExternalSource(source);
-            using var installLock = this.LockInstallation(startupUpdate ? "startup update" : null, cancel);
+            using var installLock = this.LockInstallation(automaticUpdate ? "automatic update" : null, cancel);
             var destination = Path.Combine(this.configDirectory, prepareForRestart ? PendingFolder : InstalledFolder);
             var backup = Path.Combine(this.configDirectory, prepareForRestart ? PendingBackupFolder : BackupFolder);
             RecoverDirectory(destination, backup);
@@ -108,13 +110,20 @@ internal sealed class PackInstaller
                     progress?.Report(InstallProgress.Working("Checking the pack"));
                     result = ValidateArchive(staging);
                     if (!result.Success) return result;
+                    if (automaticUpdate && (string.IsNullOrWhiteSpace(expectedManifest?.GameVersion)
+                        || !string.Equals(result.Manifest?.GameVersion, expectedManifest.GameVersion, StringComparison.Ordinal)))
+                        return InstallResult.Failed("The downloaded update is for a different or unknown game version.");
                     root = result.Path;
                 }
                 cancel.ThrowIfCancellationRequested();
                 if (prepareForRestart)
+                {
+                    preparePending?.Invoke(result.Path, custom ? result.Path : this.InstalledPath, result.Manifest!, cancel);
+                    cancel.ThrowIfCancellationRequested();
                     FileOperationDiagnostics.Run("write-pending-selection", "pending-pack", Path.Combine(root, PendingFile),
                         () => File.WriteAllText(Path.Combine(root, PendingFile),
                             JsonSerializer.Serialize(new PendingPack(source, custom ? result.Path : null))));
+                }
                 else DeleteFileIfPresent(Path.Combine(root, PendingFile));
                 this.ReplaceDirectory(root, destination, backup);
                 return InstallResult.Succeeded(custom ? result.Path : destination, result.Manifest!, !custom);
@@ -131,9 +140,20 @@ internal sealed class PackInstaller
         }
         catch (Exception error)
         {
-            this.log.Error(error, startupUpdate ? "Could not install the startup language pack update from {Source}."
-                : "Could not install the language pack from {Source}.", source);
-            return InstallResult.Failed(error.Message) with { ErrorLogged = true };
+            var cause = error.GetBaseException();
+            var space = (cause as PackInsufficientSpaceException)?.Status;
+            var insufficientSpace = space is not null || cause.HResult is DiskFull or HandleDiskFull;
+            if (automaticUpdate && insufficientSpace)
+                this.log.Warning("Could not prepare the automatic language pack update. {Reason}", cause.Message);
+            else
+                this.log.Error(error, automaticUpdate ? "Could not prepare the automatic language pack update from {Source}."
+                    : "Could not install the language pack from {Source}.", source);
+            return InstallResult.Failed(error.Message) with
+            {
+                FailureLogged = true,
+                InsufficientSpace = insufficientSpace,
+                DiskSpace = space,
+            };
         }
     }
 
@@ -568,7 +588,9 @@ internal enum UpdateState
 internal readonly record struct InstallResult(
     bool Success, string Path, PackManifest? Manifest, bool Unpacked, string? Error)
 {
-    public bool ErrorLogged { get; init; }
+    public bool FailureLogged { get; init; }
+    public bool InsufficientSpace { get; init; }
+    public PackStorageStatus? DiskSpace { get; init; }
 
     public static InstallResult Succeeded(string path, PackManifest manifest, bool unpacked) =>
         new(true, path, manifest, unpacked, null);

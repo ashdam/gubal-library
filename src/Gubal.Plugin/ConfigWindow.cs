@@ -46,7 +46,7 @@ internal sealed partial class ConfigWindow : Window
 
     private readonly ITextureProvider textures;
 
-    private readonly Action onPackPrepared;
+    private readonly Action onPackNotice;
 
     private readonly Action checkForUpdate;
 
@@ -81,7 +81,7 @@ internal sealed partial class ConfigWindow : Window
         IDataManager data,
         IGameGui gameGui,
         PackOperations operations,
-        Action onPackPrepared,
+        Action onPackNotice,
         Action checkForUpdate,
         Action<bool> setAutoUpdate,
         Func<bool?> dalamudWaits,
@@ -107,7 +107,7 @@ internal sealed partial class ConfigWindow : Window
         if (string.IsNullOrWhiteSpace(config.OwnPackFolder) && config.LanguagePackPath.Length > 0
             && !SameSource(config.LanguagePackPath, operations.InstalledPath))
             config.OwnPackFolder = config.LanguagePackPath;
-        this.onPackPrepared = onPackPrepared;
+        this.onPackNotice = onPackNotice;
         this.checkForUpdate = checkForUpdate;
         this.setAutoUpdate = setAutoUpdate;
         this.dalamudWaits = dalamudWaits;
@@ -130,10 +130,6 @@ internal sealed partial class ConfigWindow : Window
         var pages = this.pageStatus();
         var changed = false;
 
-        if (this.operations.HasPending && this.config.ServeLanguagePack)
-        {
-            this.restartReason = InstalledPackRestartMessage();
-        }
         this.DrawLibrary(pages, ref changed);
 
         if (changed)
@@ -470,7 +466,7 @@ internal sealed partial class ConfigWindow : Window
         };
 
         var height = ImGui.GetTextLineHeight();
-        if (message.Length == 0 || this.restartReason is not null)
+        if (message.Length == 0 || this.restartReason is not null || this.operations.HasPending && this.config.ServeLanguagePack)
         {
             ImGui.Dummy(new Vector2(0, height));
             return;
@@ -495,16 +491,18 @@ internal sealed partial class ConfigWindow : Window
     {
         var pages = this.pageStatus();
         var cacheNotice = this.shadowState()?.RestartNotice;
+        var spaceNotice = cacheNotice is null ? this.operations.UpdateSpaceNotice : null;
+        var errorNotice = cacheNotice ?? spaceNotice;
         var inactivePack = this.HasInactivePack(pages);
         var pendingPack = this.operations.HasPending && this.config.ServeLanguagePack;
-        var needsSetup = cacheNotice is null && pendingPack && this.dalamudWaits() is not true;
-        if (cacheNotice is null && !needsSetup && !inactivePack && string.IsNullOrWhiteSpace(this.restartReason)) return;
-        var reason = this.restartReason ?? Loc.Localize("Pack.Pending",
+        var needsSetup = errorNotice is null && pendingPack && this.dalamudWaits() is not true;
+        if (errorNotice is null && !pendingPack && !inactivePack && string.IsNullOrWhiteSpace(this.restartReason)) return;
+        var reason = pendingPack ? this.operations.PendingRestartNotice : this.restartReason ?? Loc.Localize("Pack.Pending",
             "A language pack is installed but not in use yet. Restart the game.");
-        var label = cacheNotice ?? (needsSetup ? Loc.Localize("Setup.WaitRequired", "Setup required")
+        var label = errorNotice ?? (needsSetup ? Loc.Localize("Setup.WaitRequired", "Setup required")
             : pendingPack || inactivePack ? reason : Loc.Localize("Restart.Title", "RESTART THE GAME"));
-        var icon = (needsSetup ? FontAwesomeIcon.ExclamationTriangle : FontAwesomeIcon.PowerOff).ToIconString();
-        var colour = cacheNotice is not null ? Red : Amber;
+        var icon = (needsSetup || spaceNotice is not null ? FontAwesomeIcon.ExclamationTriangle : FontAwesomeIcon.PowerOff).ToIconString();
+        var colour = errorNotice is not null ? Red : Amber;
         var spacing = ImGui.GetStyle().ItemSpacing.X;
         ImGui.SetCursorScreenPos(new Vector2(contentX, centerY - ImGui.GetTextLineHeight() / 2));
         using (ImRaii.Group())
@@ -523,12 +521,12 @@ internal sealed partial class ConfigWindow : Window
             DrawCenteredWrappedText(label, centerY, textWidth);
         }
         if (needsSetup && ImGui.IsItemClicked()) this.openDalamudSettings();
-        if (cacheNotice is not null || !ImGui.IsItemHovered()) return;
+        if (errorNotice is not null || !ImGui.IsItemHovered()) return;
         using var tooltip = ImRaii.Tooltip();
         using var wrap = ImRaii.TextWrapPos(400f * ImGuiHelpers.GlobalScale);
         if (needsSetup)
             ImGui.TextWrapped(Loc.Localize("Boot.NotWaiting",
-                "Enable \"Wait for plugins before game loads\" in Dalamud's General settings to allow language pack activation and startup updates."));
+                "Enable \"Wait for plugins before game loads\" in Dalamud's General settings to activate prepared language packs."));
         else
         {
             if (!pendingPack) ImGui.TextWrapped(reason);
@@ -644,9 +642,6 @@ internal sealed partial class ConfigWindow : Window
     private static string PackRestartLabel() =>
         Loc.Localize("Library.Ready", "Please restart the game to apply it.");
 
-    private static string InstalledPackRestartMessage() =>
-        string.Format(Loc.Localize("Restart.Installed", "You installed a new language pack. {0}"), PackRestartLabel());
-
     private static void DrawCenteredWrappedText(string text, float centerY, float width)
     {
         var position = ImGui.GetCursorScreenPos();
@@ -736,6 +731,7 @@ internal sealed partial class ConfigWindow : Window
     private void DrawInstallProgress()
     {
         var progress = this.operations.Progress;
+        ImGui.SetCursorPosX(ImGui.GetCursorPosX() + ImGui.GetStyle().ItemSpacing.X);
         PluginUi.ProgressBar(progress.Fraction ?? -1f * (float)ImGui.GetTime(),
             new Vector2(-1, ImGui.GetFrameHeight()), progress.Label);
         if (ImGui.IsItemHovered()) SetTooltip(progress.Detail);
@@ -782,7 +778,7 @@ internal sealed partial class ConfigWindow : Window
         }
 
         var auto = this.config.AutoUpdatePack;
-        if (PluginUi.Checkbox(Loc.Localize("Setup.Auto", "Auto-update at start"), ref auto))
+        if (PluginUi.Checkbox(Loc.Localize("Setup.Auto", "Prepare updates automatically"), ref auto))
         {
             this.setAutoUpdate(auto);
         }
@@ -804,7 +800,7 @@ internal sealed partial class ConfigWindow : Window
 
         ImGui.PushStyleColor(ImGuiCol.Text, Amber);
         ImGui.TextWrapped(Loc.Localize("Boot.NotWaiting",
-            "Enable \"Wait for plugins before game loads\" in Dalamud's General settings to allow language pack activation and startup updates."));
+            "Enable \"Wait for plugins before game loads\" in Dalamud's General settings to activate prepared language packs."));
         ImGui.PopStyleColor();
 
         if (PluginUi.Button($"{Loc.Localize("Boot.OpenSettings", "Open Dalamud settings")}##bootWait"))
@@ -816,24 +812,25 @@ internal sealed partial class ConfigWindow : Window
             "It is on the General tab, called \"Wait for plugins before game loads\"."));
     }
 
-    private void Install(string source)
+    public void Install(string source, PackManifest? automaticUpdate = null)
     {
         this.installMessage = null;
-        this.operations.Install(source, this.config, this.save, this.onPackPrepared, result =>
+        this.operations.Install(source, this.config, this.save, this.onPackNotice, result =>
         {
             this.installFailed = !result.Success;
             if (!result.Success)
             {
-                this.installMessage = result.Error;
+                if (automaticUpdate is null || !result.InsufficientSpace)
+                    this.installMessage = result.Error;
                 return;
             }
+            if (automaticUpdate is not null) return;
             var pack = result.Manifest!;
             this.installMessage = string.Format(
                 Loc.Localize("Install.Done", "Prepared {0} ({1}) for the next game start."),
                 pack.DisplayName,
                 pack.TranslationVersion ?? Loc.Localize("Pack.Unversioned", "unversioned"));
-            this.restartReason = InstalledPackRestartMessage();
-        });
+        }, automaticUpdate);
     }
 
     private static void DrawPackDetail(PackManifest pack, PageStatus pages)

@@ -1,3 +1,4 @@
+using CheapLoc;
 using Dalamud.Plugin.Services;
 
 namespace GubalLibrary;
@@ -8,6 +9,8 @@ internal sealed class PackOperations : IDisposable
     private readonly PackInstaller installer;
     private readonly IFramework framework;
     private readonly IPluginLog log;
+    private readonly string gameDataRoot;
+    private readonly string shadowFolder;
     private readonly CancellationTokenSource cancellation = new();
     private readonly Queue<Action> completed = new();
     private readonly List<Task> tasks = [];
@@ -18,12 +21,15 @@ internal sealed class PackOperations : IDisposable
     private readonly object gate = new();
     private volatile bool disposed;
     private InstallProgress progress = InstallProgress.Working("Starting");
+    private InstallResult? automaticUpdateSpaceFailure;
 
-    public PackOperations(PackInstaller installer, IFramework framework, IPluginLog log)
+    public PackOperations(PackInstaller installer, IFramework framework, IPluginLog log, string gameDataRoot, string shadowFolder)
     {
         this.installer = installer;
         this.framework = framework;
         this.log = log;
+        this.gameDataRoot = gameDataRoot;
+        this.shadowFolder = shadowFolder;
         this.HasPending = installer.HasPending;
         this.PendingSource = installer.ReadPendingSource();
         framework.Update += this.ApplyResults;
@@ -32,36 +38,72 @@ internal sealed class PackOperations : IDisposable
     public string InstalledPath => this.installer.InstalledPath;
     public bool Installing { get; private set; }
     public bool HasPending { get; private set; }
+    public bool AutomaticUpdateNeedsSpace => this.automaticUpdateSpaceFailure is not null;
     public string? PendingSource { get; private set; }
     public string? InstallingSource { get; private set; }
     public InstallProgress Progress { get { lock (this.gate) return this.progress; } }
+    public string? UpdateSpaceNotice => this.automaticUpdateSpaceFailure switch
+    {
+        null => null,
+        { DiskSpace: { AvailableBytes: { } available } space } => string.Format(
+            Loc.Localize("Update.InsufficientDiskSpaceDetails",
+                "Could not install the language pack update. Not enough free disk space. Required: {0}. Available: {1}."),
+            PackStorage.FormatBytes(space.RequiredBytes), PackStorage.FormatBytes(available)),
+        _ => Loc.Localize("Update.InsufficientDiskSpace", "Could not install the language pack update. Not enough free disk space."),
+    };
+    public string PendingRestartNotice
+    {
+        get
+        {
+            var name = KnownPacks.All.FirstOrDefault(pack => pack.Source is not null
+                && string.Equals(pack.Source, this.PendingSource, StringComparison.OrdinalIgnoreCase)).Name;
+            return name is not null
+                ? string.Format(Loc.Localize("Restart.PackReady", "The {0} language pack is ready. Restart FFXIV to apply it."), name)
+                : Loc.Localize("Restart.LocalPackReady", "The language pack is ready. Restart FFXIV to apply it.");
+        }
+    }
 
     public void Install(string source, Configuration config, Action<Configuration> save,
-        Action installed, Action<InstallResult> finished)
+        Action notice, Action<InstallResult> finished, PackManifest? automaticUpdate = null)
     {
         if (this.Installing || this.disposed) return;
         this.Installing = true;
         this.InstallingSource = source;
+        this.automaticUpdateSpaceFailure = null;
         lock (this.gate) this.progress = InstallProgress.Working("Starting");
         var report = new InstallReporter(value => { lock (this.gate) this.progress = value; });
+        var disabledSheets = new HashSet<string>(config.DisabledSheets, config.DisabledSheets.Comparer);
+        var shadowLabel = Loc.Localize("Install.PreparingShadow", "Preparing shared translation");
         var pack = KnownPacks.All.FirstOrDefault(pack => string.Equals(pack.Source, source, StringComparison.OrdinalIgnoreCase));
         this.published.TryGetValue(pack.Code ?? string.Empty, out var manifest);
         this.Run(cancel => this.installer.InstallAsync(source, report, cancel, prepareForRestart: true,
-            expectedManifest: manifest), result =>
+            expectedManifest: automaticUpdate ?? manifest, automaticUpdate: automaticUpdate is not null,
+            preparePending: (working, destination, packManifest, token) =>
+            {
+                report.Report(InstallProgress.Working(shadowLabel));
+                GubalLumina.Prepare(this.gameDataRoot, this.shadowFolder, working, destination, packManifest,
+                    disabledSheets, this.log, token);
+            }), result =>
         {
             try
             {
-                if (!result.Success)
+                if (!result.Success && !result.FailureLogged)
                     this.log.Error("Could not install the language pack: {Error}", result.Error ?? "Unknown installation error.");
                 if (result.Success)
                 {
                     this.HasPending = true;
                     this.PendingSource = source;
-                    config.PackSource = source;
-                    config.ServeLanguagePack = true;
-                    save(config);
-                    installed();
+                    if (automaticUpdate is null)
+                    {
+                        config.PackSource = source;
+                        config.ServeLanguagePack = true;
+                        save(config);
+                    }
                 }
+                if (automaticUpdate is not null && result.InsufficientSpace)
+                    this.automaticUpdateSpaceFailure = result;
+                if (result.Success || this.AutomaticUpdateNeedsSpace)
+                    notice();
                 finished(result);
             }
             catch (Exception error)
